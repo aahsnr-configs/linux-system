@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+
+# Fuzzy SSH Launcher - Interactive SSH host selection using fzf
+# Usage: fssh [query]
+
+set -euo pipefail
+
+# Display help information
+show_help() {
+    cat << 'EOF'
+Fuzzy SSH Launcher
+
+DESCRIPTION
+    An interactive SSH host selector that uses fzf to provide fuzzy searching
+    through hosts defined in your ~/.ssh/config file. Launch SSH sessions with
+    ease by filtering through your configured hosts.
+
+USAGE
+    fssh [query]
+
+ARGUMENTS
+    query       Optional initial search query for fzf filtering.
+                If provided, fzf will start with this text in the search box,
+                allowing you to quickly narrow down host matches.
+                
+                Examples:
+                    fssh prod    # Start with "prod" in the search box
+                    fssh web     # Start with "web" in the search box
+                    fssh         # Start with empty search box
+
+FLAGS/OPTIONS
+    -h, --help  Display this help message and exit.
+
+DEPENDENCIES
+    This script requires the following tools to be installed:
+    
+    - fzf             Fuzzy finder for interactive selection
+    - openssh-client  SSH client (provides the ssh command)
+    - awk             Text processing tool (typically pre-installed)
+
+CONFIGURATION
+    The script reads host definitions from ~/.ssh/config. Ensure this file
+    exists and contains Host entries. Example config:
+    
+        Host webserver web
+            HostName 192.168.1.100
+            User admin
+        
+        Host database db prod-db
+            HostName db.example.com
+            User dbadmin
+            Port 2222
+    
+    Note: Host entries with wildcards (e.g., Host *) are automatically excluded.
+
+EXAMPLES
+    # Launch with empty search, browse all hosts
+    fssh
+    
+    # Start searching for hosts containing "prod"
+    fssh prod
+    
+    # Quickly filter to staging hosts
+    fssh staging
+    
+    # Search for database hosts
+    fssh db
+
+NOTES
+    - Multiple aliases per Host line are fully supported
+    - Wildcard hosts (Host *) are automatically filtered out
+    - The script uses 'exec' to replace itself with SSH, avoiding lingering processes
+    - Press Ctrl+C in fzf to cancel without connecting
+
+EOF
+}
+
+# Parse command-line arguments
+if [[ $# -gt 0 ]]; then
+    case "$1" in
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+        *)
+            QUERY="$1"
+            ;;
+    esac
+else
+    QUERY=""
+fi
+
+# Verify SSH config exists
+if [[ ! -f "$HOME/.ssh/config" ]]; then
+    echo "Error: ~/.ssh/config not found" >&2
+    echo "Please create an SSH config file with Host entries." >&2
+    exit 1
+fi
+
+# Verify dependencies
+for cmd in fzf ssh awk; do
+    if ! command -v "$cmd" &>/dev/null; then
+        echo "Error: Required command '$cmd' not found" >&2
+        echo "Please install $cmd and try again." >&2
+        exit 1
+    fi
+done
+
+# Extract all host aliases from SSH config
+# This awk command:
+# - Matches lines starting with "Host "
+# - Excludes lines containing wildcards (*)
+# - Prints all fields from position 2 onwards (all aliases on the line)
+HOST=$(awk '/^Host / && !/\*/ {for (i=2; i<=NF; i++) print $i}' "$HOME/.ssh/config" | \
+    fzf --height "40%" \
+        --layout "reverse" \
+        --border "rounded" \
+        --prompt="SSH to > " \
+        --no-multi \
+        --query="$QUERY" \
+        --preview 'ssh -G {} | grep -E "^(hostname|user|port|identityfile)" | column -t' \
+        --preview-window 'right:40%:wrap')
+
+# Connect to selected host using exec to replace the current shell process
+# This eliminates the wrapper script from the process tree during the SSH session
+if [[ -n "$HOST" ]]; then
+    exec ssh "$HOST"
+fi

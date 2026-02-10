@@ -1,0 +1,139 @@
+#!/usr/bin/env bash
+
+# Strict Mode:
+# -e: Exit immediately if a command exits with a non-zero status.
+# -u: Treat unset variables as an error.
+# -o pipefail: The return value of a pipeline is the status of the last command to exit with a non-zero status.
+set -euo pipefail
+
+show_help() {
+    cat <<EOF
+Usage: $(basename "$0") [OPTIONS] [PATHS...]
+
+Description:
+  A fuzzy configuration finder and editor. Searches for hidden files and regular 
+  files in specified directories (or defaults to current directory and home), 
+  previews them with syntax highlighting, and opens your selection in your 
+  preferred editor.
+
+Arguments:
+  PATHS...          Optional directories to search. If provided, only these paths
+                    will be searched. If omitted, defaults to current directory (.)
+                    and home directory (\$HOME).
+                    
+                    Examples:
+                      fconf                    # Search . and \$HOME
+                      fconf /etc               # Search only /etc
+                      fconf /etc ~/.config     # Search /etc and ~/.config
+
+Options:
+  -h, --help        Show this help message and exit
+
+Environment Variables:
+  EDITOR            The editor to use for opening files (default: nvim)
+                    You can override this by setting EDITOR in your shell:
+                      export EDITOR=nano
+                      export EDITOR=emacs
+                      export EDITOR=code
+
+Required Dependencies:
+  The following CLI tools must be installed and available in your PATH:
+  
+  1. fd    - A simple, fast and user-friendly alternative to 'find'
+             Install: https://github.com/sharkdp/fd
+             
+  2. fzf   - A command-line fuzzy finder
+             Install: https://github.com/junegunn/fzf
+             
+  3. bat   - A cat clone with syntax highlighting (used for file previews)
+             Install: https://github.com/sharkdp/bat
+
+  If any of these tools are missing, the script will fail. Please install them
+  using your system's package manager (apt, dnf, brew, pacman, etc.).
+
+Examples:
+  # Search current directory and home with default editor (nvim)
+  fconf
+
+  # Search only /etc directory
+  fconf /etc
+
+  # Search multiple custom directories
+  fconf ~/.config /etc/nginx
+
+  # Use a different editor for this session
+  EDITOR=nano fconf
+
+  # Use a different editor permanently (add to ~/.bashrc or ~/.zshrc)
+  export EDITOR=emacs
+  fconf
+
+How It Works:
+  1. fd finds all files (including hidden ones) in the search paths
+  2. fzf presents an interactive fuzzy finder interface
+  3. bat provides syntax-highlighted previews as you navigate
+  4. Your selected file opens in nvim (or your configured EDITOR)
+
+Tips:
+  - In the fzf interface, just start typing to filter files
+  - Use arrow keys or Ctrl-j/k to navigate
+  - Press Enter to select and open a file
+  - Press Esc or Ctrl-c to cancel without opening anything
+  - The preview window shows file contents with syntax highlighting
+
+EOF
+}
+
+main() {
+    # Parse command-line arguments
+    local search_paths=()
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -h|--help)
+                show_help
+                exit 0
+                ;;
+            -*)
+                echo "Error: Unknown option: $1" >&2
+                echo "Use -h or --help for usage information." >&2
+                exit 1
+                ;;
+            *)
+                # It's a path argument
+                search_paths+=("$1")
+                ;;
+        esac
+        shift
+    done
+    
+    # If no paths provided, use defaults
+    if [[ ${#search_paths[@]} -eq 0 ]]; then
+        search_paths=("." "$HOME")
+    fi
+    
+    # Run fd to find files and pipe to fzf
+    # fd: --type f (files only), --hidden (include hidden files), . (match all)
+    # fzf: Interactive fuzzy finder with preview using bat
+    # The '|| true' prevents 'set -e' from terminating if user cancels (exit code 130)
+    local selected
+    selected=$(fd --type f --hidden . "${search_paths[@]}" 2>/dev/null | \
+        fzf --height=60% \
+            --layout=reverse \
+            --border=rounded \
+            --prompt="Edit Config > " \
+            --no-multi \
+            --preview 'bat --style=numbers --color=always {}' || true)
+    
+    # Check if user cancelled or no file was selected
+    if [[ -z "$selected" ]]; then
+        echo "No file selected. Exiting."
+        exit 0
+    fi
+    
+    # Open the selected file with the configured editor (default: nvim)
+    echo "Opening: $selected"
+    "${EDITOR:-nvim}" "$selected"
+}
+
+main "$@"

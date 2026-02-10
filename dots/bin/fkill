@@ -1,0 +1,266 @@
+#!/usr/bin/env bash
+#
+# fkill - Fuzzy Process Killer
+# 
+# A safe, interactive process termination tool using fzf.
+# Default behavior uses SIGTERM (graceful shutdown).
+#
+
+set -euo pipefail
+
+# ============================================================================
+# Configuration
+# ============================================================================
+
+readonly SCRIPT_NAME="$(basename "$0")"
+readonly VERSION="2.0.0"
+
+# Signal defaults
+SIGNAL="TERM"
+SIGNAL_NUM=15
+
+# ============================================================================
+# Helper Functions
+# ============================================================================
+
+show_help() {
+    cat << EOF
+fkill v${VERSION} - Fuzzy Process Killer
+
+DESCRIPTION:
+    Interactive process termination tool using fzf for fuzzy selection.
+    Defaults to SIGTERM for graceful shutdown. Supports optional pre-filtering
+    and force-kill mode.
+
+USAGE:
+    ${SCRIPT_NAME} [OPTIONS] [FILTER]
+
+ARGUMENTS:
+    FILTER              Optional process name to pre-filter the list or 
+                        pre-populate the fzf query (e.g., 'chrome', 'node')
+
+OPTIONS:
+    -f, --force         Use SIGKILL (-9) instead of SIGTERM (-15)
+                        WARNING: This prevents graceful shutdown and may
+                        cause data loss, zombie processes, or corruption
+    
+    -h, --help          Display this help message and exit
+    
+    -v, --version       Display version information and exit
+
+DEPENDENCIES:
+    Required: fzf, ps, awk
+    
+    Install fzf: https://github.com/junegunn/fzf
+
+EXAMPLES:
+    # Normal usage - graceful kill with SIGTERM
+    ${SCRIPT_NAME}
+    
+    # Pre-filter for Chrome processes
+    ${SCRIPT_NAME} chrome
+    
+    # Force kill (SIGKILL) mode
+    ${SCRIPT_NAME} --force
+    ${SCRIPT_NAME} -f node
+    
+    # Get help
+    ${SCRIPT_NAME} --help
+
+EXIT CODES:
+    0    Success or user cancelled
+    1    Error (missing dependencies, invalid arguments)
+    2    Process kill failed
+
+SIGNALS:
+    SIGTERM (15)  Default - Allows graceful shutdown with cleanup
+                  Process can save data, close files, release resources
+    
+    SIGKILL (9)   Force mode - Immediate termination, no cleanup
+                  Cannot be caught or ignored by the process
+                  May cause data corruption, orphaned processes, or
+                  unclosed sockets. Use only as last resort.
+
+NOTES:
+    - The script excludes itself and the ps command from the selection list
+    - Pressing ESC or Ctrl-C in fzf will safely cancel the operation
+    - Using SIGTERM is strongly recommended; use --force only for
+      unresponsive processes
+
+EOF
+}
+
+show_version() {
+    echo "${SCRIPT_NAME} version ${VERSION}"
+}
+
+error_exit() {
+    echo "Error: $1" >&2
+    exit "${2:-1}"
+}
+
+check_dependencies() {
+    local missing_deps=()
+    
+    if ! command -v fzf &> /dev/null; then
+        missing_deps+=("fzf")
+    fi
+    
+    if ! command -v ps &> /dev/null; then
+        missing_deps+=("ps")
+    fi
+    
+    if ! command -v awk &> /dev/null; then
+        missing_deps+=("awk")
+    fi
+    
+    if [[ ${#missing_deps[@]} -gt 0 ]]; then
+        error_exit "Missing required dependencies: ${missing_deps[*]}" 1
+    fi
+}
+
+# ============================================================================
+# Main Logic
+# ============================================================================
+
+parse_arguments() {
+    local filter=""
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -h|--help)
+                show_help
+                exit 0
+                ;;
+            -v|--version)
+                show_version
+                exit 0
+                ;;
+            -f|--force)
+                SIGNAL="KILL"
+                SIGNAL_NUM=9
+                shift
+                ;;
+            -*)
+                error_exit "Unknown option: $1. Use -h for help." 1
+                ;;
+            *)
+                filter="$1"
+                shift
+                ;;
+        esac
+    done
+    
+    echo "$filter"
+}
+
+get_process_list() {
+    local filter="$1"
+    local exclude_pattern
+    
+    # Build exclusion pattern: exclude this script and the ps/grep commands
+    exclude_pattern="($SCRIPT_NAME|ps -eo|grep -v)"
+    
+    # Use ps with explicit column formatting for portability
+    # Format: PID, USER, %CPU, %MEM, COMMAND
+    ps -eo pid=,user=,pcpu=,pmem=,comm= | \
+        grep -vE "$exclude_pattern" | \
+        awk '{printf "%6s  %-12s  %5s%%  %5s%%  %s\n", $1, $2, $3, $4, $5}' | \
+        if [[ -n "$filter" ]]; then
+            grep -i "$filter" || true
+        else
+            cat
+        fi
+}
+
+select_process() {
+    local filter="$1"
+    local selected
+    
+    # Run fzf with proper error handling for cancellation (exit code 130)
+    # The '|| true' prevents set -e from exiting on fzf cancellation
+    selected=$(get_process_list "$filter" | \
+        fzf --height=40% \
+            --layout=reverse \
+            --no-multi \
+            --header="PID    USER          CPU    MEM   COMMAND" \
+            --header-lines=0 \
+            --prompt="Select process to kill > " \
+            --query="$filter" \
+            --preview='ps -p {1} -o pid,ppid,user,%cpu,%mem,etime,cmd' \
+            --preview-window='down:3:wrap' \
+            2>/dev/null || true)
+    
+    echo "$selected"
+}
+
+kill_process() {
+    local pid="$1"
+    local process_name="$2"
+    local reply
+    
+    # Show warning if using SIGKILL
+    if [[ "$SIGNAL" == "KILL" ]]; then
+        echo "⚠️  WARNING: Using SIGKILL (-9) - no graceful shutdown!"
+    fi
+    
+    # Confirm before killing
+    read -r -p "Kill PID $pid ($process_name) with SIG${SIGNAL}? [y/N] " -n 1 reply
+    echo
+    
+    if [[ "$reply" =~ ^[Yy]$ ]]; then
+        if kill -"$SIGNAL_NUM" "$pid" 2>/dev/null; then
+            echo "✓ Process $pid killed with SIG${SIGNAL}."
+            return 0
+        else
+            error_exit "Failed to kill process $pid. May require elevated privileges." 2
+        fi
+    else
+        echo "✗ Cancelled."
+        return 0
+    fi
+}
+
+main() {
+    # Check dependencies first
+    check_dependencies
+    
+    # Parse command-line arguments
+    local filter
+    filter=$(parse_arguments "$@")
+    
+    # Select process with fzf
+    local selected
+    selected=$(select_process "$filter")
+    
+    # Exit gracefully if user cancelled (empty selection)
+    if [[ -z "$selected" ]]; then
+        echo "✗ No process selected."
+        exit 0
+    fi
+    
+    # Extract PID (first column) and process name (last column)
+    local pid
+    local process_name
+    pid=$(echo "$selected" | awk '{print $1}')
+    process_name=$(echo "$selected" | awk '{print $NF}')
+    
+    # Validate PID
+    if [[ ! "$pid" =~ ^[0-9]+$ ]]; then
+        error_exit "Invalid PID extracted: $pid" 1
+    fi
+    
+    # Verify process still exists
+    if ! ps -p "$pid" &> /dev/null; then
+        error_exit "Process $pid no longer exists" 1
+    fi
+    
+    # Kill the process
+    kill_process "$pid" "$process_name"
+}
+
+# ============================================================================
+# Script Entry Point
+# ============================================================================
+
+main "$@"

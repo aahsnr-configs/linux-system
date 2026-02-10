@@ -1,0 +1,398 @@
+#!/usr/bin/env bash
+#
+# Secure Temporary Files Cleanup Script
+#
+# Purpose: Safely remove old temporary files and directories from /tmp and /var/tmp
+#
+# Features:
+# - Dry-run mode to preview deletions
+# - Interactive confirmation prompt (y/N)
+# - Handles both regular files and dotfiles
+# - Comprehensive error handling
+# - Configurable age threshold
+# - Detailed logging
+# - Excludes critical system files
+#
+# Usage:
+#   sudo ./tmp_cleanup.sh              # Interactive mode with confirmation
+#   sudo ./tmp_cleanup.sh --dry-run    # Preview what would be deleted
+#   sudo ./tmp_cleanup.sh --yes        # Skip confirmation (for automated use)
+
+set -euo pipefail # Exit on error, undefined variables, and pipe failures
+IFS=$'\n\t'       # Set safe Internal Field Separator
+
+# ============================================================================
+# CONFIGURATION
+# ============================================================================
+
+# Days old before a file is considered for deletion
+# NOTE: +N with find means "strictly greater than N days"
+# So DAYS_OLD=7 means files 8+ days old will be deleted
+# For files 7+ days old, use DAYS_OLD=6
+readonly DAYS_OLD="${DAYS_OLD:-6}" # Default: files 7+ days old
+
+# Directories to clean
+readonly TMP_DIRS=("/tmp" "/var/tmp")
+
+# Determine log file location
+if [[ -w "/var/log" ]]; then
+    readonly LOG_FILE="${LOG_FILE:-/var/log/tmp-cleanup.log}"
+else
+    readonly LOG_FILE="${LOG_FILE:-/tmp/tmp-cleanup.log}"
+fi
+
+# Files and directories to always exclude (regex patterns)
+readonly EXCLUDE_PATTERNS=(
+    "lost+found"
+    "systemd-private-.*"
+    ".X11-unix"
+    ".ICE-unix"
+    ".font-unix"
+    ".XIM-unix"
+    ".Test-unix"
+)
+
+# Parse command-line arguments
+DRY_RUN=false
+SKIP_CONFIRM=false
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+    --dry-run | -d)
+        DRY_RUN=true
+        shift
+        ;;
+    --yes | -y)
+        SKIP_CONFIRM=true
+        shift
+        ;;
+    --help | -h)
+        cat <<EOF
+Usage: $0 [OPTIONS]
+
+Options:
+  --dry-run, -d     Preview what would be deleted without actually deleting
+  --yes, -y         Skip confirmation prompt (for automated use)
+  --help, -h        Show this help message
+
+Environment Variables:
+  DAYS_OLD          Number of days threshold (default: 6, meaning 7+ days old files)
+  LOG_FILE          Path to log file (default: /var/log/tmp-cleanup.log)
+
+Examples:
+  sudo $0                    # Interactive mode with confirmation
+  sudo $0 --dry-run          # Preview deletions
+  sudo $0 --yes              # Automated mode without confirmation
+  DAYS_OLD=13 sudo $0        # Delete files 14+ days old
+
+EOF
+        exit 0
+        ;;
+    *)
+        echo "Unknown option: $1" >&2
+        echo "Use --help for usage information" >&2
+        exit 1
+        ;;
+    esac
+done
+
+# ============================================================================
+# FUNCTIONS
+# ============================================================================
+
+# Log message with timestamp
+log() {
+    local level="$1"
+    shift
+    local message="$*"
+    local timestamp
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+
+    local log_entry="[$timestamp] [$level] $message"
+
+    # Write to log file and stderr
+    if [[ -w "$LOG_FILE" ]] || [[ -w "$(dirname "$LOG_FILE")" ]]; then
+        echo "$log_entry" | tee -a "$LOG_FILE" >&2
+    else
+        echo "$log_entry" >&2
+    fi
+}
+
+# Log info message
+log_info() {
+    log "INFO" "$@"
+}
+
+# Log error message
+log_error() {
+    log "ERROR" "$@"
+}
+
+# Log warning message
+log_warn() {
+    log "WARN" "$@"
+}
+
+# Check if pattern should be excluded
+is_excluded() {
+    local item="$1"
+    local basename_item
+    basename_item=$(basename "$item")
+
+    for pattern in "${EXCLUDE_PATTERNS[@]}"; do
+        if [[ "$basename_item" =~ ^${pattern}$ ]]; then
+            return 0 # true, is excluded
+        fi
+    done
+    return 1 # false, not excluded
+}
+
+# Safely delete a file or directory
+safe_delete() {
+    local target="$1"
+
+    # Skip if already deleted
+    if [[ ! -e "$target" && ! -L "$target" ]]; then
+        return 0
+    fi
+
+    # Check if excluded
+    if is_excluded "$target"; then
+        log_info "Skipping excluded item: $target"
+        return 0
+    fi
+
+    # Dry-run mode: just log what would be deleted
+    if [[ "$DRY_RUN" == true ]]; then
+        log_info "[DRY-RUN] Would delete: $target"
+        return 0
+    fi
+
+    # Actually delete the file/directory
+    if [[ -d "$target" && ! -L "$target" ]]; then
+        # Directory: try rmdir first (empty dirs), then rm -rf
+        if rmdir "$target" 2>/dev/null; then
+            log_info "Removed empty directory: $target"
+        else
+            if rm -rf "$target" 2>/dev/null; then
+                log_info "Removed directory tree: $target"
+            else
+                log_warn "Failed to remove directory: $target"
+                return 1
+            fi
+        fi
+    else
+        # Regular file or symlink
+        if rm -f "$target" 2>/dev/null; then
+            log_info "Removed file: $target"
+        else
+            log_warn "Failed to remove file: $target"
+            return 1
+        fi
+    fi
+}
+
+# Clean temporary directory
+clean_tmp_dir() {
+    local tmp_dir="$1"
+
+    if [[ ! -d "$tmp_dir" ]]; then
+        log_warn "Directory does not exist: $tmp_dir"
+        return 0
+    fi
+
+    log_info "Cleaning temporary directory: $tmp_dir"
+    log_info "Target: files modified more than $((DAYS_OLD + 1)) days ago"
+
+    local count=0
+    local failed=0
+
+    # First, handle regular files and symlinks
+    while IFS= read -r -d '' item; do
+        if safe_delete "$item"; then
+            ((count++)) || true
+        else
+            ((failed++)) || true
+        fi
+    done < <(find "$tmp_dir" -mindepth 1 -depth \
+        \( -type f -o -type l \) \
+        -mtime "+$DAYS_OLD" \
+        -print0 2>/dev/null || true)
+
+    # Then, handle directories (will only remove if empty)
+    while IFS= read -r -d '' item; do
+        if safe_delete "$item"; then
+            ((count++)) || true
+        else
+            ((failed++)) || true
+        fi
+    done < <(find "$tmp_dir" -mindepth 1 -depth \
+        -type d \
+        -empty \
+        -mtime "+$DAYS_OLD" \
+        -print0 2>/dev/null || true)
+
+    log_info "Cleanup complete for $tmp_dir: $count items processed, $failed failed"
+}
+
+# Check if running as root
+check_root() {
+    if [[ $EUID -ne 0 ]]; then
+        echo "ERROR: This script must be run as root or with sudo" >&2
+        echo "Usage: sudo $0" >&2
+        exit 1
+    fi
+}
+
+# Initialize log file
+init_log() {
+    local log_dir
+    log_dir=$(dirname "$LOG_FILE")
+
+    # Create log directory if it doesn't exist
+    if [[ ! -d "$log_dir" ]]; then
+        if ! mkdir -p "$log_dir" 2>/dev/null; then
+            echo "Warning: Cannot create log directory: $log_dir" >&2
+            return 1
+        fi
+    fi
+
+    # Test if we can write to the log file
+    if ! touch "$LOG_FILE" 2>/dev/null; then
+        echo "Warning: Cannot write to log file: $LOG_FILE" >&2
+        return 1
+    fi
+
+    return 0
+}
+
+# Prompt user for confirmation
+confirm_cleanup() {
+    # Skip confirmation if --yes flag is set
+    if [[ "$SKIP_CONFIRM" == true ]]; then
+        log_info "Skipping confirmation (automated mode)"
+        return 0
+    fi
+
+    echo ""
+    echo "=========================================="
+    if [[ "$DRY_RUN" == true ]]; then
+        echo "DRY-RUN MODE: Preview Only"
+    else
+        echo "Temporary Files Cleanup Confirmation"
+    fi
+    echo "=========================================="
+    echo "This script will process files from:"
+    for tmp_dir in "${TMP_DIRS[@]}"; do
+        echo "  - $tmp_dir"
+    done
+    echo ""
+    echo "Target: Files modified more than $((DAYS_OLD + 1)) days ago"
+    echo ""
+
+    # Show preview of what will be affected
+    local total_count=0
+    echo "Scanning directories..."
+    for tmp_dir in "${TMP_DIRS[@]}"; do
+        if [[ -d "$tmp_dir" ]]; then
+            local dir_count
+            dir_count=$(find "$tmp_dir" -mindepth 1 -depth \
+                \( -type f -o -type l -o \( -type d -empty \) \) \
+                -mtime "+$DAYS_OLD" \
+                2>/dev/null | wc -l || echo "0")
+            echo "$tmp_dir: approximately $dir_count items will be affected"
+            total_count=$((total_count + dir_count))
+        fi
+    done
+
+    echo ""
+    echo "Total items to be processed: approximately $total_count"
+    echo ""
+
+    if [[ "$DRY_RUN" == true ]]; then
+        echo "DRY-RUN: No files will actually be deleted"
+        echo ""
+        read -rp "Press Enter to continue with preview..."
+        echo ""
+        return 0
+    fi
+
+    echo "Logs will be written to: $LOG_FILE"
+    echo ""
+
+    # Prompt for confirmation with y/N (default is No)
+    while true; do
+        read -rp "Do you want to proceed with cleanup? (y/N): " response
+
+        # Convert to lowercase
+        response="${response,,}"
+
+        case "$response" in
+        y | yes)
+            echo ""
+            echo "Proceeding with cleanup..."
+            echo ""
+            return 0
+            ;;
+        n | no | "")
+            echo ""
+            echo "Cleanup cancelled by user."
+            echo ""
+            exit 0
+            ;;
+        *)
+            echo "Invalid response. Please enter 'y' for yes or 'n' for no (or press Enter for no)."
+            ;;
+        esac
+    done
+}
+
+# Main cleanup function
+main() {
+    # Check for root privileges first
+    check_root
+
+    # Initialize logging
+    init_log
+
+    if [[ "$DRY_RUN" == true ]]; then
+        log_info "=========================================="
+        log_info "DRY-RUN MODE: Preview only, no deletions"
+        log_info "=========================================="
+    else
+        log_info "=========================================="
+        log_info "Starting temporary files cleanup"
+        log_info "=========================================="
+    fi
+
+    log_info "Running as user: $(whoami) (UID: $EUID)"
+    log_info "Files older than $((DAYS_OLD + 1)) days will be processed"
+
+    # Prompt for confirmation
+    confirm_cleanup
+
+    # Clean each temporary directory
+    for tmp_dir in "${TMP_DIRS[@]}"; do
+        clean_tmp_dir "$tmp_dir"
+    done
+
+    log_info "=========================================="
+    if [[ "$DRY_RUN" == true ]]; then
+        log_info "DRY-RUN completed - no files were deleted"
+    else
+        log_info "Cleanup completed successfully"
+    fi
+    log_info "=========================================="
+}
+
+# ============================================================================
+# SCRIPT ENTRY POINT
+# ============================================================================
+
+# Trap errors and interrupts
+trap 'log_error "Script interrupted or failed at line $LINENO"' ERR INT TERM
+
+# Run main function
+main "$@"
+
+exit 0

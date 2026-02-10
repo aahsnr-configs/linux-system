@@ -1,0 +1,44 @@
+# ~/.config/hypr/pyprland.toml
+[pyprland]
+plugins = [
+  "expose", 
+  "scratchpads", 
+  "magnify", 
+  "layout_center", 
+  "toggle_special",
+]
+
+[expose]
+include_special = false
+
+[scratchpads.term]
+command = "kitty --class kitty-dropterm"
+class = "kitty-dropterm"
+size = "70% 70%"
+margin = 50
+animation = "fromTop"
+unfocus = "hide"
+
+[scratchpads.tuifm]
+command = "kitty --class explorer -e yazi"
+class = "explorer"
+size = "90% 90%"
+margin = 50
+animation = "fromBottom"
+unfocus = "hide"
+
+[scratchpads.tuigit]
+command = "kitty --class git-terminal -e lazygit"
+class = "thunar"
+size = "80% 80%"
+margin = 50
+animation = "fromTop"
+unfocus = "hide"
+
+[layout_center]
+margin = 60
+offset = [0, 30]
+next = "movefocus r"
+prev = "movefocus l"
+next2 = "movefocus d"
+prev2 = "movefocus u"

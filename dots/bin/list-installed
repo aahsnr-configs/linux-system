@@ -1,0 +1,177 @@
+#!/usr/bin/env bash
+#
+# export_installed_packages.sh
+# Description: Export list of installed packages to a text file
+# Author: Generated Script
+# Usage: ./export_installed_packages.sh [output_file]
+#
+
+# Exit on error, undefined variables, and pipe failures
+set -o errexit
+set -o nounset
+set -o pipefail
+
+# Enable debug mode if TRACE environment variable is set to 1
+if [[ "${TRACE-0}" == "1" ]]; then
+    set -o xtrace
+fi
+
+# Constants
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly DEFAULT_OUTPUT_FILE="pkgs.txt"
+
+# Color codes for output
+readonly COLOR_RED='\033[0;31m'
+readonly COLOR_GREEN='\033[0;32m'
+readonly COLOR_YELLOW='\033[1;33m'
+readonly COLOR_RESET='\033[0m'
+
+#######################################
+# Print error message to stderr
+# Arguments:
+#   Error message string
+#######################################
+error() {
+    echo -e "${COLOR_RED}ERROR: $*${COLOR_RESET}" >&2
+}
+
+#######################################
+# Print success message
+# Arguments:
+#   Success message string
+#######################################
+success() {
+    echo -e "${COLOR_GREEN}$*${COLOR_RESET}"
+}
+
+#######################################
+# Print warning message
+# Arguments:
+#   Warning message string
+#######################################
+warning() {
+    echo -e "${COLOR_YELLOW}WARNING: $*${COLOR_RESET}"
+}
+
+#######################################
+# Display help information
+#######################################
+show_help() {
+    cat << EOF
+Usage: ${0##*/} [OPTIONS] [output_file]
+
+Export list of installed packages using dnf to a text file.
+
+OPTIONS:
+    -h, --help      Display this help message and exit
+    -v, --verbose   Enable verbose output
+    -f, --force     Overwrite output file if it exists
+
+ARGUMENTS:
+    output_file     Path to output file (default: ${DEFAULT_OUTPUT_FILE})
+
+EXAMPLES:
+    ${0##*/}                          # Export to pkgs.txt
+    ${0##*/} my_packages.txt          # Export to my_packages.txt
+    ${0##*/} -f pkgs.txt              # Overwrite pkgs.txt if it exists
+    TRACE=1 ${0##*/}                  # Run with debug output
+
+EOF
+}
+
+#######################################
+# Check if dnf command is available
+#######################################
+check_dnf_available() {
+    if ! command -v dnf &> /dev/null; then
+        error "dnf command not found. This script requires a RHEL/Fedora-based system."
+        exit 1
+    fi
+}
+
+#######################################
+# Export installed packages to file
+# Arguments:
+#   Output file path
+#   Force overwrite flag (0 or 1)
+#   Verbose flag (0 or 1)
+#######################################
+export_packages() {
+    local output_file="${1}"
+    local force_overwrite="${2}"
+    local verbose="${3}"
+
+    # Check if output file exists
+    if [[ -f "${output_file}" ]] && [[ "${force_overwrite}" -eq 0 ]]; then
+        error "Output file '${output_file}' already exists. Use -f/--force to overwrite."
+        exit 1
+    fi
+
+    # Create backup if file exists and force is enabled
+    if [[ -f "${output_file}" ]] && [[ "${force_overwrite}" -eq 1 ]]; then
+        local backup_file="${output_file}.backup.$(date +%Y%m%d_%H%M%S)"
+        if [[ "${verbose}" -eq 1 ]]; then
+            warning "Backing up existing file to: ${backup_file}"
+        fi
+        cp "${output_file}" "${backup_file}"
+    fi
+
+    # Export packages
+    if [[ "${verbose}" -eq 1 ]]; then
+        echo "Querying installed packages..."
+    fi
+
+    if dnf repoquery --installed --qf '%{name}\n' > "${output_file}"; then
+        local package_count
+        package_count=$(wc -l < "${output_file}")
+        success "Successfully exported ${package_count} packages to: ${output_file}"
+    else
+        error "Failed to export packages"
+        exit 1
+    fi
+}
+
+#######################################
+# Main function
+#######################################
+main() {
+    local output_file="${DEFAULT_OUTPUT_FILE}"
+    local force_overwrite=0
+    local verbose=0
+
+    # Parse command line arguments
+    while [[ $# -gt 0 ]]; do
+        case "${1}" in
+            -h|--help|help)
+                show_help
+                exit 0
+                ;;
+            -v|--verbose)
+                verbose=1
+                shift
+                ;;
+            -f|--force)
+                force_overwrite=1
+                shift
+                ;;
+            -*)
+                error "Unknown option: ${1}"
+                echo "Use -h or --help for usage information."
+                exit 1
+                ;;
+            *)
+                output_file="${1}"
+                shift
+                ;;
+        esac
+    done
+
+    # Check prerequisites
+    check_dnf_available
+
+    # Export packages
+    export_packages "${output_file}" "${force_overwrite}" "${verbose}"
+}
+
+# Run main function with all arguments
+main "$@"

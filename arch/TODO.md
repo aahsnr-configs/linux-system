@@ -1,0 +1,2 @@
+- [ ] Setup tailscale in arch
+- [ ] Optimize pyprland by using pypy instead of python

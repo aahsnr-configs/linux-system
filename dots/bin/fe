@@ -1,0 +1,121 @@
+#!/usr/bin/env bash
+#
+# fe - Fuzzy Edit
+# Interactive file finder and editor using fd, fzf, and bat
+#
+
+set -euo pipefail
+
+# ============================================================================
+# Help Function
+# ============================================================================
+
+show_help() {
+    cat << EOF
+fe - Fuzzy Edit
+
+DESCRIPTION
+    Interactive file finder and editor that combines fd, fzf, and bat to
+    provide a fast, user-friendly way to search and edit files.
+
+USAGE
+    fe [OPTIONS] [QUERY]
+
+ARGUMENTS
+    QUERY               Optional search query to pre-populate fzf's search.
+                        If provided, fzf will start with this query already
+                        entered. If there's exactly one match, it will be
+                        automatically selected. If there are no matches, the
+                        script exits without opening an editor.
+
+OPTIONS
+    -h, --help          Display this help message and exit
+
+DEPENDENCIES
+    This script requires the following tools to be installed:
+    
+    - fd                Fast file finder (https://github.com/sharkdp/fd)
+    - fzf               Command-line fuzzy finder (https://github.com/junegunn/fzf)
+    - bat               Syntax-highlighted cat clone (https://github.com/sharkdp/bat)
+    - nvim              Neovim text editor (default, can be overridden)
+
+ENVIRONMENT VARIABLES
+    EDITOR              Text editor to use. Defaults to 'nvim' if not set.
+                        Examples: vim, emacs, nano, code
+
+EXAMPLES
+    # Open fe with no initial query
+    fe
+
+    # Pre-populate search with "config"
+    fe config
+
+    # Search for files containing "test"
+    fe test
+
+    # Use a different editor for this session
+    EDITOR=vim fe
+
+    # Search for README files
+    fe README
+
+FEATURES
+    - Recursively searches files in the current directory
+    - Follows symbolic links
+    - Excludes .git directories
+    - Shows file previews with syntax highlighting (first 500 lines)
+    - Auto-selects if only one match found
+    - Exits gracefully if no matches found
+    - Supports cancellation with ESC or Ctrl-C
+
+KEY BINDINGS (in fzf)
+    Ctrl-K/Up           Move selection up
+    Ctrl-J/Down         Move selection down
+    Enter               Open selected file in editor
+    ESC / Ctrl-C        Cancel and exit
+    Ctrl-/              Toggle preview window
+
+EXIT CODES
+    0                   Success (file selected and opened, or no match with query)
+    1                   Error occurred
+    130                 User cancelled (ESC or Ctrl-C)
+
+EOF
+}
+
+# ============================================================================
+# Argument Parsing
+# ============================================================================
+
+# Check for help flag
+if [[ "${1:-}" == "-h" ]] || [[ "${1:-}" == "--help" ]]; then
+    show_help
+    exit 0
+fi
+
+# Get the optional query argument
+QUERY="${1:-}"
+
+# ============================================================================
+# Main Execution
+# ============================================================================
+
+# Run fd piped to fzf with the query
+# --select-1: Auto-select if only one match
+# --exit-0: Exit with 0 if no match (prevents fzf from starting)
+SELECTED=$(fd --type f --hidden --follow --exclude .git . | fzf \
+    --height "80%" \
+    --layout "reverse" \
+    --info "inline" \
+    --border "rounded" \
+    --preview 'bat --style=numbers --color=always --line-range :500 {}' \
+    --query="${QUERY}" \
+    --select-1 \
+    --exit-0 \
+    --no-multi) || true
+
+# Open the file in the editor if one was selected
+# The || true prevents the script from exiting on cancel (exit code 130)
+if [[ -n "${SELECTED}" ]]; then
+    "${EDITOR:-nvim}" "${SELECTED}"
+fi

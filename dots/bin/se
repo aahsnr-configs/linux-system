@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+
+# se - Search & Edit
+# A fast fuzzy search-and-edit tool using ripgrep, fzf, and bat
+
+set -euo pipefail
+
+# Show help message
+show_help() {
+    cat << 'EOF'
+se - Search & Edit
+
+DESCRIPTION:
+    A fast fuzzy search-and-edit tool that combines ripgrep, fzf, and bat.
+    Search for a pattern across files, preview results with syntax highlighting,
+    and open the selected file in your editor at the exact line.
+
+USAGE:
+    se <pattern> [directory]
+    se -h | --help
+
+ARGUMENTS:
+    pattern       The search pattern (required)
+    directory     Optional directory to search (defaults to current directory)
+
+OPTIONS:
+    -h, --help    Show this help message
+
+DEPENDENCIES:
+    Required tools (must be installed):
+    - ripgrep (rg)  : Fast recursive search
+    - fzf           : Fuzzy finder with preview
+    - bat           : Syntax highlighting for preview
+
+ENVIRONMENT:
+    EDITOR        Editor to use (defaults to nvim if not set)
+
+EXAMPLES:
+    # Search for 'function' in current directory
+    se function
+
+    # Search for 'TODO' in a specific directory
+    se TODO src/
+
+    # Search with regex pattern
+    se 'class \w+Controller'
+
+NOTES:
+    - Press ESC or Ctrl+C to cancel the selection
+    - The script handles filenames with special characters safely
+    - Syntax highlighting is automatically detected by file extension
+
+EOF
+}
+
+# Parse arguments
+if [[ $# -eq 0 ]]; then
+    show_help
+    exit 1
+fi
+
+if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+    show_help
+    exit 0
+fi
+
+PATTERN="$1"
+SEARCH_DIR="${2:-.}"
+
+# Use tab as field separator to safely handle filenames with colons
+# Format: filename<TAB>line<TAB>content
+SELECTION=$(rg --line-number --no-heading --smart-case \
+    --field-match-separator=$'\t' \
+    "$PATTERN" "$SEARCH_DIR" 2>/dev/null | \
+    fzf --height "80%" \
+        --layout "reverse" \
+        --info "inline" \
+        --border "rounded" \
+        --delimiter $'\t' \
+        --no-multi \
+        --preview 'bat --style=numbers --color=always --highlight-line {2} {1}' \
+        --preview-window 'up,60%,border-bottom,+{2}+3/3,~3' \
+        --prompt "Search Results > " || true)
+
+# Exit cleanly if user cancels fzf (no selection made)
+if [[ -z "$SELECTION" ]]; then
+    exit 0
+fi
+
+# Parse the selection using tab delimiter
+FILE=$(echo "$SELECTION" | cut -d$'\t' -f1)
+LINE=$(echo "$SELECTION" | cut -d$'\t' -f2)
+
+# Use nvim as default editor if EDITOR is not set
+EDITOR_CMD="${EDITOR:-nvim}"
+
+# Open the file at the specific line
+"$EDITOR_CMD" "+$LINE" "$FILE"

@@ -1,0 +1,190 @@
+#!/usr/bin/env bash
+#
+# fp - Fuzzy File Previewer
+# A fast, interactive file/directory browser with preview capabilities
+# using fd, fzf, and bat
+
+set -euo pipefail
+
+# Script metadata
+readonly SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}")"
+readonly VERSION="1.0.0"
+
+# Help function
+show_help() {
+    cat << EOF
+$SCRIPT_NAME v$VERSION - Fuzzy File Previewer
+
+DESCRIPTION:
+    An interactive file and directory browser with live preview.
+    Uses fd for fast file discovery, fzf for fuzzy selection, and bat for
+    syntax-highlighted previews. The selected file/directory path is printed
+    to stdout, making it composable with other commands.
+
+USAGE:
+    $SCRIPT_NAME [OPTIONS] [SEARCH_PATH]
+
+ARGUMENTS:
+    SEARCH_PATH         Optional directory to search (default: current directory)
+                        Examples: /var/log, ~/Documents, .
+
+OPTIONS:
+    -h, --help         Show this help message and exit
+    -v, --version      Show version information and exit
+
+DEPENDENCIES:
+    Required:
+        fd      - Fast file finder (https://github.com/sharkdp/fd)
+        fzf     - Fuzzy finder (https://github.com/junegunn/fzf)
+        bat     - Syntax highlighter (https://github.com/sharkdp/bat)
+    
+    Optional (for directory preview):
+        ls      - List directory contents (fallback to basic ls)
+        tree    - Display directory tree (preferred if available)
+
+EXAMPLES:
+    # Browse current directory
+    $SCRIPT_NAME
+
+    # Browse specific directory
+    $SCRIPT_NAME /var/log
+
+    # Open selected file in editor
+    vim \$($SCRIPT_NAME)
+
+    # Change to selected directory
+    cd \$($SCRIPT_NAME)
+
+    # Copy selected file
+    cp \$($SCRIPT_NAME ~/Documents) /backup/
+
+    # Open in default editor
+    \${EDITOR:-vim} "\$($SCRIPT_NAME)"
+
+EXIT CODES:
+    0    Success - file/directory selected
+    1    Error - missing dependencies or invalid arguments
+    130  Interrupted - user cancelled selection (Ctrl-C or Esc)
+
+NOTES:
+    - Hidden files and directories are included in search
+    - Follows symbolic links
+    - Excludes .git directories by default
+    - Preview window shows file contents or directory listings
+    - Use arrow keys or type to filter, Enter to select, Esc to cancel
+
+EOF
+}
+
+# Version function
+show_version() {
+    echo "$SCRIPT_NAME v$VERSION"
+}
+
+# Check if a command exists
+command_exists() {
+    command -v "$1" &> /dev/null
+}
+
+# Check required dependencies
+check_dependencies() {
+    local missing_deps=()
+    
+    for cmd in fd fzf bat; do
+        if ! command_exists "$cmd"; then
+            missing_deps+=("$cmd")
+        fi
+    done
+    
+    if [ ${#missing_deps[@]} -gt 0 ]; then
+        echo "Error: Missing required dependencies: ${missing_deps[*]}" >&2
+        echo "Please install them before running $SCRIPT_NAME" >&2
+        echo "Run '$SCRIPT_NAME --help' for more information" >&2
+        return 1
+    fi
+    
+    return 0
+}
+
+# Get appropriate ls command for the system
+get_ls_command() {
+    # Prefer tree if available for better directory visualization
+    if command_exists tree; then
+        echo "tree -C -L 2"
+        return
+    fi
+    
+    # Check if we have GNU ls (gls on macOS via coreutils)
+    if command_exists gls; then
+        echo "gls -lhF --color=always"
+        return
+    fi
+    
+    # Try GNU ls with --color flag
+    if ls --color=always / &>/dev/null 2>&1; then
+        echo "ls -lhF --color=always"
+        return
+    fi
+    
+    # Fall back to BSD ls with -G flag (macOS/BSD)
+    if ls -G / &>/dev/null 2>&1; then
+        echo "ls -lhFG"
+        return
+    fi
+    
+    # Ultimate fallback: plain ls
+    echo "ls -lhF"
+}
+
+# Main function
+main() {
+    local search_path="."
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -h|--help)
+                show_help
+                exit 0
+                ;;
+            -v|--version)
+                show_version
+                exit 0
+                ;;
+            -*)
+                echo "Error: Unknown option: $1" >&2
+                echo "Run '$SCRIPT_NAME --help' for usage information" >&2
+                exit 1
+                ;;
+            *)
+                search_path="$1"
+                shift
+                ;;
+        esac
+    done
+    
+    # Validate search path
+    if [[ ! -d "$search_path" ]]; then
+        echo "Error: Directory not found: $search_path" >&2
+        exit 1
+    fi
+    
+    # Check dependencies
+    check_dependencies || exit 1
+    
+    # Get the appropriate ls command for this system
+    local ls_cmd
+    ls_cmd=$(get_ls_command)
+    
+    # Run fd piped into fzf with preview
+    # The selected path will be output to stdout
+    fd --hidden --follow --exclude .git . "$search_path" | fzf \
+        --height="80%" \
+        --layout="reverse" \
+        --border="rounded" \
+        --preview-window="right:50%:wrap" \
+        --preview="if [ -d {} ]; then $ls_cmd {} 2>/dev/null || echo 'Cannot read directory'; else bat --style=numbers --color=always {} 2>/dev/null || cat {}; fi"
+}
+
+# Run main function
+main "$@"

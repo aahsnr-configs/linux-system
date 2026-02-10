@@ -1,0 +1,7 @@
+org.ferdium.Ferdium
+com.github.tchx84.Flatseal
+org.onlyoffice.desktopeditors
+com.bitwarden.desktop
+io.github.alainm23.planify
+io.github.dvlv.boxbuddyrs
+org.zotero.Zotero

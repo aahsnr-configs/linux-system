@@ -1,0 +1,47 @@
+#!/bin/bash
+sudo cp -R "$HOME/Git/configs/debian-system/preconfig/99-custom-env.sh" "/etc/profile.d/"
+sudo cp -R "$HOME/Git/configs/debian-system/preconfig/01norecommend" "/etc/apt/apt.conf.d/"
+
+
+sudo apt install curl
+
+# nodejs
+sudo apt-get install -y curl
+curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
+sudo apt-get install -y nsolid
+nsolid -v
+
+# install uv
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# install pixi
+curl -fsSL https://pixi.sh/install.sh | sh
+
+# install bun
+curl -fsSL https://bun.com/install | bash
+
+# installs deb-get
+sudo apt install curl lsb-release wget
+curl -sL https://raw.githubusercontent.com/wimpysworld/deb-get/main/deb-get | sudo -E bash -s install deb-get
+
+# installs deb-get pkgs
+deb-get install topgrade codium ferdium obsidian onlyoffice-desktopeditors pandoc topgrade zotero protonvpn portmaster brave-browser
+
+
+# pacstall
+sudo bash -c "$(curl -fsSL https://pacstall.dev/q/install)"
+
+# rustup
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+pikman install ghostty bibata-cursor-theme celluloid chafa cliphist podman distrobox libenchant-2-dev pkgconf fail2ban fonts-noto-color-emoji fwupd fwupd-efi gnome-keyring gnome-tweaks gnuplot haveged hspell hunspell hunspell-en-us hunspell-en-gb imagemagick imv inotify-tools jq matugen mpv neovim noto-color-emoji-fontconfig noto-fonts noto-fonts-cjk noto-fonts-emoji papers papirus-icon-theme podman-compose profile-sync-daemon pymol slurp sqlite swappy transmission-gtk trash-cli udiskie xdg-user-dirs xdg-user-dirs-gtk zathura zathura-pdf-poppler zeromq zoxide zram-generator zsh policykit-1-gnome
+
+sudo apt install pipx --no-install-recommends
+pipx install pyprland
+
+curl -fssl https://ppa.floorp.app/key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/floorp.gpg
+sudo curl -ss --compressed -o /etc/apt/sources.list.d/floorp.list 'https://ppa.floorp.app/floorp.list'
+sudo apt update
+sudo apt install floorp

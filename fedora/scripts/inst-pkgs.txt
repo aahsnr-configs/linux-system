@@ -1,0 +1,12 @@
+gnome-tweaks
+qt6-qtwayland qt6ct qt5ct xdg-user-dirs switcherooctl vulkan-headers vulkan-loader-devel
+qt6-qtwayland
+qt6ct
+qt5ct
+xdg-user-dirs
+switcherooctl
+vulkan-headers
+vulkan-loader-devel
+dkms
+terminus-fonts-console
+alsa-sof-firmware

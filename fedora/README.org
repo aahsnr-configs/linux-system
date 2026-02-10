@@ -1,0 +1,1622 @@
+#+TITLE: Arch Setup
+* Custom Arch Linux Installation Guide 
+This guide creates a custom Arch Linux installation that replicates
+CachyOS features using:
+
+- Full disk encryption (LUKS2 on LVM)
+- Optimized Btrfs with extensive subvolume layout
+- Dracut for initramfs generation (required for bootable btrfs
+  snapshots)
+- Limine bootloader (faster than GRUB, especially with encryption)
+- Snapper with bootable snapshots via limine-snapper-sync
+- Automatic snapshot creation before system updates
+- CachyOS optimized repositories and kernel
+
+** Prerequisites
+- Boot into Arch Linux live environment
+- Working network connection
+- UEFI system (not BIOS/Legacy)
+
+** Disk Partitioning and Encryption Setup
+Create two partitions:
+- =/dev/nvme0n1p1= - *2GB*, type: EFI System (ESP - needs space for
+  multiple kernels + snapshots)
+- =/dev/nvme0n1p2= - Remaining space, type: Linux LVM
+ 
+#+begin_src bash
+cfdisk /dev/nvme0n1 &&
+    mkfs.vfat -F 32 /dev/nvme0n1p1 &&
+    cryptsetup --cipher aes-xts-plain64 \
+               --hash sha512 \
+               --use-random \
+               --verify-passphrase \
+               luksFormat /dev/nvme0n1p2 &&
+    cryptsetup luksOpen /dev/nvme0n1p2 cryptlvm &&
+    pvcreate /dev/mapper/cryptlvm &&
+    vgcreate vg0 /dev/mapper/cryptlvm &&
+    lvcreate -L 24G vg0 -n swap &&
+    lvcreate -l 100%FREE vg0 -n root &&
+    mkfs.btrfs -f /dev/vg0/root &&
+    mkswap /dev/vg0/swap &&
+    mount /dev/vg0/root /mnt &&
+    swapon /dev/vg0/swap
+#+end_src
+
+** Btrfs Subvolume Layout/Mounting
+#+begin_src sh
+btrfs su cr /mnt/@ &&
+    btrfs su cr /mnt/@home &&
+    btrfs su cr /mnt/@opt &&
+    btrfs su cr /mnt/@tmp &&
+    btrfs su cr /mnt/@root &&
+    btrfs su cr /mnt/@srv &&
+    btrfs su cr /mnt/@nix &&
+    btrfs su cr /mnt/@usr@local &&
+    btrfs su cr /mnt/@var &&
+    btrfs su cr /mnt/@var@cache &&
+    btrfs su cr /mnt/@pkg &&
+    btrfs su cr /mnt/@var@crash &&
+    btrfs su cr /mnt/@var@tmp &&
+    btrfs su cr /mnt/@var@spool &&
+    btrfs su cr /mnt/@var@log &&
+    btrfs su cr /mnt/@var@log@audit &&
+    btrfs su cr /mnt/@snapshots &&
+    umount /mnt
+
+BTRFS_OPTS="noatime,compress=zstd:3,space_cache=v2,discard=async" &&
+    mount -o ${BTRFS_OPTS},subvol=@ /dev/vg0/root /mnt &&
+    mkdir /mnt/home &&
+    mount -o ${BTRFS_OPTS},subvol=@home /dev/vg0/root /mnt/home &&
+    mkdir /mnt/opt &&
+    mount -o ${BTRFS_OPTS},subvol=@opt /dev/vg0/root /mnt/opt &&
+    mkdir /mnt/tmp &&
+    mount -o ${BTRFS_OPTS},subvol=@tmp /dev/vg0/root /mnt/tmp &&
+    mkdir /mnt/root &&
+    mount -o ${BTRFS_OPTS},subvol=@root /dev/vg0/root /mnt/root &&
+    mkdir /mnt/srv &&
+    mount -o ${BTRFS_OPTS},subvol=@srv /dev/vg0/root /mnt/srv &&
+    mkdir /mnt/nix &&
+    mount -o ${BTRFS_OPTS},subvol=@nix /dev/vg0/root /mnt/nix &&
+    mkdir -p /mnt/usr/local &&
+    mount -o ${BTRFS_OPTS},subvol=@usr@local /dev/vg0/root /mnt/usr/local &&
+    mkdir /mnt/var &&
+    mount -o ${BTRFS_OPTS},subvol=@var /dev/vg0/root /mnt/var &&
+    mkdir /mnt/var/cache &&
+    mount -o ${BTRFS_OPTS},subvol=@var@cache /dev/vg0/root /mnt/var/cache &&
+    mkdir -p /mnt/var/cache/pacman/pkg &&
+    mount -o ${BTRFS_OPTS},subvol=@pkg /dev/vg0/root /mnt/var/cache/pacman/pkg &&
+    mkdir -p /mnt/var/crash &&
+    mount -o ${BTRFS_OPTS},subvol=@var@crash /dev/vg0/root /mnt/var/crash &&
+    mkdir /mnt/var/tmp &&
+    mount -o ${BTRFS_OPTS},subvol=@var@tmp /dev/vg0/root /mnt/var/tmp &&
+    mkdir /mnt/var/spool &&
+    mount -o ${BTRFS_OPTS},subvol=@var@spool /dev/vg0/root /mnt/var/spool &&
+    mkdir /mnt/var/log &&
+    mount -o ${BTRFS_OPTS},subvol=@var@log /dev/vg0/root /mnt/var/log &&
+    mkdir /mnt/var/log/audit &&
+    mount -o ${BTRFS_OPTS},subvol=@var@log@audit /dev/vg0/root /mnt/var/log/audit &&
+    mkdir /mnt/.snapshots &&
+    mount -o ${BTRFS_OPTS},subvol=@snapshots /dev/vg0/root /mnt/.snapshots &&
+    mkdir /mnt/boot &&
+    mount /dev/nvme0n1p1 /mnt/boot &&
+    chattr +C /mnt/var/log &&
+    chattr +C /mnt/var/cache &&
+    chattr +C /mnt/var/tmp
+#+end_src
+
+** Install Base Packages
+#+begin_src sh
+pacstrap -K /mnt base base-devel neovim git wget curl btrfs-progs lvm2 cryptsetup dracut networkmanager sudo paru linux-cachyos linux-cachyos-headers nvidia-open-dkms linux-cachyos-lts linux-cachyos-lts-headers linux-firmware amd-ucode &&
+    genfstab -U /mnt >> /mnt/etc/fstab &&
+    arch-chroot /mnt
+#+end_src
+
+** Basic System Configuration
+#+begin_src sh
+ln -sf /usr/share/zoneinfo/Asia/Dhaka /etc/localtime &&
+    hwclock --systohc &&
+    echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen &&
+    locale-gen &&
+    echo "LANG=en_US.UTF-8" > /etc/locale.conf &&
+    echo "archlinux" > /etc/hostname
+
+nvim /etc/hosts
+127.0.0.1   localhost
+::1         localhost
+127.0.1.1   zephyrus.localdomain zephyrus
+
+passwd &&
+    useradd -m -G users,wheel,audio,video -s /bin/bash -c "Ahsanur Rahman" ahsan &&
+    passwd ahsan &&
+    EDITOR=nvim visudo
+#+end_src
+
+** Setup CachyOS Repositories
+#+begin_src sh
+cd /tmp &&
+    curl -O https://mirror.cachyos.org/cachyos-repo.tar.xz &&
+    tar xvf cachyos-repo.tar.xz &&
+    cd cachyos-repo &&
+    ./cachyos-repo.sh &&
+    pacman -Syu
+#+end_src
+
+** Configure Dracut for LUKS+LVM+Btrfs
+#+begin_src sh
+LUKS_UUID=$(cryptsetup luksDump /dev/nvme0n1p2 | grep "UUID:" | head -1 | awk '{print $2}') &&
+    echo "LUKS UUID: $LUKS_UUID" &&
+    ROOT_UUID=$(blkid -s UUID -o value /dev/mapper/vg0-root) &&
+    echo "Root UUID: $ROOT_UUID" &&
+    SWAP_UUID=$(blkid -s UUID -o value /dev/mapper/vg0-swap) &&
+    echo "Swap UUID: $SWAP_UUID" &&
+    echo "LUKS_UUID=$LUKS_UUID" > /tmp/uuids.txt &&
+    echo "ROOT_UUID=$ROOT_UUID" >> /tmp/uuids.txt &&
+    echo "SWAP_UUID=$SWAP_UUID" >> /tmp/uuids.txt &&
+    cat /tmp/uuids.txt
+#+end_src
+
+#+begin_src sh
+cat > /etc/dracut.conf.d/custom.conf << 'EOF'
+# Host-only mode for smaller, faster initramfs
+hostonly="yes"
+
+# Let dracut auto-detect and embed kernel parameters from system config
+hostonly_cmdline="yes"
+
+# Compression
+compress="zstd"
+
+# Add required modules for LUKS + LVM + Btrfs + Resume
+add_dracutmodules+=" crypt dm lvm rootfs-block resume "
+
+# Omit unnecessary modules
+omit_dracutmodules+=" network cifs nfs nbd brltty "
+
+# Force inclusion of btrfs driver
+force_drivers+=" btrfs "
+
+# Use fstab for mounting
+use_fstab="yes"
+
+# Show modules during build (helpful for debugging)
+show_modules="yes"
+EOF
+#+end_src
+
+#+begin_src sh
+cat > /etc/crypttab << EOF
+# <name>    <device>                                  <password>  <options>
+cryptlvm    UUID=${LUKS_UUID}                         none        luks,discard
+EOF
+#+end_src
+
+** Install and Configure Limine Bootloader
+#+begin_src sh
+pacman -S limine jdk-openjdk &&
+    echo "ahsan ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers.d/temp_install &&
+    chmod 440 /etc/sudoers.d/temp_install &&
+    sudo -u ahsan paru -S limine-dracut-support --noconfirm &&
+    rm /etc/sudoers.d/temp_install
+#+end_src
+
+#+begin_src sh
+mkdir -p /boot/EFI/BOOT &&
+    mkdir -p /boot/EFI/arch-limine &&
+    cp /usr/share/limine/BOOTX64.EFI /boot/EFI/BOOT/BOOTX64.EFI &&
+    cp /usr/share/limine/BOOTX64.EFI /boot/EFI/arch-limine/BOOTX64.EFI &&
+    efibootmgr --create --disk /dev/nvme0n1 --part 1 --label "Arch Linux (Limine)" --loader /EFI/arch-limine/BOOTX64.EFI
+#+end_src
+
+#+begin_src sh
+# Create Limine configuration with dracut syntax
+cat > /etc/default/limine << EOF
+# ESP Path
+ESP_PATH="/boot"
+
+# Kernel command line parameters (dracut syntax!)
+# Note: With hostonly_cmdline="yes", dracut auto-detects parameters from
+# /etc/crypttab and /etc/fstab, but we specify them here for explicit control
+
+# Basic boot parameters
+KERNEL_CMDLINE[default]+="quiet loglevel=3 rw"
+
+# Btrfs root subvolume
+KERNEL_CMDLINE[default]+="rootflags=subvol=/@"
+
+# LUKS unlock parameters
+KERNEL_CMDLINE[default]+="rd.luks.uuid=${LUKS_UUID}"
+KERNEL_CMDLINE[default]+="rd.luks.name=${LUKS_UUID}=cryptlvm"
+
+# LVM activation (uses VG/LV names, NOT UUIDs)
+KERNEL_CMDLINE[default]+="rd.lvm.lv=vg0/root"
+KERNEL_CMDLINE[default]+="rd.lvm.lv=vg0/swap"
+
+# Root filesystem (uses UUID - recommended by dracut documentation)
+KERNEL_CMDLINE[default]+="root=UUID=${ROOT_UUID}"
+
+# Resume from swap (uses UUID - recommended)
+KERNEL_CMDLINE[default]+="resume=UUID=${SWAP_UUID}"
+
+# Enable TRIM/discard for SSD on LUKS
+KERNEL_CMDLINE[default]+="rd.luks.allow-discards"
+
+# Boot order (* means all main kernels)
+BOOT_ORDER="*, *lts, *fallback, Snapshots"
+
+# Commands to run before/after saving config
+# These ensure Limine bootloader files are properly enrolled
+COMMANDS_BEFORE_SAVE="limine-reset-enroll"
+COMMANDS_AFTER_SAVE="limine-enroll-config"
+EOF
+
+# Verify configuration was created correctly
+cat /etc/default/limine
+#+end_src
+
+#+begin_src sh
+limine-dracut &&
+    ls -la /boot/limine.conf &&
+    cat /boot/limine.conf
+#+end_src
+
+** Final System Configuration
+#+begin_src sh
+pacman -S --noconfirm --needed sof-firmware mesa vulkan-radeon nvidia-utils  chrony power-profiles-daemon unrar unzip smartmontools pipewire pipewire-alsa pipewire-pulse pipewire-jack wireplumber alsa-utils bluez bluez-utils pciutils acpi thermald exfatprogs unrar unzip openssh firewalld gst-plugin-pipewire gst-plugins-bad gst-plugins-good gst-plugins-ugly gstreamer gtk3 gtk4 grim slurp swappy kitty kitty-shell-integration kitty-terminfo podman flatpak polkit ttf-jetbrains-mono ttf-jetbrains-mono-nerd ttf-nerd-fonts-symbols zsh fastfetch ttf-nerd-fonts-symbols-common nautilus file-roller wget which wl-clipboard mpv celluloid greetd emacs-wayland haveged rng-tools
+#+end_src
+
+#+begin_src sh
+systemctl enable NetworkManager fstrim.timer haveged rngd chronyd power-profiles-daemon auditd sshd bluetooth firewalld nvidia-suspend nvidia-resume nvidia-hibernate
+#+end_src
+
+*** Final Verification
+#+begin_src sh
+cat /boot/limine.conf
+
+cat /etc/crypttab
+
+cat /etc/fstab
+
+ls -la /etc/dracut.conf.d/
+
+limine-dracut
+#+end_src
+
+* First Boot Configuration
+#+begin_src sh
+sudo pacman -S snapper inotify-tools
+#+end_src
+
+#+begin_src sh
+# Unmount the snapshots directory
+sudo umount /.snapshots
+
+# Remove the directory
+sudo rm -rf /.snapshots
+
+# Create Snapper configuration for root
+sudo snapper -c root create-config /
+
+# Snapper creates a .snapshots subvolume, but we want to use ours
+# Delete Snapper's auto-created subvolume
+sudo btrfs subvolume delete /.snapshots
+
+# Recreate directory and remount our @snapshots subvolume
+sudo mkdir /.snapshots
+sudo mount /.snapshots
+
+# Verify it's mounted
+mount | grep snapshots
+
+# Set proper permissions
+sudo chmod 750 /.snapshots
+sudo chown root:root /.snapshots
+
+# Get the ID of @ subvolume and set it as default
+ROOT_SUBVOL_ID=$(sudo btrfs subvolume list / | grep "path @$" | awk '{print $2}')
+echo "Root subvolume ID: $ROOT_SUBVOL_ID"
+sudo btrfs subvolume set-default ${ROOT_SUBVOL_ID} /
+#+end_src
+
+#+begin_src sh
+# Edit Snapper configuration
+sudo tee /etc/snapper/configs/root > /dev/null << 'EOF'
+# Subvolume to snapshot
+SUBVOLUME="/"
+
+# Filesystem type
+FSTYPE="btrfs"
+
+# Btrfs qgroup
+QGROUP=""
+
+# Space limits
+SPACE_LIMIT="0.5"
+FREE_LIMIT="0.2"
+
+# User/group permissions
+ALLOW_USERS=""
+ALLOW_GROUPS=""
+SYNC_ACL="no"
+
+# Background comparison
+BACKGROUND_COMPARISON="yes"
+
+# Number cleanup
+NUMBER_CLEANUP="yes"
+NUMBER_MIN_AGE="1800"
+NUMBER_LIMIT="10"
+NUMBER_LIMIT_IMPORTANT="10"
+
+# Timeline snapshots
+TIMELINE_CREATE="yes"
+TIMELINE_CLEANUP="yes"
+TIMELINE_MIN_AGE="1800"
+TIMELINE_LIMIT_HOURLY="5"
+TIMELINE_LIMIT_DAILY="7"
+TIMELINE_LIMIT_WEEKLY="0"
+TIMELINE_LIMIT_MONTHLY="10"
+TIMELINE_LIMIT_YEARLY="0"
+
+# Empty pre-post pairs cleanup
+EMPTY_PRE_POST_CLEANUP="yes"
+EMPTY_PRE_POST_MIN_AGE="1800"
+EOF
+#+end_src
+
+#+begin_src sh
+# Install snap-pac - creates pre/post snapshots during pacman operations
+sudo pacman -S snap-pac
+
+# Enable Snapper timers
+sudo systemctl enable --now snapper-timeline.timer
+sudo systemctl enable --now snapper-cleanup.timer
+
+# Verify services are running
+sudo systemctl status snapper-timeline.timer
+sudo systemctl status snapper-cleanup.timer
+#+end_src
+
+#+begin_src sh
+# Install from AUR
+paru -S limine-snapper-sync
+#+end_src
+
+#+begin_src sh
+sudo tee /etc/limine-snapper-sync.conf > /dev/null << 'EOF'
+
+TARGET_OS_NAME="Arch Linux"
+
+### Max Snapshot Entries
+# Limit entries to avoid filling ESP
+MAX_SNAPSHOT_ENTRIES=8
+
+### ESP Usage Limit
+# Stop creating entries when ESP reaches this percentage
+LIMIT_USAGE_PERCENT=80
+
+### ESP Path
+ESP_PATH="/boot"
+
+### Snapper Configuration Name
+SNAPPER_CONFIG_NAME="root"
+
+### Root Subvolume Path
+ROOT_SUBVOLUME_PATH="/@"
+
+### Root Snapshot Path
+ROOT_SNAPSHOTS_PATH="/@snapshots"
+
+### Restore Method Selection
+# Use btrfs for fast "one-click-restore"
+ENABLE_RSYNC_ASK=no
+
+### Snapshot Entry Formatting
+SPACE_NUMBER=5
+
+### Snapshot Name Format
+# 0: ID=111 2023-12-20 10:59:59
+# 1: 111│2023-12-20 10:59:59
+# 2: 111 │ 2023-12-20 10:59:59 (recommended)
+# 3: 2023-12-20 10:59:59│111
+# 4: 2023-12-20 10:59:59 │ 111
+# 5: 2023-12-20 10:59:59
+# 6: 111
+SNAPSHOT_FORMAT_CHOICE=2
+
+### Hash Function for Deduplication
+HASH_FUNCTION=sha256
+
+### Notification Icon
+NOTIFICATION_ICON="/usr/share/icons/hicolor/128x128/apps/LimineSnapperSync.png"
+
+### Automatic Config Backup
+BACKUP_THRESHOLD=8
+
+### Commands Before/After Save
+COMMANDS_BEFORE_SAVE="limine-reset-enroll"
+COMMANDS_AFTER_SAVE="limine-enroll-config"
+EOF
+#+end_src
+
+*** Enable limine-snapper-sync Service
+#+begin_src sh
+# Enable and start the service
+sudo systemctl enable --now limine-snapper-sync.service
+
+# Verify it's running
+sudo systemctl status limine-snapper-sync.service
+#+end_src
+
+*** Verify ESP Path Detection
+#+begin_src sh
+bootctl --print-esp-path
+# Should output: /boot
+#+end_src
+
+*** Create Initial Baseline Snapshot
+#+begin_src sh
+# Create a baseline snapshot after installation
+sudo snapper -c root create --description "Fresh Installation - Post Snapper Setup"
+
+# List snapshots to verify
+sudo snapper list
+#+end_src
+
+** Test Snapshot Functionality
+*** Test Automatic Snapshots
+#+begin_src sh
+# Install a test package to trigger snapshot
+sudo pacman -S htop
+
+# This will automatically create a pre/post snapshot via snap-pac
+# Verify snapshots were created
+sudo snapper list
+
+# You should see new snapshots with type "pre" and "post"
+#+end_src
+
+*** Test Bootable Snapshots
+#+begin_src sh
+# Reboot to see snapshots in Limine menu
+sudo reboot
+
+# In Limine menu, you should now see:
+# - Arch Linux (current system)
+# - Snapshots (submenu with snapshot entries)
+#+end_src
+
+*** How to Boot into a Snapshot
+1. Reboot system
+2. In Limine menu, navigate to “Snapshots”
+3. Select a snapshot entry
+4. Boot into it
+5. The snapshot mounts read-only with an overlay
+6. You'll get a notification asking if you want to restore
+7. Click “Restore” or run: =sudo limine-snapper-restore=
+
+--------------
+
+* System Usage and Maintenance
+* GENERAL COMMANDS
+#+begin_src sh
+- emacs --batch --eval "(require 'org)" --eval '(org-babel-tangle-file "file-to-tangle.org")'
+- #+begin_src python  :shebang "#!/usr/bin/env python"
+
+- grep 'app-emacs/' /var/lib/portage/world | xargs --open-tty emerge --ask --deselect; emerge --ask --depclean
+
+- esearch esearch -I emacs #list all installed emacs packages
+
+- :shebang #!/usr/bin/env bash
+
+- PY_CFLAGS:
+python3 -c "import sysconfig; print(sysconfig.get_config_var('PY_CFLAGS') + sysconfig.get_config_var('PY_CFLAGS_NODIST'))"
+
+- find / -name ".git"
+#+end_src
+
+* Chrooting into Existing Installation
+This section provides instructions for accessing your installed system
+from a live Arch environment for maintenance, recovery, or
+troubleshooting purposes.
+
+** When You Need This
+- System won't boot and needs repair
+- Forgot to install a critical package
+- Need to regenerate initramfs after changes
+- Kernel parameter adjustments
+- Bootloader configuration fixes
+- General system maintenance
+
+** Prerequisites
+- Bootable Arch Linux live USB
+- Your LUKS encryption passphrase
+- Network connection (if you need to download packages)
+  
+** Step-by-Step Chroot Process
+*** Step 1: Boot into Arch Live Environment
+Boot from your Arch Linux USB and wait for the live environment to load.
+
+*** Step 2: Unlock the LUKS Encrypted Partition
+#+begin_src sh
+# Unlock the LUKS container (you'll be prompted for your passphrase)
+cryptsetup luksOpen /dev/nvme0n1p2 cryptlvm
+
+# Verify it was unlocked successfully
+ls -la /dev/mapper/
+# You should see: cryptlvm
+#+end_src
+
+*** Step 3: Activate LVM Volumes
+#+begin_src sh
+# Scan for volume groups
+vgscan
+
+# Activate all volume groups
+vgchange -ay
+
+# Verify volumes are active
+lvs
+# You should see vg0/root and vg0/swap
+#+end_src
+
+*** Step 4: Mount Btrfs Root Subvolume
+#+begin_src sh
+# Mount options (same as installation)
+BTRFS_OPTS="noatime,compress=zstd:3,space_cache=v2,discard=async"
+
+# Mount the root @ subvolume first
+# This makes all the directories (/home, /var, /boot, etc.) available
+mount -o ${BTRFS_OPTS},subvol=@ /dev/mapper/vg0-root /mnt
+
+# Verify the directories exist
+ls -la /mnt
+# You should see: bin, boot, dev, etc, home, opt, root, srv, tmp, usr, var, etc.
+#+end_src
+
+*** Step 5: Mount All Other Subvolumes
+*Important:* The directories already exist after mounting @ - you do NOT
+need to create them!
+
+#+begin_src sh
+# Mount all subvolumes to their existing directories
+mount -o ${BTRFS_OPTS},subvol=@home /dev/mapper/vg0-root /mnt/home
+mount -o ${BTRFS_OPTS},subvol=@opt /dev/mapper/vg0-root /mnt/opt
+mount -o ${BTRFS_OPTS},subvol=@tmp /dev/mapper/vg0-root /mnt/tmp
+mount -o ${BTRFS_OPTS},subvol=@root /dev/mapper/vg0-root /mnt/root
+mount -o ${BTRFS_OPTS},subvol=@srv /dev/mapper/vg0-root /mnt/srv
+mount -o ${BTRFS_OPTS},subvol=@nix /dev/mapper/vg0-root /mnt/nix
+mount -o ${BTRFS_OPTS},subvol=@usr@local /dev/mapper/vg0-root /mnt/usr/local
+mount -o ${BTRFS_OPTS},subvol=@var /dev/mapper/vg0-root /mnt/var
+mount -o ${BTRFS_OPTS},subvol=@var@cache /dev/mapper/vg0-root /mnt/var/cache
+mount -o ${BTRFS_OPTS},subvol=@pkg /dev/mapper/vg0-root /mnt/var/cache/pacman/pkg
+mount -o ${BTRFS_OPTS},subvol=@var@crash /dev/mapper/vg0-root /mnt/var/crash
+mount -o ${BTRFS_OPTS},subvol=@var@tmp /dev/mapper/vg0-root /mnt/var/tmp
+mount -o ${BTRFS_OPTS},subvol=@var@spool /dev/mapper/vg0-root /mnt/var/spool
+mount -o ${BTRFS_OPTS},subvol=@var@log /dev/mapper/vg0-root /mnt/var/log
+mount -o ${BTRFS_OPTS},subvol=@var@log@audit /dev/mapper/vg0-root /mnt/var/log/audit
+mount -o ${BTRFS_OPTS},subvol=@snapshots /dev/mapper/vg0-root /mnt/.snapshots
+#+end_src
+
+*** Step 6: Mount ESP
+#+begin_src sh
+# Mount the EFI System Partition
+mount /dev/nvme0n1p1 /mnt/boot
+#+end_src
+
+*** Step 7: Enable Swap (Optional)
+#+begin_src sh
+# If you need swap during maintenance
+swapon /dev/mapper/vg0-swap
+#+end_src
+
+*** Step 8: Verify All Mounts
+#+begin_src sh
+# Check that everything is mounted correctly
+mount | grep /mnt
+
+# Check block devices
+lsblk
+#+end_src
+
+You should see all subvolumes and /boot mounted under /mnt, similar to
+this:
+
+#+begin_example
+/dev/mapper/vg0-root on /mnt type btrfs (subvol=/@)
+/dev/mapper/vg0-root on /mnt/home type btrfs (subvol=/@home)
+/dev/mapper/vg0-root on /mnt/opt type btrfs (subvol=/@opt)
+...
+/dev/nvme0n1p1 on /mnt/boot type vfat
+#+end_example
+
+*** Step 9: Chroot into the System
+#+begin_src sh
+# Enter the chroot environment
+# arch-chroot automatically handles /dev, /proc, /sys mounting
+arch-chroot /mnt
+#+end_src
+
+You are now inside your installed system and can perform maintenance.
+
+** Common Maintenance Tasks
+*** Regenerate Initramfs
+#+begin_src sh
+# If you made changes to dracut configuration
+limine-dracut
+#+end_src
+
+*** Update System
+#+begin_src sh
+# Update all packages
+pacman -Syu
+#+end_src
+
+*** Fix Bootloader
+#+begin_src sh
+# If Limine needs to be reinstalled
+cp /usr/share/limine/BOOTX64.EFI /boot/EFI/BOOT/BOOTX64.EFI
+
+# Regenerate boot entries
+limine-dracut
+#+end_src
+
+*** Check/Fix Kernel Parameters
+#+begin_src sh
+# View current configuration
+cat /etc/default/limine
+
+# Edit if needed
+nano /etc/default/limine
+
+# Apply changes
+limine-dracut
+#+end_src
+
+*** Repair Snapper Configuration
+#+begin_src sh
+# List snapshots
+snapper list
+
+# Check snapper configuration
+cat /etc/snapper/configs/root
+
+# Restart snapper services if needed
+systemctl restart snapper-timeline.timer
+systemctl restart snapper-cleanup.timer
+systemctl restart limine-snapper-sync.service
+#+end_src
+
+*** Reset User Password
+#+begin_src sh
+# Reset password for user
+passwd ahsan
+
+# Reset root password
+passwd
+#+end_src
+
+*** Fix Broken Package Database
+#+begin_src sh
+# If pacman database is corrupted
+rm /var/lib/pacman/db.lck
+pacman -Syy
+#+end_src
+
+** Exiting the Chroot Environment
+*** Step 1: Exit Chroot
+#+begin_src sh
+# Exit the chroot
+exit
+#+end_src
+
+*** Step 2: Unmount Everything
+#+begin_src sh
+# Unmount all filesystems (recursive unmount)
+umount -R /mnt
+
+# Turn off swap if enabled
+swapoff /dev/mapper/vg0-swap
+#+end_src
+
+*** Step 3: Deactivate LVM
+#+begin_src sh
+# Deactivate volume group
+vgchange -an vg0
+#+end_src
+
+*** Step 4: Close LUKS Container
+#+begin_src sh
+# Close the encrypted container
+cryptsetup close cryptlvm
+#+end_src
+
+*** Step 5: Reboot
+#+begin_src sh
+# Remove the live USB and reboot
+reboot
+#+end_src
+
+** Troubleshooting Chroot Issues
+*** Can't Find LUKS Device
+#+begin_src sh
+# List all block devices
+lsblk
+
+# If using a different disk name (e.g., /dev/sda instead of /dev/nvme0n1)
+cryptsetup luksOpen /dev/sdX2 cryptlvm
+#+end_src
+
+*** Volume Group Not Found
+#+begin_src sh
+# Manually scan for volume groups
+vgscan --mknodes
+
+# Activate specific volume group
+vgchange -ay vg0
+
+# If still not found, check LUKS was opened correctly
+ls -la /dev/mapper/
+#+end_src
+
+*** Mount Fails - “Directory Not Found”
+This should not happen if you mounted @ first. If it does:
+
+#+begin_src sh
+# Verify @ is mounted
+mount | grep "on /mnt "
+
+# Check what directories exist
+ls -la /mnt
+
+# If directories are missing, your @ subvolume might be corrupted
+# Try mounting the top-level volume to investigate
+umount /mnt
+mount -o subvolid=5 /dev/mapper/vg0-root /mnt
+btrfs subvolume list /mnt
+#+end_src
+
+*** Can't Access Internet in Chroot
+#+begin_src sh
+# Before chroot, copy DNS configuration
+cp /etc/resolv.conf /mnt/etc/resolv.conf
+
+# After chroot, if still no network
+systemctl start NetworkManager
+#+end_src
+
+*** arch-chroot Says “/mnt/proc mount point does not exist”
+This means @ wasn't mounted correctly or is corrupted:
+
+#+begin_src sh
+# Verify @ has the correct filesystem structure
+ls -la /mnt
+# Should show: bin, boot, dev, etc, home, lib, opt, proc, root, run, sbin, srv, sys, tmp, usr, var
+
+# If proc, sys, dev directories don't exist, your @ subvolume is damaged
+#+end_src
+
+** Quick Reference Script
+For convenience, here's a complete script for chrooting:
+
+#+begin_src sh
+#!/bin/bash
+# Quick chroot script for the custom Arch installation
+
+set -e  # Exit on error
+
+echo "=== Unlocking LUKS ==="
+cryptsetup luksOpen /dev/nvme0n1p2 cryptlvm
+
+echo "=== Activating LVM ==="
+vgscan
+vgchange -ay vg0
+
+echo "=== Mounting Btrfs subvolumes ==="
+# Mount options
+BTRFS_OPTS="noatime,compress=zstd:3,space_cache=v2,discard=async"
+
+# Mount root first (this creates all directories)
+mount -o ${BTRFS_OPTS},subvol=@ /dev/mapper/vg0-root /mnt
+
+# Mount all other subvolumes to existing directories
+mount -o ${BTRFS_OPTS},subvol=@home /dev/mapper/vg0-root /mnt/home
+mount -o ${BTRFS_OPTS},subvol=@opt /dev/mapper/vg0-root /mnt/opt
+mount -o ${BTRFS_OPTS},subvol=@tmp /dev/mapper/vg0-root /mnt/tmp
+mount -o ${BTRFS_OPTS},subvol=@root /dev/mapper/vg0-root /mnt/root
+mount -o ${BTRFS_OPTS},subvol=@srv /dev/mapper/vg0-root /mnt/srv
+mount -o ${BTRFS_OPTS},subvol=@nix /dev/mapper/vg0-root /mnt/nix
+mount -o ${BTRFS_OPTS},subvol=@usr@local /dev/mapper/vg0-root /mnt/usr/local
+mount -o ${BTRFS_OPTS},subvol=@var /dev/mapper/vg0-root /mnt/var
+mount -o ${BTRFS_OPTS},subvol=@var@cache /dev/mapper/vg0-root /mnt/var/cache
+mount -o ${BTRFS_OPTS},subvol=@pkg /dev/mapper/vg0-root /mnt/var/cache/pacman/pkg
+mount -o ${BTRFS_OPTS},subvol=@var@crash /dev/mapper/vg0-root /mnt/var/crash
+mount -o ${BTRFS_OPTS},subvol=@var@tmp /dev/mapper/vg0-root /mnt/var/tmp
+mount -o ${BTRFS_OPTS},subvol=@var@spool /dev/mapper/vg0-root /mnt/var/spool
+mount -o ${BTRFS_OPTS},subvol=@var@log /dev/mapper/vg0-root /mnt/var/log
+mount -o ${BTRFS_OPTS},subvol=@var@log@audit /dev/mapper/vg0-root /mnt/var/log/audit
+mount -o ${BTRFS_OPTS},subvol=@snapshots /dev/mapper/vg0-root /mnt/.snapshots
+
+echo "=== Mounting ESP ==="
+mount /dev/nvme0n1p1 /mnt/boot
+
+echo "=== Enabling swap ==="
+swapon /dev/mapper/vg0-swap
+
+echo "=== Mounted filesystems ==="
+mount | grep /mnt
+
+echo ""
+echo "=== Block devices ==="
+lsblk
+
+echo ""
+echo "=== Entering chroot ==="
+arch-chroot /mnt
+#+end_src
+
+Save this as =chroot-system.sh=, make it executable with
+=chmod +x chroot-system.sh=, and run it when needed.
+
+** Exit Script
+For exiting cleanly:
+
+#+begin_src sh
+#!/bin/bash
+# Clean exit from chroot
+
+echo "=== Unmounting filesystems ==="
+umount -R /mnt
+
+echo "=== Disabling swap ==="
+swapoff /dev/mapper/vg0-swap
+
+echo "=== Deactivating LVM ==="
+vgchange -an vg0
+
+echo "=== Closing LUKS ==="
+cryptsetup close cryptlvm
+
+echo "=== Done ==="
+echo "System safely unmounted and locked. You can now reboot."
+#+end_src
+
+Save as =exit-chroot.sh= and run after exiting the chroot.
+
+** Key Difference from Installation
+*During installation:* You create empty subvolumes, then manually create
+all directories with =mkdir -p= before mounting.
+
+*During chroot/recovery:* The directories already exist in the @
+subvolume from your installation. You only need to mount the @ subvolume
+first, which exposes all existing directories, then mount the other
+subvolumes to those existing directories.
+
+* Firewalld Setup 
+This guide provides complete instructions for setting up and configuring
+firewalld on Arch Linux to protect your system with a modern, dynamic
+firewall.
+
+** What is Firewalld?
+Firewalld provides a dynamically managed firewall with support for
+network/firewall zones that define the trust level of network
+connections or interfaces. It has support for IPv4, IPv6 firewall
+settings, ethernet bridges and IP sets. The Arch Wiki states that there
+is a separation of runtime and permanent configuration options, and it
+provides an interface for services or applications to add firewall rules
+directly.
+
+*Key advantages:* - Dynamic management (no need to restart) - Zone-based
+configuration (easy to manage different network trust levels) - Uses
+nftables backend (modern and efficient) - Better integration with
+NetworkManager - Rich language for complex rules
+
+** Installation
+*** Install Firewalld
+#+begin_src sh
+# Install firewalld
+sudo pacman -S firewalld
+
+# Enable and start the service
+sudo systemctl enable --now firewalld.service
+
+# Verify it's running
+sudo systemctl status firewalld.service
+sudo firewall-cmd --state
+# Should output: running
+#+end_src
+
+*** Verify Configuration
+#+begin_src sh
+# Check default zone
+sudo firewall-cmd --get-default-zone
+# Should output: public (by default)
+
+# List all zones
+sudo firewall-cmd --get-zones
+
+# Check active zones
+sudo firewall-cmd --get-active-zones
+
+# List all available services
+sudo firewall-cmd --get-services
+#+end_src
+
+** Understanding Zones
+Firewalld uses zones to define trust levels for network connections.
+Each zone has default rules that determine what traffic is allowed.
+
+*** Pre-defined Zones
+*From least to most trusted:*
+
+1. *drop* - Drops all incoming packets without reply. Only outgoing
+   connections are allowed.
+
+2. *block* - Rejects all incoming connections with icmp-host-prohibited
+   message.
+
+3. *public* (default) - For use in public areas. You don't trust other
+   computers. Only selected incoming connections are accepted. Default
+   allows SSH and DHCPv6-client.
+
+4. *external* - For use on external networks with masquerading (NAT)
+   enabled. Only selected incoming connections are accepted.
+
+5. *dmz* - For computers in your DMZ that have limited access to your
+   internal network. Only selected incoming connections are accepted.
+
+6. *work* - For use at work where you trust most computers. More
+   services may be allowed.
+
+7. *home* - For use at home where you trust most devices. More services
+   may be allowed.
+
+8. *internal* - For use on internal networks when you trust the other
+   computers. More services are allowed.
+
+9. *trusted* - All network connections are accepted. Complete trust.
+
+*** Zone Best Practices
+#+begin_src sh
+# For desktop/laptop - use 'public' or 'home' depending on network
+# For servers - use 'public' and explicitly allow only needed services
+# For trusted internal network - use 'internal' or 'home'
+#+end_src
+
+** Basic Configuration
+*** Configure Default Zone
+#+begin_src sh
+# Set default zone for desktop/laptop
+sudo firewall-cmd --set-default-zone=public
+
+# For home network (more permissive)
+sudo firewall-cmd --set-default-zone=home
+
+# Verify
+sudo firewall-cmd --get-default-zone
+#+end_src
+
+*** Working with Runtime vs Permanent Configuration
+*Important:* Changes made without =--permanent= only affect the running
+configuration and are lost on reload/reboot.
+
+#+begin_src sh
+# Runtime change (temporary, testing)
+sudo firewall-cmd --add-service=http
+
+# Permanent change (survives reboot)
+sudo firewall-cmd --permanent --add-service=http
+
+# Apply permanent changes to runtime
+sudo firewall-cmd --reload
+
+# BEST PRACTICE: Make changes permanent, then reload
+sudo firewall-cmd --permanent --add-service=https
+sudo firewall-cmd --reload
+
+# OR: Test in runtime first, then save
+sudo firewall-cmd --add-service=https
+# Test it works...
+sudo firewall-cmd --runtime-to-permanent
+#+end_src
+
+*** Allow Essential Services
+#+begin_src sh
+# For desktop users (SSH optional)
+sudo firewall-cmd --permanent --add-service=dhcpv6-client
+sudo firewall-cmd --permanent --add-service=ssh  # If using SSH
+
+# For servers (be selective!)
+sudo firewall-cmd --permanent --add-service=ssh
+sudo firewall-cmd --permanent --add-service=http
+sudo firewall-cmd --permanent --add-service=https
+
+# Apply changes
+sudo firewall-cmd --reload
+
+# Verify services
+sudo firewall-cmd --list-services
+#+end_src
+
+** Common Service Configurations
+*** Web Server
+#+begin_src sh
+# HTTP and HTTPS
+sudo firewall-cmd --permanent --add-service=http
+sudo firewall-cmd --permanent --add-service=https
+sudo firewall-cmd --reload
+#+end_src
+
+*** SSH Server
+#+begin_src sh
+# Allow SSH (be cautious - see hardening guide for SSH security)
+sudo firewall-cmd --permanent --add-service=ssh
+sudo firewall-cmd --reload
+
+# To change SSH to custom port (if you changed sshd_config)
+sudo firewall-cmd --permanent --add-port=2222/tcp
+sudo firewall-cmd --permanent --remove-service=ssh
+sudo firewall-cmd --reload
+#+end_src
+
+*** Samba File Sharing
+#+begin_src sh
+# Allow Samba for file sharing on local network
+sudo firewall-cmd --permanent --add-service=samba
+sudo firewall-cmd --permanent --add-service=samba-client
+sudo firewall-cmd --reload
+#+end_src
+
+*** Media Servers
+#+begin_src sh
+# Plex
+sudo firewall-cmd --permanent --add-port=32400/tcp
+sudo firewall-cmd --reload
+
+# Jellyfin
+sudo firewall-cmd --permanent --add-port=8096/tcp
+sudo firewall-cmd --permanent --add-port=8920/tcp
+sudo firewall-cmd --reload
+#+end_src
+
+*** Gaming
+#+begin_src sh
+# Steam Remote Play
+sudo firewall-cmd --permanent --add-port=27036/tcp
+sudo firewall-cmd --permanent --add-port=27031/udp
+sudo firewall-cmd --permanent --add-port=27036/udp
+
+# Minecraft Server
+sudo firewall-cmd --permanent --add-port=25565/tcp
+
+sudo firewall-cmd --reload
+#+end_src
+
+** Part 5: Advanced Configuration
+:PROPERTIES:
+:CUSTOM_ID: part-5-advanced-configuration
+:END:
+*** 5.1 Opening Custom Ports
+:PROPERTIES:
+:CUSTOM_ID: opening-custom-ports
+:END:
+#+begin_src sh
+# Open a specific TCP port
+sudo firewall-cmd --permanent --add-port=8080/tcp
+
+# Open a specific UDP port
+sudo firewall-cmd --permanent --add-port=1194/udp
+
+# Open a range of ports
+sudo firewall-cmd --permanent --add-port=6881-6889/tcp
+
+# Remove a port
+sudo firewall-cmd --permanent --remove-port=8080/tcp
+
+sudo firewall-cmd --reload
+#+end_src
+
+*** 5.2 Source-Based Rules (IP Whitelisting)
+:PROPERTIES:
+:CUSTOM_ID: source-based-rules-ip-whitelisting
+:END:
+#+begin_src sh
+# Allow specific IP to access SSH
+sudo firewall-cmd --permanent --zone=public \
+    --add-rich-rule='rule family="ipv4" source address="192.168.1.100" service name="ssh" accept'
+
+# Allow subnet to access web services
+sudo firewall-cmd --permanent --zone=public \
+    --add-rich-rule='rule family="ipv4" source address="192.168.1.0/24" service name="http" accept'
+
+# Block specific IP
+sudo firewall-cmd --permanent --zone=public \
+    --add-rich-rule='rule family="ipv4" source address="10.0.0.50" reject'
+
+sudo firewall-cmd --reload
+#+end_src
+
+*** 5.3 Port Forwarding
+:PROPERTIES:
+:CUSTOM_ID: port-forwarding
+:END:
+#+begin_src sh
+# Forward external port 12345 to internal machine port 22
+sudo firewall-cmd --permanent --zone=public \
+    --add-forward-port=port=12345:proto=tcp:toport=22:toaddr=192.168.1.100
+
+# Remove port forwarding
+sudo firewall-cmd --permanent --zone=public \
+    --remove-forward-port=port=12345:proto=tcp:toport=22:toaddr=192.168.1.100
+
+sudo firewall-cmd --reload
+#+end_src
+
+*** 5.4 Masquerading (NAT)
+:PROPERTIES:
+:CUSTOM_ID: masquerading-nat
+:END:
+#+begin_src sh
+# Enable IP masquerading (for router/gateway)
+sudo firewall-cmd --permanent --zone=external --add-masquerade
+
+# Check if masquerading is enabled
+sudo firewall-cmd --zone=external --query-masquerade
+
+sudo firewall-cmd --reload
+#+end_src
+
+*** 5.5 Rich Rules (Complex Rules)
+:PROPERTIES:
+:CUSTOM_ID: rich-rules-complex-rules
+:END:
+#+begin_src sh
+# Allow SSH only from specific subnet with rate limiting
+sudo firewall-cmd --permanent --zone=public \
+    --add-rich-rule='rule family="ipv4" source address="192.168.1.0/24" service name="ssh" limit value="3/m" accept'
+
+# Log dropped packets
+sudo firewall-cmd --permanent --zone=public \
+    --add-rich-rule='rule limit value="5/m" log prefix="firewalld: " level="info" drop'
+
+# Allow port with rate limiting
+sudo firewall-cmd --permanent --zone=public \
+    --add-rich-rule='rule family="ipv4" port port="80" protocol="tcp" limit value="100/s" accept'
+
+sudo firewall-cmd --reload
+#+end_src
+
+** Part 6: Zone Management
+:PROPERTIES:
+:CUSTOM_ID: part-6-zone-management
+:END:
+*** 6.1 Interface-Specific Zones
+:PROPERTIES:
+:CUSTOM_ID: interface-specific-zones
+:END:
+#+begin_src sh
+# List all network interfaces
+ip link show
+
+# Assign interface to a zone
+sudo firewall-cmd --permanent --zone=home --add-interface=eth0
+sudo firewall-cmd --permanent --zone=public --add-interface=wlan0
+
+# Change interface zone
+sudo firewall-cmd --permanent --zone=public --change-interface=eth0
+
+# Remove interface from zone
+sudo firewall-cmd --permanent --zone=home --remove-interface=eth0
+
+sudo firewall-cmd --reload
+
+# Verify
+sudo firewall-cmd --get-active-zones
+#+end_src
+
+*** 6.2 Creating Custom Zones
+:PROPERTIES:
+:CUSTOM_ID: creating-custom-zones
+:END:
+#+begin_src sh
+# Create a new zone
+sudo firewall-cmd --permanent --new-zone=servers
+
+# Set zone description
+sudo firewall-cmd --permanent --zone=servers \
+    --set-description="Zone for server applications"
+
+# Configure the zone
+sudo firewall-cmd --permanent --zone=servers --add-service=http
+sudo firewall-cmd --permanent --zone=servers --add-service=https
+sudo firewall-cmd --permanent --zone=servers --add-service=ssh
+
+# Set zone target (default is 'default', can be ACCEPT, REJECT, or DROP)
+sudo firewall-cmd --permanent --zone=servers --set-target=DROP
+
+sudo firewall-cmd --reload
+#+end_src
+
+** Part 7: Logging and Monitoring
+:PROPERTIES:
+:CUSTOM_ID: part-7-logging-and-monitoring
+:END:
+*** 7.1 Enable Logging
+:PROPERTIES:
+:CUSTOM_ID: enable-logging
+:END:
+#+begin_src sh
+# Enable logging for dropped packets
+sudo firewall-cmd --set-log-denied=all
+
+# Options: all, unicast, broadcast, multicast, off
+sudo firewall-cmd --permanent --set-log-denied=unicast
+sudo firewall-cmd --reload
+
+# View firewalld logs
+sudo journalctl -u firewalld -f
+
+# View denied packets (if logging enabled)
+sudo journalctl -k | grep -i 'REJECT|DROP'
+#+end_src
+
+*** 7.2 Monitoring Active Connections
+:PROPERTIES:
+:CUSTOM_ID: monitoring-active-connections
+:END:
+#+begin_src sh
+# List all active rules
+sudo firewall-cmd --list-all
+
+# List all zones with their rules
+sudo firewall-cmd --list-all-zones
+
+# Check specific zone
+sudo firewall-cmd --zone=public --list-all
+
+# List services in default zone
+sudo firewall-cmd --list-services
+
+# List ports in default zone
+sudo firewall-cmd --list-ports
+
+# List rich rules
+sudo firewall-cmd --list-rich-rules
+#+end_src
+
+** Part 8: Panic Mode and Emergency
+:PROPERTIES:
+:CUSTOM_ID: part-8-panic-mode-and-emergency
+:END:
+*** 8.1 Panic Mode (Emergency Lockdown)
+:PROPERTIES:
+:CUSTOM_ID: panic-mode-emergency-lockdown
+:END:
+#+begin_src sh
+# Enable panic mode (DROP ALL incoming/outgoing traffic)
+sudo firewall-cmd --panic-on
+
+# Disable panic mode
+sudo firewall-cmd --panic-off
+
+# Check if panic mode is enabled
+sudo firewall-cmd --query-panic
+#+end_src
+
+*** 8.2 Reload vs Restart
+:PROPERTIES:
+:CUSTOM_ID: reload-vs-restart
+:END:
+#+begin_src sh
+# Reload firewall (applies permanent config, keeps connections)
+sudo firewall-cmd --reload
+
+# Complete restart (drops all connections)
+sudo systemctl restart firewalld.service
+
+# Reload without dropping connections (if available)
+sudo firewall-cmd --reload
+#+end_src
+
+** Part 9: Desktop User Configuration
+:PROPERTIES:
+:CUSTOM_ID: part-9-desktop-user-configuration
+:END:
+*** 9.1 Minimal Desktop Configuration
+:PROPERTIES:
+:CUSTOM_ID: minimal-desktop-configuration
+:END:
+For most desktop users who don't run servers:
+
+#+begin_src sh
+# Set to home zone (more permissive for local network)
+sudo firewall-cmd --set-default-zone=home
+
+# Allow essential services
+sudo firewall-cmd --permanent --add-service=dhcpv6-client
+sudo firewall-cmd --permanent --add-service=mdns  # For local network discovery
+sudo firewall-cmd --permanent --add-service=samba-client  # For file sharing
+
+# If using SSH to connect TO other machines (not serving SSH)
+# No need to open SSH service
+
+# Apply
+sudo firewall-cmd --reload
+
+# Verify
+sudo firewall-cmd --list-all
+#+end_src
+
+*** 9.2 Laptop Configuration (Multiple Networks)
+:PROPERTIES:
+:CUSTOM_ID: laptop-configuration-multiple-networks
+:END:
+#+begin_src sh
+# Home network - more permissive
+sudo firewall-cmd --permanent --zone=home --add-service=samba-client
+sudo firewall-cmd --permanent --zone=home --add-service=mdns
+
+# Public network - restrictive
+sudo firewall-cmd --permanent --zone=public --add-service=dhcpv6-client
+
+# Set public as default (safest)
+sudo firewall-cmd --set-default-zone=public
+
+sudo firewall-cmd --reload
+
+# NetworkManager will automatically switch zones based on network
+# Configure trusted networks in NetworkManager to use 'home' zone
+#+end_src
+
+** Part 10: Server Configuration Examples
+:PROPERTIES:
+:CUSTOM_ID: part-10-server-configuration-examples
+:END:
+*** 10.1 Web Server
+:PROPERTIES:
+:CUSTOM_ID: web-server-1
+:END:
+#+begin_src sh
+sudo firewall-cmd --permanent --zone=public --add-service=http
+sudo firewall-cmd --permanent --zone=public --add-service=https
+sudo firewall-cmd --permanent --zone=public --add-service=ssh
+sudo firewall-cmd --reload
+#+end_src
+
+*** 10.2 Database Server (Internal Only)
+:PROPERTIES:
+:CUSTOM_ID: database-server-internal-only
+:END:
+#+begin_src sh
+# Create internal zone for database
+sudo firewall-cmd --permanent --new-zone=database
+sudo firewall-cmd --permanent --zone=database --add-service=mysql
+sudo firewall-cmd --permanent --zone=database --add-source=192.168.1.0/24
+
+# Block from public zone
+sudo firewall-cmd --permanent --zone=public --remove-service=mysql
+sudo firewall-cmd --reload
+#+end_src
+
+*** 10.3 Gaming Server
+:PROPERTIES:
+:CUSTOM_ID: gaming-server
+:END:
+#+begin_src sh
+# Minecraft server example
+sudo firewall-cmd --permanent --zone=public --add-port=25565/tcp
+sudo firewall-cmd --permanent --zone=public --add-port=25565/udp
+
+# SSH for management
+sudo firewall-cmd --permanent --zone=public --add-service=ssh
+
+sudo firewall-cmd --reload
+#+end_src
+
+** Part 11: Integration with Other Tools
+*** Docker/Podman Integration
+Firewalld configuration in =/etc/firewalld/firewalld.conf=:
+
+#+begin_src sh
+# Edit firewalld.conf
+sudo nvim /etc/firewalld/firewalld.conf
+
+# Set AllowZoneDrifting=no for security
+# This prevents Docker from bypassing firewalld
+AllowZoneDrifting=no
+
+# Restart firewalld
+sudo systemctl restart firewalld.service
+#+end_src
+
+*** NetworkManager Integration
+NetworkManager automatically integrates with firewalld. Configure
+connection-specific zones:
+
+#+begin_src sh
+# List NetworkManager connections
+nmcli connection show
+
+# Set zone for specific connection
+nmcli connection modify "Home WiFi" connection.zone home
+nmcli connection modify "Public WiFi" connection.zone public
+
+# Apply
+nmcli connection up "Home WiFi"
+#+end_src
+
+** Part 12: Backup and Restore
+*** Backup Configuration
+#+begin_src sh
+# Backup entire firewalld configuration
+sudo cp -r /etc/firewalld /etc/firewalld.backup
+
+# Or create tarball
+sudo tar -czf firewalld-backup-$(date +%Y%m%d).tar.gz /etc/firewalld
+#+end_src
+
+*** Restore Configuration
+#+begin_src sh
+# Restore from backup
+sudo rm -rf /etc/firewalld
+sudo cp -r /etc/firewalld.backup /etc/firewalld
+
+# Reload
+sudo firewall-cmd --reload
+#+end_src
+
+** Part 13: Troubleshooting
+*** Common Issues
+*Service won't start:*
+
+#+begin_src sh
+# Check for errors
+sudo systemctl status firewalld.service
+sudo journalctl -xeu firewalld.service
+
+# Check configuration syntax
+sudo firewall-cmd --check-config
+#+end_src
+
+*Can't connect to service after opening port:*
+
+#+begin_src sh
+# Verify service is listening
+sudo ss -tlnp | grep <port>
+
+# Check if port is really open
+sudo firewall-cmd --list-ports
+sudo firewall-cmd --list-services
+
+# Check rich rules
+sudo firewall-cmd --list-rich-rules
+
+# Test from another machine
+nmap -p <port> <your-ip>
+#+end_src
+
+*Changes not persisting:*
+
+#+begin_src sh
+# Make sure you use --permanent flag
+sudo firewall-cmd --permanent --add-service=http
+sudo firewall-cmd --reload
+
+# Or use runtime-to-permanent
+sudo firewall-cmd --add-service=http
+sudo firewall-cmd --runtime-to-permanent
+#+end_src
+
+*** Debugging
+#+begin_src sh
+# Enable debug logging
+sudo firewall-cmd --set-log-level=debug
+
+# View detailed logs
+sudo journalctl -u firewalld -f
+
+# Reset log level
+sudo firewall-cmd --set-log-level=info
+
+# Test specific rule
+sudo firewall-cmd --query-service=http
+sudo firewall-cmd --query-port=8080/tcp
+#+end_src
+
+** Part 14: Performance and Optimization
+*** Configuration File
+Edit =/etc/firewalld/firewalld.conf=:
+
+#+begin_src sh
+sudo nvim /etc/firewalld/firewalld.conf
+#+end_src
+
+Key settings:
+
+#+begin_src ini
+# Use nftables backend (default, fastest)
+FirewallBackend=nftables
+
+# Cleanup on stop
+CleanupOnExit=yes
+
+# Don't cleanup modules on exit
+CleanupModulesOnExit=no
+
+# IPv6 reverse path filter
+IPv6_rpfilter=yes
+
+# Log denied packets
+LogDenied=off  # Set to 'all' or 'unicast' if needed
+
+# Automatic helpers (for FTP, etc.)
+AutomaticHelpers=no  # More secure
+
+# FlowOffload (performance optimization for forwarding)
+# Only if you have router/gateway
+# NftablesFlowtable=eth0 eth1
+#+end_src
+
+*** Minimize Rules
+#+begin_src sh
+# Remove unused services
+sudo firewall-cmd --permanent --remove-service=<unused-service>
+
+# Use zones effectively instead of many rich rules
+# Group similar hosts into zones
+
+# Review and clean up
+sudo firewall-cmd --list-all-zones | grep -A 20 "^public"
+#+end_src
+
+** Part 15: Security Best Practices
+1. *Default deny policy* - Only allow what's needed
+2. *Use specific zones* - Don't put everything in ‘public’
+3. *Regular audits* - Review rules monthly
+4. *Least privilege* - Only open ports that must be accessible
+5. *Source restrictions* - Use rich rules to limit by IP when possible
+6. *Rate limiting* - Use rich rules with limits for brute-force
+   protection
+7. *Logging* - Enable for security-critical services
+8. *Backup* - Keep configuration backups
+9. *Test changes* - Test in runtime before making permanent
+10. *Integration* - Combine with fail2ban for additional protection
+
+** Summary
+:PROPERTIES:
+:CUSTOM_ID: summary
+:END:
+Firewalld provides a robust, dynamic firewall solution for Arch Linux.
+For most users:
+
+*Desktop users:*
+
+#+begin_src sh
+sudo pacman -S firewalld
+sudo systemctl enable --now firewalld.service
+sudo firewall-cmd --set-default-zone=home
+sudo firewall-cmd --permanent --add-service=dhcpv6-client
+sudo firewall-cmd --reload
+#+end_src
+
+*Server users:*
+
+#+begin_src sh
+sudo pacman -S firewalld
+sudo systemctl enable --now firewalld.service
+sudo firewall-cmd --set-default-zone=public
+sudo firewall-cmd --permanent --add-service=ssh
+sudo firewall-cmd --permanent --add-service=http
+sudo firewall-cmd --permanent --add-service=https
+sudo firewall-cmd --reload
+#+end_src
+
+Remember: Security is a process, not a product. Regularly review and
+update your firewall configuration as your needs change!
+
+
+
+* Hardening
+** Lock Root Account
+#+begin_src sh
+passwd -l root
+#+end_src

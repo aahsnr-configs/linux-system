@@ -1,0 +1,101 @@
+{
+  "workbench.editor.empty.hint": "hidden",
+  "git.confirmSync": false,
+  "editor.minimap.enabled": false,
+  "editor.renderWhitespace": "none",
+  "editor.wordWrap": "on",
+  // Font Configuration
+  // Note: Font names with spaces must be wrapped in single quotes
+  "editor.fontFamily": "'JetBrainsMono Nerd Font', 'JetBrains Mono', Consolas, 'Courier New', monospace",
+  "editor.fontLigatures": true,
+  // Todo Tree Configuration (Matches hl-todo / todo-comments.nvim)
+  "todo-tree.general.showActivityBarBadge": true,
+  "todo-tree.general.statusBar": "total",
+  "todo-tree.general.tags": [
+    "TODO",
+    "FIXME",
+    "BUG",
+    "HACK",
+    "NOTE",
+    "REVIEW",
+    "XXX",
+    "DEPRECATED",
+    "PERF"
+  ],
+  "todo-tree.highlights.defaultHighlight": {
+    "type": "tag",
+    "borderRadius": "4px",
+    "fontWeight": "bold",
+    "icon": "alert",
+    "iconColour": "#7aa2f7",
+    "foreground": "#15161e",
+    "background": "#7aa2f7",
+    "gutterIcon": true
+  },
+  "todo-tree.highlights.customHighlight": {
+    "TODO": {
+      "icon": "check",
+      "background": "#7aa2f7",
+      "iconColour": "#7aa2f7",
+      "foreground": "#15161e"
+    },
+    "FIXME": {
+      "icon": "flame",
+      "background": "#f7768e",
+      "iconColour": "#f7768e",
+      "foreground": "#15161e"
+    },
+    "BUG": {
+      "icon": "bug",
+      "background": "#f7768e",
+      "iconColour": "#f7768e",
+      "foreground": "#15161e"
+    },
+    "HACK": {
+      "icon": "tools",
+      "background": "#ff9e64",
+      "iconColour": "#ff9e64",
+      "foreground": "#15161e"
+    },
+    "NOTE": {
+      "icon": "note",
+      "background": "#9ece6a",
+      "iconColour": "#9ece6a",
+      "foreground": "#15161e"
+    },
+    "REVIEW": {
+      "icon": "eye",
+      "background": "#bb9af7",
+      "iconColour": "#bb9af7",
+      "foreground": "#15161e"
+    },
+    "XXX": {
+      "icon": "unverified",
+      "background": "#ff9e64",
+      "iconColour": "#ff9e64",
+      "foreground": "#15161e"
+    },
+    "DEPRECATED": {
+      "icon": "trash",
+      "background": "#db4b4b",
+      "iconColour": "#db4b4b",
+      "foreground": "#ffffff"
+    },
+    "PERF": {
+      "icon": "rocket",
+      "background": "#bb9af7",
+      "iconColour": "#bb9af7",
+      "foreground": "#15161e"
+    }
+  },
+  "workbench.secondarySideBar.defaultVisibility": "hidden",
+  "workbench.editor.enablePreview": false,
+  "workbench.statusBar.visible": false,
+  "breadcrumbs.enabled": false,
+  "window.commandCenter": false,
+  "workbench.layoutControl.enabled": false,
+  "chat.commandCenter.enabled": false,
+  "window.menuBarVisibility": "compact",
+  "http.systemCertificatesNode": true,
+  "security.workspace.trust.untrustedFiles": "open"
+}

@@ -1,0 +1,10 @@
+.obsidian/
+setup-log*
+new-setup-script/requirements.txt
+dotfiles/.config/fish/completions/
+dotfiles/.config/fish/conf.d/
+dotfiles/.config/fish/functions/
+dotfiles/.config/fish/themes/
+dotfiles/.config/fish/fish_plugins
+dotfiles/.config/fish/fish_variables
+dotfiles/.config/doom/ltximg/

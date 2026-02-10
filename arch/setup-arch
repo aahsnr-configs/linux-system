@@ -1,0 +1,52 @@
+#!/bin/bash
+cd && sudo cp -R "$HOME/Git/configs/linux-system/arch/preconfig/99-custom-env.sh" "/etc/profile.d/"
+
+paru -S --noconfirm rustup
+rustup default stable
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+paru -S --needed meson cpio base-devel adw-gtk-theme amd-ucode aspell atuin bleachbit bluez bluez-utils bun pixi uv bpftune-git brave-bin brightnessctl btop cava chafa cliphist cronie ddcutil debugedit devtools direnv distrobox downgrade dust emacs-wayland enchant evolution-data-server eza fail2ban fastfetch fd ferdium-bin flatpak fwupd fwupd-efi fzf git git-lfs github-cli glow gnuplot grim groff gsettings-desktop-schemas gsettings-system-schemas gst-libav gst-plugin-pipewire gst-plugins-bad gst-plugins-bad-libs gst-plugins-base-libs gst-plugins-good gst-plugins-ugly gstreamer haveged hspell hunspell hunspell-en_gb hunspell-en_us hyprland-git hypridle-git hyprland-guiutils-git hyprpolkitagent-git hyprshutdown-git i2c-tools imagemagick imv inotify-tools ispell jq lazygit logrotate lua lua51 lua51-lpeg luajit luarocks lvm2 lynis man-db mpv thunar thunar-archive-plugin thunar-media-tags-plugin thunar-volman ttf-nerd-fonts-symbols ttf-nerd-fonts-symbols-mono neovim noctalia-shell-git noto-fonts noto-fonts-emoji npm obsidian pandoc-bin papers papirus-icon-theme pay-respects-bin pkgconf podman podman-compose profile-sync-daemon proton-vpn-gtk-app pymol slurp starship swappy texlab ttf-jetbrains-mono ttf-jetbrains-mono-nerd topgrade transmission-gtk udiskie visual-studio-code-bin wlsunset xdg-desktop-portal xdg-desktop-portal-gnome xdg-desktop-portal-gtk xdg-desktop-portal-hyprland xdg-user-dirs xdg-user-dirs-gtk zathura zathura-pdf-mupdf zen-browser-bin zeromq zotero zoxide zsh zstd ffmpeg x264 openh264 pyprland-git pipewire pipewire-alsa pipewire-jack pipewire-pulse wireplumber gst-plugin-pipewire
+
+ln -sv "$HOME/Git/configs/linux-system/dots/bin/" "$HOME/"
+sudo rm -rf ~/.zshrc
+ln -sv "$HOME/Git/configs/linux-system/dots/.zshrc" "$HOME/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/atuin/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/bat/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/btop/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/enchant/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/fd/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/gh/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/kitty/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/home-manager/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/hypr/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/imv/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/lazygit/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/nvim/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/pipewire/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/pypr/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/swappy/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/tealdeer/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/tmux/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/xdg-desktop-portal/" "$HOME/.config"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/yazi/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/zathura/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/chrome-flags.conf" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/electron-flags.conf" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/mimeapps.list" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/starship.toml" "$HOME/.config/"
+sudo rm -rf ~/.config/user-dirs.dirs
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/user-dirs.dirs" "$HOME/.config/"
+
+# Configure User
+mkdir -p "$HOME/.npm-global"
+npm config set prefix "$HOME/.npm-global"
+
+cd && git clone https://aur.archlinux.org/emacs-lsp-booster-git.git
+cd emacs-lsp-booster-git
+rustup default nightly
+makepkg -si
+cd
+
+chsh -s $(which zsh)
+
+

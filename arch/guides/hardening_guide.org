@@ -1,0 +1,1294 @@
+* Addendum: Comprehensive Arch Linux Hardening Guide for Production Use
+:PROPERTIES:
+:CUSTOM_ID: addendum-comprehensive-arch-linux-hardening-guide-for-production-use
+:END:
+This guide provides comprehensive security hardening procedures for Arch
+Linux systems intended for production use. The Arch Wiki notes that you
+can never make a system 100% secure unless you unplug the machine from
+all networks, turn it off, lock it in a safe, smother it in concrete and
+never use it - but we can significantly improve security through defense
+in depth.
+
+*⚠️ WARNING:* This guide assumes you have good Linux knowledge. Hardening
+can make your system difficult to use if misconfigured. Always test
+changes in a non-production environment first.
+
+** Security Principles
+:PROPERTIES:
+:CUSTOM_ID: security-principles
+:END:
+1. *Principle of Least Privilege* - Each part of a system should only
+   access what is strictly required
+2. *Defense in Depth* - Multiple independent layers of security
+3. *Minimize Attack Surface* - Disable/remove unnecessary services
+4. *Stay Updated* - Promptly install security patches
+5. *Paranoia Helps* - Be suspicious of anything too good to be true
+6. *Prepare for Failure* - Have incident response plans
+
+** Part 1: Kernel Hardening
+:PROPERTIES:
+:CUSTOM_ID: part-1-kernel-hardening
+:END:
+*** 1.1 Kernel Parameters (Sysctl)
+:PROPERTIES:
+:CUSTOM_ID: kernel-parameters-sysctl
+:END:
+Create =/etc/sysctl.d/99-security.conf=:
+
+#+begin_src sh
+sudo nvim /etc/sysctl.d/99-security.conf
+#+end_src
+
+Add these security-focused kernel parameters:
+
+#+begin_src ini
+# Kernel hardening
+# Hide kernel pointers from regular users (mitigates kernel exploits)
+kernel.kptr_restrict=2
+
+# Restrict access to kernel logs
+kernel.dmesg_restrict=1
+
+# Disable kexec (prevents replacing running kernel)
+kernel.kexec_load_disabled=1
+
+# Restrict access to performance events
+kernel.perf_event_paranoid=3
+
+# Prevent kernel from loading non-signed modules (if using signed modules)
+# kernel.modules_disabled=1  # CAUTION: Can't load ANY modules after boot
+
+# Restrict BPF JIT compiler (used in some kernel exploits)
+net.core.bpf_jit_harden=2
+
+# Restrict unprivileged use of BPF
+kernel.unprivileged_bpf_disabled=1
+
+# Disable unprivileged user namespaces (reduces attack surface)
+kernel.unprivileged_userns_clone=0
+
+# Restrict ptrace to parent processes only
+kernel.yama.ptrace_scope=2
+
+# Disable core dumps (may contain sensitive info)
+kernel.core_pattern=|/bin/false
+fs.suid_dumpable=0
+
+# Network hardening
+# Ignore ICMP redirects
+net.ipv4.conf.all.accept_redirects=0
+net.ipv4.conf.default.accept_redirects=0
+net.ipv6.conf.all.accept_redirects=0
+net.ipv6.conf.default.accept_redirects=0
+
+# Ignore send redirects
+net.ipv4.conf.all.send_redirects=0
+net.ipv4.conf.default.send_redirects=0
+
+# Reverse path filtering (anti-spoofing)
+net.ipv4.conf.all.rp_filter=1
+net.ipv4.conf.default.rp_filter=1
+
+# Don't accept source routing
+net.ipv4.conf.all.accept_source_route=0
+net.ipv4.conf.default.accept_source_route=0
+net.ipv6.conf.all.accept_source_route=0
+net.ipv6.conf.default.accept_source_route=0
+
+# Ignore ICMP ping requests (optional, breaks some network diagnostics)
+# net.ipv4.icmp_echo_ignore_all=1
+# net.ipv6.icmp.echo_ignore_all=1
+
+# Log martian packets
+net.ipv4.conf.all.log_martians=1
+net.ipv4.conf.default.log_martians=1
+
+# Protect against TCP SYN flood attacks
+net.ipv4.tcp_syncookies=1
+net.ipv4.tcp_syn_retries=2
+net.ipv4.tcp_synack_retries=2
+net.ipv4.tcp_max_syn_backlog=4096
+
+# Disable IPv6 if not needed (reduces attack surface)
+# net.ipv6.conf.all.disable_ipv6=1
+# net.ipv6.conf.default.disable_ipv6=1
+#+end_src
+
+Apply settings:
+
+#+begin_src sh
+sudo sysctl --system
+
+# Verify
+sudo sysctl -a | grep -E 'kptr_restrict|dmesg_restrict|ptrace_scope'
+#+end_src
+
+*** 1.2 Boot Parameters
+:PROPERTIES:
+:CUSTOM_ID: boot-parameters
+:END:
+Edit =/etc/default/limine= (for your Limine setup):
+
+#+begin_src sh
+sudo nvim /etc/default/limine
+#+end_src
+
+Add these security-focused kernel parameters:
+
+#+begin_src sh
+# Add to KERNEL_CMDLINE[default]+= lines
+
+# Enable kernel lockdown (integrity mode)
+KERNEL_CMDLINE[default]+="lockdown=integrity"
+# OR for maximum security (confidentiality mode):
+# KERNEL_CMDLINE[default]+="lockdown=confidentiality"
+
+# Disable Intel/AMD CPU vulnerabilities mitigations bypass
+# (ensures all mitigations are active)
+KERNEL_CMDLINE[default]+="mitigations=auto,nosmt"
+
+# Disable vsyscall (legacy interface with security issues)
+KERNEL_CMDLINE[default]+="vsyscall=none"
+
+# Enable page table isolation (Meltdown mitigation)
+KERNEL_CMDLINE[default]+="pti=on"
+
+# Randomize kernel memory
+KERNEL_CMDLINE[default]+="init_on_alloc=1 init_on_free=1"
+
+# Enable CPU vulnerability mitigations
+KERNEL_CMDLINE[default]+="spec_store_bypass_disable=on"
+KERNEL_CMDLINE[default]+="spectre_v2=on"
+
+# Disable legacy 32-bit syscalls (if not needed)
+# KERNEL_CMDLINE[default]+="ia32_emulation=0"
+
+# Module signing enforcement
+KERNEL_CMDLINE[default]+="module.sig_enforce=1"
+#+end_src
+
+Apply and regenerate initramfs:
+
+#+begin_src sh
+sudo limine-dracut
+sudo reboot
+#+end_src
+
+*** 1.3 Consider Linux-Hardened Kernel
+:PROPERTIES:
+:CUSTOM_ID: consider-linux-hardened-kernel
+:END:
+#+begin_src sh
+# Install hardened kernel with additional security patches
+sudo pacman -S linux-hardened linux-hardened-headers
+
+# Regenerate boot entries
+sudo limine-dracut
+
+# Reboot and select hardened kernel
+sudo reboot
+#+end_src
+
+The linux-hardened kernel includes additional security patches and
+stricter defaults.
+
+** Part 2: Filesystem Hardening
+:PROPERTIES:
+:CUSTOM_ID: part-2-filesystem-hardening
+:END:
+*** 2.1 Secure /tmp, /var/tmp, /dev/shm
+:PROPERTIES:
+:CUSTOM_ID: secure-tmp-vartmp-devshm
+:END:
+Edit =/etc/fstab= and add/modify these entries:
+
+#+begin_src sh
+sudo nvim /etc/fstab
+#+end_src
+
+Add these mount options:
+
+#+begin_src fstab
+# Secure /tmp
+tmpfs   /tmp    tmpfs   rw,nodev,nosuid,noexec,mode=1777   0 0
+
+# Secure /var/tmp (bind mount to /tmp)
+/tmp    /var/tmp    none    bind,nodev,nosuid,noexec   0 0
+
+# Secure /dev/shm
+tmpfs   /dev/shm    tmpfs   rw,nodev,nosuid,noexec,mode=1777   0 0
+#+end_src
+
+Apply (after backup):
+
+#+begin_src sh
+# Backup current fstab
+sudo cp /etc/fstab /etc/fstab.backup
+
+# Test mount
+sudo mount -o remount /tmp
+sudo mount -o remount /dev/shm
+
+# Verify
+mount | grep -E 'tmp|shm'
+#+end_src
+
+*Note:* =noexec= on /tmp may break some package installations. If issues
+arise, temporarily remount with exec:
+
+#+begin_src sh
+sudo mount -o remount,exec /tmp
+# Run installation
+sudo mount -o remount,noexec /tmp
+#+end_src
+
+*** 2.2 Hide Process Information
+:PROPERTIES:
+:CUSTOM_ID: hide-process-information
+:END:
+The Arch Wiki recommends hiding other users' processes. Edit
+=/etc/fstab=:
+
+#+begin_src sh
+# Hide processes from other users (except wheel group)
+proc    /proc   proc    nosuid,nodev,noexec,hidepid=2,gid=wheel   0 0
+#+end_src
+
+This prevents users from seeing processes of other users.
+
+*** 2.3 Audit Filesystem Permissions
+:PROPERTIES:
+:CUSTOM_ID: audit-filesystem-permissions
+:END:
+#+begin_src sh
+# Find world-writable files
+sudo find / -xdev -type f -perm -002 -ls 2>/dev/null
+
+# Find files with no owner
+sudo find / -xdev -nouser -o -nogroup 2>/dev/null
+
+# Find SUID/SGID files (potential privilege escalation)
+sudo find / -xdev \( -perm -4000 -o -perm -2000 \) -type f -ls 2>/dev/null
+
+# Review and remove unnecessary SUID bits
+# sudo chmod u-s /path/to/file
+#+end_src
+
+** Part 3: User and Access Control
+:PROPERTIES:
+:CUSTOM_ID: part-3-user-and-access-control
+:END:
+*** 3.1 Disable Root Login
+:PROPERTIES:
+:CUSTOM_ID: disable-root-login
+:END:
+#+begin_src sh
+# Lock root account (use sudo instead)
+sudo passwd -l root
+
+# Verify
+sudo passwd -S root
+# Should show: "root L"
+#+end_src
+
+*** 3.2 Restrict su Command
+:PROPERTIES:
+:CUSTOM_ID: restrict-su-command
+:END:
+Edit =/etc/pam.d/su= and =/etc/pam.d/su-l=:
+
+#+begin_src sh
+sudo nvim /etc/pam.d/su
+#+end_src
+
+Uncomment this line to restrict su to wheel group:
+
+#+begin_example
+auth required pam_wheel.so use_uid
+#+end_example
+
+Do the same for =/etc/pam.d/su-l=.
+
+*** 3.3 Secure Sudo Configuration
+:PROPERTIES:
+:CUSTOM_ID: secure-sudo-configuration
+:END:
+#+begin_src sh
+# Always use visudo for safety
+sudo EDITOR=nvim visudo
+#+end_src
+
+Add these security-focused directives:
+
+#+begin_src sudoers
+# Require password for sudo (even shortly after last sudo)
+Defaults timestamp_timeout=0
+
+# OR: Reasonable timeout (15 minutes)
+# Defaults timestamp_timeout=15
+
+# Require password for ALL commands (no NOPASSWD except where absolutely needed)
+# Remove or comment any NOPASSWD entries
+
+# Log all sudo commands
+Defaults log_output
+Defaults!/usr/bin/sudoreplay !log_output
+Defaults!/sbin/reboot !log_output
+
+# Use strong password hashing
+Defaults passwd_timeout=1
+
+# Require root password instead of user password (more secure)
+# Defaults rootpw
+
+# Secure PATH
+Defaults secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+# Don't allow shell escapes
+Defaults noexec
+
+# Enable logging
+Defaults logfile="/var/log/sudo.log"
+Defaults log_year, log_host, log_input, log_output
+#+end_src
+
+*** 3.4 Increase Password Hashing Rounds
+:PROPERTIES:
+:CUSTOM_ID: increase-password-hashing-rounds
+:END:
+Edit =/etc/pam.d/passwd=:
+
+#+begin_src sh
+sudo nvim /etc/pam.d/passwd
+#+end_src
+
+Find the line with =pam_unix.so= and add =rounds=65536=:
+
+#+begin_example
+password required pam_unix.so sha512 shadow nullok rounds=65536
+#+end_example
+
+For new passwords, they will use more hashing rounds (slower to crack).
+
+*** 3.5 Enforce Strong Passwords
+:PROPERTIES:
+:CUSTOM_ID: enforce-strong-passwords
+:END:
+Install and configure pam_pwquality:
+
+#+begin_src sh
+sudo pacman -S libpwquality
+
+sudo nvim /etc/security/pwquality.conf
+#+end_src
+
+Configure password requirements:
+
+#+begin_src ini
+# Minimum length
+minlen = 14
+
+# Require at least one digit
+dcredit = -1
+
+# Require at least one uppercase
+ucredit = -1
+
+# Require at least one lowercase
+lcredit = -1
+
+# Require at least one special character
+ocredit = -1
+
+# Maximum consecutive characters
+maxrepeat = 3
+
+# Maximum consecutive characters from same class
+maxclassrepeat = 4
+
+# Reject passwords with username
+usercheck = 1
+
+# Check against dictionary
+dictcheck = 1
+#+end_src
+
+*** 3.6 Account Lockout Policy
+:PROPERTIES:
+:CUSTOM_ID: account-lockout-policy
+:END:
+Edit =/etc/security/faillock.conf=:
+
+#+begin_src sh
+sudo nvim /etc/security/faillock.conf
+#+end_src
+
+Configure account lockout:
+
+#+begin_src ini
+# Lock account after N failed attempts
+deny = 5
+
+# Lockout duration (seconds)
+unlock_time = 600
+
+# Root account also subject to lockout
+even_deny_root
+
+# Audit failed attempts
+audit
+#+end_src
+
+** Part 4: SSH Hardening
+:PROPERTIES:
+:CUSTOM_ID: part-4-ssh-hardening
+:END:
+*** 4.1 SSH Server Configuration
+:PROPERTIES:
+:CUSTOM_ID: ssh-server-configuration
+:END:
+Edit =/etc/ssh/sshd_config=:
+
+#+begin_src sh
+sudo nvim /etc/ssh/sshd_config
+#+end_src
+
+Apply these security settings:
+
+#+begin_src sshconfig
+# Change default port (security through obscurity, but helps with automated attacks)
+Port 2222
+
+# Only listen on specific IP (if applicable)
+# ListenAddress 192.168.1.10
+
+# Protocol 2 only (v1 is deprecated and insecure)
+Protocol 2
+
+# Disable root login
+PermitRootLogin no
+
+# Only allow specific users
+AllowUsers your_username
+
+# OR only allow specific groups
+# AllowGroups ssh-users
+
+# Disable password authentication (use keys only)
+PasswordAuthentication no
+PermitEmptyPasswords no
+ChallengeResponseAuthentication no
+
+# Enable public key authentication
+PubkeyAuthentication yes
+AuthorizedKeysFile .ssh/authorized_keys
+
+# Disable dangerous features
+X11Forwarding no
+PermitTunnel no
+AllowAgentForwarding no
+AllowTcpForwarding no
+PermitUserEnvironment no
+
+# Use strong ciphers and MACs
+Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr
+MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512,hmac-sha2-256
+KexAlgorithms curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group-exchange-sha256
+
+# Use strong host keys
+HostKey /etc/ssh/ssh_host_ed25519_key
+HostKey /etc/ssh/ssh_host_rsa_key
+
+# Connection timeout
+ClientAliveInterval 300
+ClientAliveCountMax 2
+
+# Login grace time
+LoginGraceTime 60
+
+# Max authentication attempts
+MaxAuthTries 3
+
+# Max concurrent sessions
+MaxSessions 2
+
+# Enable verbose logging
+LogLevel VERBOSE
+
+# Use privilege separation
+UsePrivilegeSeparation sandbox
+
+# Disable host-based authentication
+HostbasedAuthentication no
+IgnoreRhosts yes
+
+# Disable unused features
+GatewayPorts no
+PermitUserRC no
+#+end_src
+
+Regenerate SSH host keys with stronger algorithms:
+
+#+begin_src sh
+# Remove old keys
+sudo rm /etc/ssh/ssh_host_*
+
+# Generate new strong keys
+sudo ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N ""
+sudo ssh-keygen -t rsa -b 4096 -f /etc/ssh/ssh_host_rsa_key -N ""
+
+# Set correct permissions
+sudo chmod 600 /etc/ssh/ssh_host_*_key
+sudo chmod 644 /etc/ssh/ssh_host_*_key.pub
+
+# Restart SSH
+sudo systemctl restart sshd.service
+#+end_src
+
+*** 4.2 Setup Fail2Ban for SSH
+:PROPERTIES:
+:CUSTOM_ID: setup-fail2ban-for-ssh
+:END:
+Install and configure fail2ban:
+
+#+begin_src sh
+sudo pacman -S fail2ban
+
+# Copy paths configuration
+sudo cp /etc/fail2ban/paths-fedora.conf /etc/fail2ban/paths-archlinux.conf
+
+# Create jail configuration
+sudo nvim /etc/fail2ban/jail.local
+#+end_src
+
+Add SSH jail configuration:
+
+#+begin_src ini
+[DEFAULT]
+# Ban for 2 weeks
+bantime = 2w
+
+# Find failures over 1 day
+findtime = 1d
+
+# IPs that should never be banned (your trusted IPs)
+ignoreip = 127.0.0.1/8 ::1 YOUR_TRUSTED_IP
+
+[sshd]
+enabled = true
+filter = sshd
+backend = systemd
+maxretry = 3
+banaction = nftables[type=multiport]
+# If using custom SSH port
+port = 2222
+#+end_src
+
+Enable and start:
+
+#+begin_src sh
+sudo systemctl enable --now fail2ban.service
+
+# Check status
+sudo fail2ban-client status sshd
+#+end_src
+
+*** 4.3 SSH Key Setup
+:PROPERTIES:
+:CUSTOM_ID: ssh-key-setup
+:END:
+Generate strong SSH keys (on client):
+
+#+begin_src sh
+# Ed25519 (recommended)
+ssh-keygen -t ed25519 -C "your_email@example.com"
+
+# OR RSA 4096-bit
+ssh-keygen -t rsa -b 4096 -C "your_email@example.com"
+
+# Copy to server
+ssh-copy-id -p 2222 -i ~/.ssh/id_ed25519.pub username@server
+#+end_src
+
+** Part 5: Firewall Configuration
+:PROPERTIES:
+:CUSTOM_ID: part-5-firewall-configuration
+:END:
+See the Firewalld guide. At minimum:
+
+#+begin_src sh
+sudo pacman -S firewalld
+sudo systemctl enable --now firewalld.service
+
+# Set restrictive default
+sudo firewall-cmd --set-default-zone=public
+
+# Only allow SSH (on custom port if changed)
+sudo firewall-cmd --permanent --remove-service=ssh
+sudo firewall-cmd --permanent --add-port=2222/tcp
+
+# Rate limit SSH
+sudo firewall-cmd --permanent --add-rich-rule='rule service name="ssh" limit value="3/m" accept'
+
+sudo firewall-cmd --reload
+#+end_src
+
+** Part 6: Mandatory Access Control (AppArmor)
+:PROPERTIES:
+:CUSTOM_ID: part-6-mandatory-access-control-apparmor
+:END:
+*** 6.1 Install and Enable AppArmor
+:PROPERTIES:
+:CUSTOM_ID: install-and-enable-apparmor
+:END:
+#+begin_src sh
+# Install AppArmor
+sudo pacman -S apparmor
+
+# Add kernel parameters (in /etc/default/limine)
+KERNEL_CMDLINE[default]+="lsm=landlock,lockdown,yama,integrity,apparmor,bpf"
+KERNEL_CMDLINE[default]+="apparmor=1 security=apparmor"
+
+# Regenerate initramfs
+sudo limine-dracut
+
+# Reboot
+sudo reboot
+
+# Verify AppArmor is active
+sudo aa-enabled
+# Should output: Yes
+
+# Check status
+sudo aa-status
+#+end_src
+
+*** 6.2 Enable AppArmor Profiles
+:PROPERTIES:
+:CUSTOM_ID: enable-apparmor-profiles
+:END:
+#+begin_src sh
+# Enable all available profiles
+sudo aa-enforce /etc/apparmor.d/*
+
+# Check status
+sudo aa-status
+
+# If some profiles break applications, set to complain mode:
+# sudo aa-complain /etc/apparmor.d/usr.bin.someapp
+#+end_src
+
+*** 6.3 Create Custom Profiles
+:PROPERTIES:
+:CUSTOM_ID: create-custom-profiles
+:END:
+#+begin_src sh
+# Generate profile for an application
+sudo aa-genprof /usr/bin/application
+
+# Run the application and perform typical tasks
+# AppArmor will log required permissions
+
+# Scan logs and update profile
+# Press 'S' to scan, 'F' to finish when done
+
+# Enable the profile
+sudo aa-enforce /etc/apparmor.d/usr.bin.application
+#+end_src
+
+** Part 7: Audit and Monitoring
+:PROPERTIES:
+:CUSTOM_ID: part-7-audit-and-monitoring
+:END:
+*** 7.1 Install and Configure Auditd
+:PROPERTIES:
+:CUSTOM_ID: install-and-configure-auditd
+:END:
+#+begin_src sh
+sudo pacman -S audit
+
+# Enable and start
+sudo systemctl enable --now auditd.service
+
+# Add audit rules
+sudo nvim /etc/audit/rules.d/audit.rules
+#+end_src
+
+Add these audit rules:
+
+#+begin_src sh
+# Delete all existing rules
+-D
+
+# Buffer size
+-b 8192
+
+# Failure mode (0=silent 1=printk 2=panic)
+-f 1
+
+# Audit system calls
+-a always,exit -F arch=b64 -S execve -k exec
+-a always,exit -F arch=b32 -S execve -k exec
+
+# Monitor password file changes
+-w /etc/passwd -p wa -k passwd_changes
+-w /etc/group -p wa -k group_changes
+-w /etc/shadow -p wa -k shadow_changes
+-w /etc/gshadow -p wa -k gshadow_changes
+
+# Monitor sudo usage
+-w /etc/sudoers -p wa -k sudoers_changes
+-w /etc/sudoers.d/ -p wa -k sudoers_changes
+
+# Monitor SSH configuration
+-w /etc/ssh/sshd_config -p wa -k sshd_config_changes
+
+# Monitor kernel module loading
+-w /sbin/insmod -p x -k module_insertion
+-w /sbin/modprobe -p x -k module_insertion
+-w /sbin/rmmod -p x -k module_removal
+
+# Monitor file deletion by users
+-a always,exit -F arch=b64 -S unlink -S unlinkat -S rename -S renameat -F auid>=1000 -F auid!=4294967295 -k delete
+
+# Monitor changes to time
+-a always,exit -F arch=b64 -S adjtimex -S settimeofday -k time_change
+
+# Make configuration immutable
+-e 2
+#+end_src
+
+Reload rules:
+
+#+begin_src sh
+sudo augenrules --load
+
+# View audit logs
+sudo ausearch -k passwd_changes
+sudo aureport --summary
+#+end_src
+
+*** 7.2 Install Security Audit Tools
+:PROPERTIES:
+:CUSTOM_ID: install-security-audit-tools
+:END:
+#+begin_src sh
+# Install arch-audit (checks for CVEs)
+sudo pacman -S arch-audit
+
+# Run audit
+arch-audit
+
+# Install lynis (comprehensive security audit)
+yay -S lynis
+
+# Run Lynis audit
+sudo lynis audit system
+#+end_src
+
+*** 7.3 File Integrity Monitoring (AIDE)
+:PROPERTIES:
+:CUSTOM_ID: file-integrity-monitoring-aide
+:END:
+#+begin_src sh
+sudo pacman -S aide
+
+# Initialize database (this takes time)
+sudo aide --init
+
+# Move database
+sudo mv /var/lib/aide/aide.db.new.gz /var/lib/aide/aide.db.gz
+
+# Check for changes
+sudo aide --check
+
+# Update database after legitimate changes
+sudo aide --update
+#+end_src
+
+** Part 8: Systemd Service Hardening
+:PROPERTIES:
+:CUSTOM_ID: part-8-systemd-service-hardening
+:END:
+For each systemd service, add security directives. Example for a custom
+service:
+
+#+begin_src sh
+sudo systemctl edit your-service.service
+#+end_src
+
+Add these hardening options:
+
+#+begin_src ini
+[Service]
+# Filesystem isolation
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/
+ReadWritePaths=/var/lib/your-service
+
+# Prevent access to other users' data
+PrivateTmp=yes
+PrivateDevices=yes
+
+# Network isolation (if service doesn't need network)
+PrivateNetwork=yes
+# OR restrict to localhost only
+# IPAddressDeny=any
+# IPAddressAllow=localhost
+
+# System call filtering
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+
+# No new privileges
+NoNewPrivileges=yes
+
+# Restrict namespaces
+RestrictNamespaces=yes
+
+# Restrict realtime
+RestrictRealtime=yes
+
+# Protect kernel modules
+ProtectKernelModules=yes
+
+# Protect kernel tunables
+ProtectKernelTunables=yes
+
+# Protect kernel logs
+ProtectKernelLogs=yes
+
+# Protect clock
+ProtectClock=yes
+
+# Protect hostname
+ProtectHostname=yes
+
+# Restrict SUID/SGID
+RestrictSUIDSGID=yes
+
+# Remove capabilities
+CapabilityBoundingSet=
+# OR limit to specific caps needed
+# CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+
+# Lock down personality
+LockPersonality=yes
+
+# Memory deny write-execute
+MemoryDenyWriteExecute=yes
+
+# Restrict address families
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+#+end_src
+
+Analyze service security:
+
+#+begin_src sh
+systemd-analyze security your-service.service
+#+end_src
+
+** Part 9: Network Security
+:PROPERTIES:
+:CUSTOM_ID: part-9-network-security
+:END:
+*** 9.1 Disable Unused Network Protocols
+:PROPERTIES:
+:CUSTOM_ID: disable-unused-network-protocols
+:END:
+#+begin_src sh
+# Disable uncommon protocols
+sudo nvim /etc/modprobe.d/uncommon-network-protocols.conf
+#+end_src
+
+Add:
+
+#+begin_example
+install dccp /bin/true
+install sctp /bin/true
+install rds /bin/true
+install tipc /bin/true
+install n-hdlc /bin/true
+install ax25 /bin/true
+install netrom /bin/true
+install x25 /bin/true
+install rose /bin/true
+install decnet /bin/true
+install econet /bin/true
+install af_802154 /bin/true
+install ipx /bin/true
+install appletalk /bin/true
+install psnap /bin/true
+install p8023 /bin/true
+install llc /bin/true
+install p8022 /bin/true
+#+end_example
+
+*** 9.2 Disable IPv6 (Optional)
+:PROPERTIES:
+:CUSTOM_ID: disable-ipv6-optional
+:END:
+If not using IPv6:
+
+#+begin_src sh
+# In /etc/sysctl.d/99-security.conf
+net.ipv6.conf.all.disable_ipv6 = 1
+net.ipv6.conf.default.disable_ipv6 = 1
+
+# In /etc/default/limine
+KERNEL_CMDLINE[default]+="ipv6.disable=1"
+#+end_src
+
+*** 9.3 Configure DNS Security
+:PROPERTIES:
+:CUSTOM_ID: configure-dns-security
+:END:
+#+begin_src sh
+# Install dnscrypt-proxy for encrypted DNS
+sudo pacman -S dnscrypt-proxy
+
+# Edit configuration
+sudo nvim /etc/dnscrypt-proxy/dnscrypt-proxy.toml
+#+end_src
+
+Configure for security:
+
+#+begin_src toml
+server_names = ['cloudflare', 'cloudflare-ipv6']
+listen_addresses = ['127.0.0.1:53', '[::1]:53']
+require_dnssec = true
+require_nolog = true
+require_nofilter = false
+#+end_src
+
+Enable and configure NetworkManager:
+
+#+begin_src sh
+sudo systemctl enable --now dnscrypt-proxy.service
+
+# Configure NetworkManager to use localhost DNS
+sudo nvim /etc/NetworkManager/conf.d/dns.conf
+#+end_src
+
+Add:
+
+#+begin_src ini
+[main]
+dns=none
+#+end_src
+
+Edit /etc/resolv.conf:
+
+#+begin_src sh
+sudo nvim /etc/resolv.conf
+#+end_src
+
+#+begin_example
+nameserver 127.0.0.1
+nameserver ::1
+#+end_example
+
+Make immutable:
+
+#+begin_src sh
+sudo chattr +i /etc/resolv.conf
+#+end_src
+
+** Part 10: Application Security
+:PROPERTIES:
+:CUSTOM_ID: part-10-application-security
+:END:
+*** 10.1 Remove Unnecessary Packages
+:PROPERTIES:
+:CUSTOM_ID: remove-unnecessary-packages
+:END:
+#+begin_src sh
+# List explicitly installed packages
+pacman -Qe
+
+# Remove unused packages
+sudo pacman -Rns package_name
+
+# Clean orphaned packages
+sudo pacman -Qdtq | sudo pacman -Rns -
+
+# Clean package cache
+sudo paccache -r
+#+end_src
+
+*** 10.2 Use Firejail for Application Sandboxing
+:PROPERTIES:
+:CUSTOM_ID: use-firejail-for-application-sandboxing
+:END:
+#+begin_src sh
+sudo pacman -S firejail
+
+# Run application sandboxed
+firejail firefox
+
+# Create desktop entry
+firecfg
+#+end_src
+
+*** 10.3 Disable Core Dumps System-Wide
+:PROPERTIES:
+:CUSTOM_ID: disable-core-dumps-system-wide
+:END:
+#+begin_src sh
+# Create limits configuration
+sudo nvim /etc/security/limits.conf
+#+end_src
+
+Add:
+
+#+begin_example
+,* hard core 0
+#+end_example
+
+Also in =/etc/systemd/coredump.conf=:
+
+#+begin_src ini
+[Coredump]
+Storage=none
+#+end_src
+
+** Part 11: Physical Security
+:PROPERTIES:
+:CUSTOM_ID: part-11-physical-security
+:END:
+*** 11.1 Disable Thunderbolt/Firewire (DMA attacks)
+:PROPERTIES:
+:CUSTOM_ID: disable-thunderboltfirewire-dma-attacks
+:END:
+#+begin_src sh
+# Blacklist Thunderbolt
+sudo nvim /etc/modprobe.d/blacklist-thunderbolt.conf
+#+end_src
+
+Add:
+
+#+begin_example
+blacklist thunderbolt
+#+end_example
+
+*** 11.2 BIOS/UEFI Password
+:PROPERTIES:
+:CUSTOM_ID: biosuefi-password
+:END:
+Set a BIOS/UEFI password to prevent: - Boot order changes - Booting from
+USB/CD - Accessing BIOS settings
+
+*** 11.3 Secure Boot (Advanced)
+:PROPERTIES:
+:CUSTOM_ID: secure-boot-advanced
+:END:
+Consider enabling Secure Boot with custom keys. This prevents
+unauthorized bootloaders.
+
+** Part 12: Backup and Recovery
+:PROPERTIES:
+:CUSTOM_ID: part-12-backup-and-recovery
+:END:
+*** 12.1 Setup Automated Backups
+:PROPERTIES:
+:CUSTOM_ID: setup-automated-backups
+:END:
+#+begin_src sh
+# Install backup tool
+sudo pacman -S restic
+
+# Initialize repository
+restic -r /backup/location init
+
+# Create backup
+restic -r /backup/location backup /home /etc /var
+
+# Automate with systemd timer
+# See ArchWiki for systemd timer setup
+#+end_src
+
+*** 12.2 Test Recovery Procedures
+:PROPERTIES:
+:CUSTOM_ID: test-recovery-procedures
+:END:
+Regularly test: - System recovery from backups - SSH access recovery (if
+locked out) - Root access recovery (if locked out)
+
+** Part 13: Maintenance and Monitoring
+:PROPERTIES:
+:CUSTOM_ID: part-13-maintenance-and-monitoring
+:END:
+*** 13.1 Automated Security Updates
+:PROPERTIES:
+:CUSTOM_ID: automated-security-updates
+:END:
+#+begin_src sh
+# Create update script
+sudo nvim /usr/local/bin/security-update.sh
+#+end_src
+
+#+begin_src sh
+#!/bin/bash
+pacman -Syu --noconfirm
+arch-audit
+#+end_src
+
+#+begin_src sh
+sudo chmod +x /usr/local/bin/security-update.sh
+#+end_src
+
+Create systemd timer for daily updates.
+
+*** 13.2 Monitor Logs
+:PROPERTIES:
+:CUSTOM_ID: monitor-logs
+:END:
+#+begin_src sh
+# Watch auth logs
+sudo journalctl -u sshd -f
+
+# Check failed login attempts
+sudo journalctl -u systemd-logind | grep "Failed"
+
+# Monitor sudo usage
+sudo cat /var/log/sudo.log
+
+# Audit logs
+sudo ausearch -ts today
+#+end_src
+
+*** 13.3 Regular Security Audits
+:PROPERTIES:
+:CUSTOM_ID: regular-security-audits
+:END:
+#+begin_src sh
+# Weekly
+- Run arch-audit
+- Check fail2ban logs
+- Review sudo logs
+- Check for unauthorized SUID files
+
+# Monthly
+- Run lynis audit system
+- Review enabled services
+- Update firewall rules
+- Review user accounts
+- Check AIDE integrity
+
+# Quarterly
+- Review and update security policies
+- Test disaster recovery
+- Update documentation
+#+end_src
+
+** Part 14: Compliance Checklists
+:PROPERTIES:
+:CUSTOM_ID: part-14-compliance-checklists
+:END:
+*** 14.1 CIS Benchmark Quick Check
+:PROPERTIES:
+:CUSTOM_ID: cis-benchmark-quick-check
+:END:
+#+begin_src sh
+# Check password policy
+grep -E '^PASS_MAX_DAYS|^PASS_MIN_DAYS|^PASS_WARN_AGE' /etc/login.defs
+
+# Check umask
+grep umask /etc/profile /etc/bash.bashrc
+
+# Check SSH configuration
+sudo sshd -T | grep -E 'permitrootlogin|passwordauthentication|permitemptypasswords'
+
+# Check firewall status
+sudo firewall-cmd --state
+
+# Check audit daemon
+sudo systemctl status auditd.service
+#+end_src
+
+** Part 15: Emergency Procedures
+:PROPERTIES:
+:CUSTOM_ID: part-15-emergency-procedures
+:END:
+*** 15.1 Suspected Breach Response
+:PROPERTIES:
+:CUSTOM_ID: suspected-breach-response
+:END:
+#+begin_src sh
+# 1. Disconnect from network
+sudo systemctl stop NetworkManager
+sudo ip link set eth0 down
+
+# 2. Check active connections
+sudo ss -tulpn
+sudo netstat -tulpn
+
+# 3. Check running processes
+ps auxf
+top
+
+# 4. Check for unauthorized users
+w
+last
+lastb
+
+# 5. Review logs
+sudo journalctl --since today
+sudo ausearch -ts today
+
+# 6. Check file integrity
+sudo aide --check
+
+# 7. Backup evidence
+sudo tar -czf /backup/forensics-$(date +%Y%m%d).tar.gz /var/log /etc
+
+# 8. Consider full reinstall if compromised
+#+end_src
+
+** Part 16: Documentation
+:PROPERTIES:
+:CUSTOM_ID: part-16-documentation
+:END:
+*** 16.1 Document Your Configuration
+:PROPERTIES:
+:CUSTOM_ID: document-your-configuration
+:END:
+Create and maintain:
+
+#+begin_example
+/root/security/
+├── security-baseline.txt
+├── firewall-rules.txt
+├── enabled-services.txt
+├── user-accounts.txt
+├── network-diagram.txt
+├── incident-response-plan.txt
+└── recovery-procedures.txt
+#+end_example
+
+** Summary
+:PROPERTIES:
+:CUSTOM_ID: summary
+:END:
+Production hardening is an ongoing process, not a one-time task:
+
+1. ✅ *Kernel hardening* - Sysctl and boot parameters
+2. ✅ *Filesystem security* - Secure mount options
+3. ✅ *Access control* - Strong passwords, sudo restrictions
+4. ✅ *SSH hardening* - Key-based auth, fail2ban
+5. ✅ *Firewall* - Restrictive rules, rate limiting
+6. ✅ *MAC* - AppArmor for application confinement
+7. ✅ *Audit* - System monitoring and logging
+8. ✅ *Updates* - Automated security patching
+9. ✅ *Backups* - Regular tested backups
+10. ✅ *Documentation* - Maintain security documentation
+
+*Remember:* Security is a balance between protection and usability.
+Over-hardening can make systems unusable. Test all changes thoroughly
+before production deployment!
+
+*Final Note:* This guide provides a strong security baseline. Always
+stay informed about new vulnerabilities and adapt your security measures
+accordingly. Subscribe to: - Arch Security Tracker - Arch security
+mailing list - CVE notifications for your critical software

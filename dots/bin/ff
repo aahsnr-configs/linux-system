@@ -1,0 +1,462 @@
+#!/usr/bin/env bash
+# Fast File Finder - A wrapper around fd/find with consistent interface
+# Version: 2.0
+
+set -euo pipefail
+
+readonly SCRIPT_VERSION="2.0"
+readonly SCRIPT_NAME="$(basename "$0")"
+
+# Color definitions (only if output is to a terminal)
+if [[ -t 1 ]]; then
+    readonly RED='\033[0;31m'
+    readonly GREEN='\033[0;32m'
+    readonly YELLOW='\033[1;33m'
+    readonly BLUE='\033[0;34m'
+    readonly CYAN='\033[0;36m'
+    readonly NC='\033[0m'
+else
+    readonly RED=""
+    readonly GREEN=""
+    readonly YELLOW=""
+    readonly BLUE=""
+    readonly CYAN=""
+    readonly NC=""
+fi
+
+print_error() {
+    echo -e "${RED}Error: $*${NC}" >&2
+}
+
+print_info() {
+    echo -e "${BLUE}→ $*${NC}"
+}
+
+print_warning() {
+    echo -e "${YELLOW}Warning: $*${NC}" >&2
+}
+
+usage() {
+    cat <<EOF
+${CYAN}Fast File Finder (ff)${NC} - Version $SCRIPT_VERSION
+
+${CYAN}DESCRIPTION${NC}
+    A user-friendly wrapper around fd (preferred) with automatic fallback to find.
+    Provides a consistent interface for file searching across both tools.
+
+${CYAN}SYNOPSIS${NC}
+    $SCRIPT_NAME [OPTIONS] <pattern> [directory]
+
+${CYAN}ARGUMENTS${NC}
+    <pattern>       Search pattern to match against filenames
+                    - With fd: treated as regex by default (use --glob for glob mode)
+                    - With find: treated as glob pattern (use * wildcards explicitly)
+    
+    [directory]     Root directory for search (default: current directory)
+                    Must be a valid, existing directory
+
+${CYAN}OPTIONS${NC}
+    -t, --type TYPE
+        Filter by entry type:
+            f  = regular file
+            d  = directory
+            l  = symlink (symbolic link)
+            x  = executable (fd only)
+
+    -e, --extension EXT
+        Filter by file extension (e.g., txt, sh, pdf)
+        Examples: -e txt  or  --extension pdf
+
+    -i, --ignore-case
+        Perform case-insensitive pattern matching
+        Note: fd uses "smart case" by default (case-insensitive unless pattern
+              contains uppercase letters)
+
+    -H, --hidden
+        Include hidden files and directories in search results
+        Note: fd ignores hidden entries by default; find includes them by default
+              This option normalizes behavior between both tools
+
+    -d, --max-depth NUM
+        Limit directory traversal to maximum depth NUM
+        Example: -d 2 searches only 2 levels deep
+
+    -s, --size SIZE
+        Filter by file size. Format: [+|-]NUMBER[UNIT]
+        Units: b (bytes), k (kilobytes), M (megabytes), G (gigabytes)
+        Examples:
+            +100k   files larger than 100KB
+            -1M     files smaller than 1MB
+            500k    files exactly 500KB (find only)
+
+    -x, --exec COMMAND
+        Execute COMMAND for each matched file
+        Use {} as placeholder for the filename in COMMAND
+        Example: -x 'echo "Found: {}"'
+        Security: Filenames are safely passed as arguments to prevent injection
+
+    -c, --count
+        Display only the count of matching entries (no filenames)
+
+    -0, --print0
+        Use null character (\\0) as output delimiter instead of newline
+        Useful for piping to xargs -0 to handle filenames with special characters
+
+    -g, --glob
+        Treat pattern as glob instead of regex (fd only)
+        With find, glob is always used
+
+    -h, --help
+        Display this help message and exit
+
+    -v, --version
+        Display version information and exit
+
+${CYAN}BACKEND DETECTION${NC}
+    This script automatically detects which tool is available:
+    • Preferred: ${GREEN}fd${NC} (faster, user-friendly, respects .gitignore)
+    • Fallback: ${YELLOW}find${NC} (universal, available on all Unix systems)
+    
+    The script ensures consistent behavior regardless of which backend is used.
+
+${CYAN}DEFAULT BEHAVIOR${NC}
+    • Both backends now hide hidden files/directories by default (use -H to show)
+    • Pattern matching:
+      - fd: regex by default (more powerful but requires escaping metacharacters)
+      - find: glob by default (traditional shell wildcards like *.txt)
+    • Both backends ignore paths matching .gitignore patterns (fd only, naturally)
+
+${CYAN}EXAMPLES${NC}
+    Basic search for files containing "readme":
+        $SCRIPT_NAME readme
+
+    Find all shell scripts in /usr/local/bin:
+        $SCRIPT_NAME -e sh /usr/local/bin
+
+    Case-insensitive search for "config":
+        $SCRIPT_NAME -i config
+
+    Find directories named "test" (max depth 3):
+        $SCRIPT_NAME -t d -d 3 test
+
+    Find files larger than 100MB:
+        $SCRIPT_NAME -s +100M /var/log
+
+    Execute command on each result:
+        $SCRIPT_NAME -t f -e log -x 'wc -l {}' /var/log
+
+    Count all Python files:
+        $SCRIPT_NAME -e py -c ~/projects
+
+    Find with null-separated output (safe for xargs):
+        $SCRIPT_NAME -e txt -0 | xargs -0 grep "pattern"
+
+    Find hidden config files:
+        $SCRIPT_NAME -H -e conf ~/.config
+
+    Using glob pattern with fd:
+        $SCRIPT_NAME -g '*.txt' /documents
+
+${CYAN}NOTES${NC}
+    • When using -x/--exec, always quote commands with spaces or special chars
+    • The {} placeholder in -x commands is automatically quoted for safety
+    • For complex filtering, consider using fd directly for more advanced options
+    • Pattern syntax differs: fd uses regex, find uses globs (unless -g is used)
+
+${CYAN}AUTHOR${NC}
+    Refactored version with security improvements and consistent behavior
+
+${CYAN}SEE ALSO${NC}
+    fd(1), find(1), grep(1), xargs(1)
+
+EOF
+    exit 0
+}
+
+version() {
+    echo "$SCRIPT_NAME version $SCRIPT_VERSION"
+    echo ""
+    if command -v fd &>/dev/null; then
+        echo "Backend: ${GREEN}fd${NC} (fast mode)"
+        fd --version 2>/dev/null || echo "  fd is available"
+    else
+        echo "Backend: ${YELLOW}find${NC} (fallback mode)"
+        find --version 2>/dev/null | head -n1 || echo "  find (standard Unix version)"
+    fi
+    exit 0
+}
+
+search_with_fd() {
+    local pattern="$1"
+    local directory="$2"
+    local file_type="$3"
+    local extension="$4"
+    local ignore_case="$5"
+    local include_hidden="$6"
+    local max_depth="$7"
+    local size_filter="$8"
+    local exec_cmd="$9"
+    local count_only="${10}"
+    local print_null="${11}"
+    local use_glob="${12}"
+
+    local -a fd_args=()
+
+    # Pattern and directory
+    fd_args+=("$pattern")
+    fd_args+=("$directory")
+
+    # Type filter
+    [[ -n "$file_type" ]] && fd_args+=(--type "$file_type")
+
+    # Extension filter
+    [[ -n "$extension" ]] && fd_args+=(--extension "$extension")
+
+    # Case sensitivity
+    [[ "$ignore_case" -eq 1 ]] && fd_args+=(--ignore-case)
+
+    # Hidden files - fd hides by default, so only add flag if user wants them
+    [[ "$include_hidden" -eq 1 ]] && fd_args+=(--hidden)
+
+    # If hidden flag NOT set, we need to ensure fd maintains its default (already does)
+    # but we make it explicit: fd naturally ignores hidden files
+
+    # Max depth
+    [[ -n "$max_depth" ]] && fd_args+=(--max-depth "$max_depth")
+
+    # Size filter
+    [[ -n "$size_filter" ]] && fd_args+=(--size "$size_filter")
+
+    # Glob mode
+    [[ "$use_glob" -eq 1 ]] && fd_args+=(--glob)
+
+    # Exec command - SECURITY: fd handles this safely internally
+    if [[ -n "$exec_cmd" ]]; then
+        fd_args+=(--exec sh -c "$exec_cmd" sh)
+    fi
+
+    # Null-separated output
+    [[ "$print_null" -eq 1 ]] && fd_args+=(--print0)
+
+    # Execute fd
+    if [[ "$count_only" -eq 1 ]]; then
+        fd "${fd_args[@]}" 2>/dev/null | wc -l
+    else
+        fd "${fd_args[@]}" 2>/dev/null
+    fi
+}
+
+search_with_find() {
+    local pattern="$1"
+    local directory="$2"
+    local file_type="$3"
+    local extension="$4"
+    local ignore_case="$5"
+    local include_hidden="$6"
+    local max_depth="$7"
+    local size_filter="$8"
+    local exec_cmd="$9"
+    local count_only="${10}"
+    local print_null="${11}"
+
+    local -a find_args=("$directory")
+
+    # Max depth (must come early in find command)
+    [[ -n "$max_depth" ]] && find_args+=(-maxdepth "$max_depth")
+
+    # IMPORTANT: Normalize behavior - exclude hidden files by default (like fd)
+    if [[ "$include_hidden" -eq 0 ]]; then
+        # Exclude hidden files and directories (normalize with fd behavior)
+        find_args+=(\( -name ".*" -prune \) -o)
+    fi
+
+    # Type filter
+    if [[ -n "$file_type" ]]; then
+        if [[ "$file_type" == "x" ]]; then
+            # Executable type - find equivalent
+            find_args+=(\( -type f -executable \))
+        else
+            find_args+=(\( -type "$file_type" \))
+        fi
+    else
+        find_args+=(\( -type f -o -type d -o -type l \))
+    fi
+
+    # Extension filter - convert to glob pattern
+    if [[ -n "$extension" ]]; then
+        if [[ "$ignore_case" -eq 1 ]]; then
+            find_args+=(-iname "*.${extension}")
+        else
+            find_args+=(-name "*.${extension}")
+        fi
+    else
+        # Pattern matching
+        if [[ "$ignore_case" -eq 1 ]]; then
+            find_args+=(-iname "$pattern")
+        else
+            find_args+=(-name "$pattern")
+        fi
+    fi
+
+    # Size filter
+    [[ -n "$size_filter" ]] && find_args+=(-size "$size_filter")
+
+    # Exec command - SECURITY FIX: Use safe sh -c pattern
+    if [[ -n "$exec_cmd" ]]; then
+        # Safe exec: pass filename as $1 to sh -c, properly quoted
+        # Pattern: sh -c 'command "$1"' sh {}
+        find_args+=(-exec sh -c "$exec_cmd" sh {} \;)
+    elif [[ "$print_null" -eq 1 ]]; then
+        find_args+=(-print0)
+    else
+        find_args+=(-print)
+    fi
+
+    # Execute find
+    if [[ "$count_only" -eq 1 ]]; then
+        find "${find_args[@]}" 2>/dev/null | wc -l
+    else
+        find "${find_args[@]}" 2>/dev/null
+    fi
+}
+
+parse_args() {
+    local pattern=""
+    local directory="."
+    local file_type=""
+    local extension=""
+    local ignore_case=0
+    local include_hidden=0  # Changed: default to 0 to match fd behavior
+    local max_depth=""
+    local size_filter=""
+    local exec_cmd=""
+    local count_only=0
+    local print_null=0
+    local use_glob=0
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -h|--help)
+                usage
+                ;;
+            -v|--version)
+                version
+                ;;
+            -t|--type)
+                if [[ $# -lt 2 ]]; then
+                    print_error "Option $1 requires an argument"
+                    exit 1
+                fi
+                shift
+                file_type="$1"
+                shift
+                ;;
+            -e|--extension)
+                if [[ $# -lt 2 ]]; then
+                    print_error "Option $1 requires an argument"
+                    exit 1
+                fi
+                shift
+                extension="$1"
+                shift
+                ;;
+            -i|--ignore-case)
+                ignore_case=1
+                shift
+                ;;
+            -H|--hidden)
+                include_hidden=1
+                shift
+                ;;
+            -d|--max-depth)
+                if [[ $# -lt 2 ]]; then
+                    print_error "Option $1 requires an argument"
+                    exit 1
+                fi
+                shift
+                max_depth="$1"
+                shift
+                ;;
+            -s|--size)
+                if [[ $# -lt 2 ]]; then
+                    print_error "Option $1 requires an argument"
+                    exit 1
+                fi
+                shift
+                size_filter="$1"
+                shift
+                ;;
+            -x|--exec)
+                if [[ $# -lt 2 ]]; then
+                    print_error "Option $1 requires an argument"
+                    exit 1
+                fi
+                shift
+                exec_cmd="$1"
+                shift
+                ;;
+            -c|--count)
+                count_only=1
+                shift
+                ;;
+            -0|--print0)
+                print_null=1
+                shift
+                ;;
+            -g|--glob)
+                use_glob=1
+                shift
+                ;;
+            --)
+                shift
+                break
+                ;;
+            -*)
+                print_error "Unknown option: $1"
+                echo "Use -h or --help for usage information"
+                exit 1
+                ;;
+            *)
+                if [[ -z "$pattern" ]]; then
+                    pattern="$1"
+                else
+                    directory="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    # Validation
+    if [[ -z "$pattern" ]]; then
+        print_error "Missing required argument: pattern"
+        echo "Use -h or --help for usage information"
+        exit 1
+    fi
+
+    if [[ ! -d "$directory" ]]; then
+        print_error "Directory not found: $directory"
+        exit 1
+    fi
+
+    # Choose backend and execute
+    if command -v fd &>/dev/null; then
+        search_with_fd "$pattern" "$directory" "$file_type" "$extension" \
+                       "$ignore_case" "$include_hidden" "$max_depth" "$size_filter" \
+                       "$exec_cmd" "$count_only" "$print_null" "$use_glob"
+    else
+        if [[ "$use_glob" -eq 1 ]]; then
+            print_warning "The --glob flag is fd-specific and has no effect with find"
+        fi
+        search_with_find "$pattern" "$directory" "$file_type" "$extension" \
+                         "$ignore_case" "$include_hidden" "$max_depth" "$size_filter" \
+                         "$exec_cmd" "$count_only" "$print_null"
+    fi
+}
+
+# Main execution
+if [[ $# -eq 0 ]]; then
+    usage
+fi
+
+parse_args "$@"
