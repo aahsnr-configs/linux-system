@@ -51,4 +51,10 @@ rustup default stable
 
 chsh -s $(which zsh)
 
+# TODO: Need to finish this command
+#cp -R custom systemd services user
+
 systemctl --user enable --now pipewire.service pipewire-pulse.service pipewire.socket pipewire-pulse.socket wireplumber.service
+
+systemctl --user add-wants hyprland-session.target noctalia.service
+systemctl --user add-wants hyprland-session.target xdg-desktop-autostart.target
