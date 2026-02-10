@@ -1,2 +1,4 @@
 - [ ] Setup tailscale in arch
-- [ ] Optimize pyprland by using pypy instead of python
+- [ ] Setup systemd service for pyprland
+- [ ] replace pypr with pypr-client in keybindings
+- [ ] setup a systemd service so that noctalia restarts with hyprland using noctalia document
