@@ -3,10 +3,10 @@
 systemctl --user import-environment &
 hash dbus-update-activation-environment 2>/dev/null &
 dbus-update-activation-environment --systemd &
-/usr/lib/hyprpolkitagent/hyprpolkitagent &
+systemctl --user start hyprpolkitagent &
 udiskie &
 wl-paste --type text --watch cliphist store &
 wl-paste --type image --watch cliphist store &
-qs -c noctalia-shell &
-/home/ahsan/.local/bin/pypr &
+qs -c noctalia-shell & # use with systemd user service
+/home/ahsan/.local/bin/pypr & # use with systemd user service
 hyprpm reload -n &
