@@ -1,6 +1,0 @@
-#!/bin/bash
-
-# NOTE: start noctalia using what wiki said
-qs -c noctalia-shell & # use with systemd user service
-#pypr & #NOTE: Pyprland can be started with systemd service without using uwsm
-
