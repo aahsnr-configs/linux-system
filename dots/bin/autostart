@@ -1,12 +1,6 @@
 #!/bin/bash
-# TODO: Either put it here or at the bottom
-systemctl --user import-environment &
-hash dbus-update-activation-environment 2>/dev/null &
-dbus-update-activation-environment --systemd &
-systemctl --user start hyprpolkitagent &
-udiskie &
-wl-paste --type text --watch cliphist store &
-wl-paste --type image --watch cliphist store &
+
+# NOTE: start noctalia using what wiki said
 qs -c noctalia-shell & # use with systemd user service
-/home/ahsan/.local/bin/pypr & # use with systemd user service
-hyprpm reload -n &
+#pypr & #NOTE: Pyprland can be started with systemd service without using uwsm
+

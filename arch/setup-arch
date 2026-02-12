@@ -65,11 +65,9 @@ cd $HOME/Git/configs/linux-system/arch/user-autostart-desktop/ && cp -R * $HOME/
 
 systemctl --user enable --now pipewire.service pipewire-pulse.service pipewire.socket pipewire-pulse.socket wireplumber.service
 
-systemctl --user enable --now pyprland.service
 systemctl --user enable --now gnome-keyring-daemon
-systemctl --user enable --now hyprpolkitagent
-systemctl --user enable --now noctalia.service
-systemctl --user enable --now hypridle.service
+systemctl --user add-wants hyprland-session.target noctalia.service
+systemctl --user add-wants hyprland-session.target xdg-desktop-autostart.target
 sudo systemctl enable ly@tty2.service
 sudo systemctl disable getty@tty2.service
 
