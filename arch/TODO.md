@@ -1,6 +1,6 @@
 - [ ] Setup tailscale in arch
 - [x] Setup systemd service for pyprland
-- [ ] replace pypr with pypr-client in keybindings
+- [x] replace pypr with pypr-client in keybindings
 - [x] setup a systemd service so that noctalia restarts with hyprland using noctalia document
 - [x] Setup all the systemd user services
-- [ ] copy over custom systemd user services
+- [x] copy over custom systemd user services

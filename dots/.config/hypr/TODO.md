@@ -8,7 +8,8 @@
 - [x] Look at my mangowc config for making floating window rules under TODO
 - [x] Bind super+space to floating and super+space+shift to fullscreen
 - [x] Use SUPER, SUPER_L on launcher keybinding
-- [ ] Switch exclusively to nvidia in hyprland
+- [x] Switch exclusively to nvidia in hyprland
+- [ ] Switch away from uwsm and app2unit
 
 # Plugins I need
 

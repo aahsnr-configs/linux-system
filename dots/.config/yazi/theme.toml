@@ -61,3 +61,7 @@ separator  = "  "
 
 [input]
 border = { fg = "#5a524c" }
+
+[flavor]
+dark  = "noctalia"
+light = "noctalia"
