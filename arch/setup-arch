@@ -5,7 +5,7 @@ paru -S --noconfirm rustup
 rustup default stable
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-paru -S --needed adw-gtk-theme amd-ucode app2unit aspell atuin base-devel bibata-cursor-theme-bin bleachbit bluez bluez-utils bpftune-git brave-bin brightnessctl btop bun cava chafa cliphist cpio cronie ddcutil debugedit devtools direnv distrobox downgrade dust emacs-wayland enchant evolution-data-server eza fail2ban fastfetch fd ferdium-bin ffmpeg flatpak fwupd fwupd-efi fzf git git-lfs github-cli glow gnome-keyring gnuplot grim groff gsettings-desktop-schemas gsettings-system-schemas gst-libav gst-plugin-pipewire gst-plugins-bad gst-plugins-bad-libs gst-plugins-base-libs gst-plugins-good gst-plugins-ugly gstreamer haveged hspell hunspell hunspell-en_gb hunspell-en_us hypridle hyprland hyprland-guiutils hyprpolkitagent hyprshutdown i2c-tools imagemagick imv inotify-tools ispell jq lazygit logrotate lua lua51 lua51-lpeg luajit luarocks lvm2 ly lynis man-db meson mpv neovim noctalia-shell-git noto-fonts noto-fonts-emoji npm obsidian openh264 pandoc-bin papers papirus-icon-theme pay-respects-bin pipewire pipewire-alsa pipewire-jack pipewire-pulse pixi pkgconf podman podman-compose profile-sync-daemon proton-vpn-gtk-app pymol pyprland slurp starship swappy texlab thunar thunar-archive-plugin thunar-media-tags-plugin thunar-volman topgrade transmission-gtk ttf-jetbrains-mono ttf-jetbrains-mono-nerd ttf-nerd-fonts-symbols ttf-nerd-fonts-symbols-mono udiskie uv visual-studio-code-bin wireplumber wlsunset x264 xdg-desktop-portal xdg-desktop-portal-gnome xdg-desktop-portal-gtk xdg-desktop-portal-hyprland xdg-user-dirs xdg-user-dirs-gtk xorg-xhost zathura zathura-pdf-mupdf zen-browser-bin zeromq zotero zoxide zsh zstd uwsm plantuml graphviz jre-openjdk
+paru -S --needed adw-gtk-theme amd-ucode aspell atuin base-devel bibata-cursor-theme-bin bleachbit bluez bluez-utils bpftune-git brave-bin brightnessctl btop bun cava chafa cliphist cpio cronie ddcutil debugedit devtools direnv distrobox downgrade dust emacs-wayland enchant evolution-data-server eza fail2ban fastfetch fd ferdium-bin ffmpeg flatpak fwupd fwupd-efi fzf git git-lfs github-cli glow gnome-keyring gnuplot grim groff gsettings-desktop-schemas gsettings-system-schemas gst-libav gst-plugin-pipewire gst-plugins-bad gst-plugins-bad-libs gst-plugins-base-libs gst-plugins-good gst-plugins-ugly gstreamer haveged hspell hunspell hunspell-en_gb hunspell-en_us hypridle hyprland hyprland-guiutils hyprpolkitagent hyprshutdown i2c-tools imagemagick imv inotify-tools ispell jq lazygit logrotate lua lua51 lua51-lpeg luajit luarocks lvm2 ly lynis man-db meson mpv neovim noctalia-shell-git noto-fonts noto-fonts-emoji npm obsidian openh264 pandoc-bin papers papirus-icon-theme pay-respects-bin pipewire pipewire-alsa pipewire-jack pipewire-pulse pixi pkgconf podman podman-compose profile-sync-daemon proton-vpn-gtk-app pymol pyprland slurp starship swappy texlab thunar thunar-archive-plugin thunar-media-tags-plugin thunar-volman topgrade transmission-gtk ttf-jetbrains-mono ttf-jetbrains-mono-nerd ttf-nerd-fonts-symbols ttf-nerd-fonts-symbols-mono udiskie uv visual-studio-code-bin wireplumber wlsunset x264 xdg-desktop-portal xdg-desktop-portal-gnome xdg-desktop-portal-gtk xdg-desktop-portal-hyprland xdg-user-dirs xdg-user-dirs-gtk xorg-xhost zathura zathura-pdf-mupdf zen-browser-bin zeromq zotero zoxide zsh zstd plantuml graphviz jre-openjdk acpid kitty
 
 
 ln -sv "$HOME/Git/configs/linux-system/dots/bin/" "$HOME/"
@@ -66,9 +66,9 @@ cd $HOME/Git/configs/linux-system/arch/user-autostart-desktop/ && cp -R * $HOME/
 systemctl --user enable --now pipewire.service pipewire-pulse.service pipewire.socket pipewire-pulse.socket wireplumber.service
 
 systemctl --user enable --now gnome-keyring-daemon
-systemctl --user add-wants hyprland-session.target noctalia.service
-systemctl --user add-wants hyprland-session.target xdg-desktop-autostart.target
+# systemctl --user add-wants hyprland-session.target noctalia.service
+# systemctl --user add-wants hyprland-session.target xdg-desktop-autostart.target
 sudo systemctl enable ly@tty2.service
 sudo systemctl disable getty@tty2.service
-
+sudo systemctl enabel acpid
 

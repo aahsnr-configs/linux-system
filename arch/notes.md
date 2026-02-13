@@ -6,3 +6,6 @@
 - resume from unencrypted swap
 
 resume=UUID=9e46e3e4-5b32-461d-960a-488c9c96ed80
+
+disabling nvidia-powerd seemed to increase to cpu clock speeds
+sudo systemctl mask nvidia-powerd.service
