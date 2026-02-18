@@ -1,0 +1,5 @@
+#!/bin/bash
+curl -sL https://raw.githubusercontent.com/wimpysworld/deb-get/main/deb-get | sudo -E bash -s install deb-get
+
+deb-get install topgrade code ferdium obsidian onlyoffice-desktopeditors zotero protonvpn
+

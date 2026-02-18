@@ -1,0 +1,6 @@
+#!/bin/bash
+sudo cp -R "$HOME/Git/configs/linux-system/ubuntu/preconfig/99-custom-env.sh" "/etc/profile.d/"
+sudo cp -R "$HOME/Git/configs/linux-system/ubuntu/preconfig/01norecommend" "/etc/apt/apt.conf.d/"
+sudo cp -R "$HOME/Git/configs/linux-system/ubuntu/preconfig/devel-pinning" "/etc/apt/preferences.d/"
+sudo cp -R "$HOME/Git/configs/linux-system/ubuntu/preconfig/resolute.sources" "/etc/apt/sources.list.d/"
+sudo cp -R "$HOME/Git/configs/linux-system/ubuntu/preconfig/ubuntu.sources" "/etc/apt/sources.list.d/"

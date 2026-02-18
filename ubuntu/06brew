@@ -1,0 +1,8 @@
+#!/bin/bash
+cd 
+sudo update-alternatives --install /usr/bin/stty stty /usr/bin/gnustty 100
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv bash)"' >> /home/ahsan/.bashrc
+source ~/.bashrc
+brew install atuin bat btop cava enchant aspell fd gh git git-lfs lazygit ripgrep tealdeer tmux yazi starship dust direnv fastfetch fzf pandoc zoxide chafa plantuml gnuplot eza
+brew install --cask font-jetbrains-mono-nerd-font font-jetbrains-mono

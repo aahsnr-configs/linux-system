@@ -1,0 +1,2 @@
+#!/bin/bash
+sudo zypper in npm24 nodjes24

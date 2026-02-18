@@ -1,0 +1,12 @@
+[Unit]
+Description=ASUS G14 Performance Configuration
+After=multi-user.target
+Before=graphical.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/asus-performance-setup.sh
+
+[Install]
+WantedBy=multi-user.target

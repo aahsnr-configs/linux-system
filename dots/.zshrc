@@ -193,8 +193,6 @@ zsh_plugin_remove() {
     fi
 }
 
-eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv zsh)"
-
 ### ENVIRONMENT VARIABLES
 # XDG Base Directory Specification
 export XDG_BIN_HOME="${HOME}/.local/bin"
@@ -208,7 +206,7 @@ export BACKUP_DIR="${HOME}/backup"
 
 # Default Applications
 export TERMINAL="kitty"
-export BROWSER="brave"
+export BROWSER="brave-browser"
 export EDITOR="emacsclient -t -a 'emacs'"
 export VISUAL="emacsclient -t -a 'emacs'"
 export PAGER="bat --paging=always --style=plain"

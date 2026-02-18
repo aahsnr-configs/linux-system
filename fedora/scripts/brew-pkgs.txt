@@ -1,1 +1,0 @@
-atuin bashdb bat bbrew devcontainer docker docker-completion docker-language-server eza fd fzf gh lua-language-server luarocks node poppler ripgrep selene shellcheck shfmt simdjson sqlite starship stylua tealdeer texlab trash-cli  yazi zoxide font-jetbrains-mono font-jetbrains-mono-nerd-font

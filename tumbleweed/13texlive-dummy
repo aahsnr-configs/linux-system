@@ -1,0 +1,37 @@
+#!/bin/bash
+#!/bin/bash
+# Install the tool required to build dummy packages
+sudo apt install -y equivs
+
+# Create a temporary directory for building the package
+mkdir -p /tmp/texlive-dummy
+cd /tmp/texlive-dummy
+
+# Generate the control file
+# We use version 2026.99... to ensure it is always seen as newer than the repository version
+cat << 'EOF' > texlive-local.control
+Section: misc
+Priority: optional
+Standards-Version: 4.6.2
+Package: texlive-local
+Version: 2026.99999999-1
+Maintainer: Resolute User <admin@resolute.local>
+Provides: biblatex, biber, chktex, cm-super, context, dvidvi, dvipng, feynmf, fragmaster, lacheck, latexdiff, latexmk, lcdf-typetools, lmodern, luatex, musixtex, pgf, preview-latex-style, ps2eps, psutils, purifyeps, t1utils, tex-gyre, texlive, texlive-base, texlive-bibtex-extra, texlive-binaries, texlive-common, texlive-extra-utils, texlive-font-utils, texlive-fonts-extra, texlive-fonts-extra-doc, texlive-fonts-recommended, texlive-fonts-recommended-doc, texlive-formats-extra, texlive-full, texlive-games, texlive-generic-extra, texlive-generic-recommended, texlive-humanities, texlive-humanities-doc, texlive-lang-all, texlive-lang-arabic, texlive-lang-cjk, texlive-lang-chinese, texlive-lang-cyrillic, texlive-lang-czechslovak, texlive-lang-english, texlive-lang-european, texlive-lang-french, texlive-lang-german, texlive-lang-greek, texlive-lang-indic, texlive-lang-italian, texlive-lang-japanese, texlive-lang-korean, texlive-lang-other, texlive-lang-polish, texlive-lang-portuguese, texlive-lang-spanish, texlive-latex-base, texlive-latex-base-doc, texlive-latex-extra, texlive-latex-extra-doc, texlive-latex-recommended, texlive-latex-recommended-doc, texlive-luatex, texlive-math-extra, texlive-metapost, texlive-metapost-doc, texlive-music, texlive-omega, texlive-pictures, texlive-pictures-doc, texlive-plain-generic, texlive-pstricks, texlive-pstricks-doc, texlive-publishers, texlive-publishers-doc, texlive-science, texlive-science-doc, texlive-xetex, tipa, vprerex, xindy
+Description: Dummy package for TeX Live
+ This package convinces apt/dpkg that TeX Live is already installed.
+ It allows you to install packages like pandoc or kile without triggering 
+ the installation of the outdated system texlive packages.
+EOF
+
+# Build the dummy package
+equivs-build texlive-local.control
+
+# Install the generated .deb file
+sudo dpkg -i texlive-local_*.deb
+
+# Cleanup
+cd ..
+rm -rf /tmp/texlive-dummy
+
+echo "TeX Live dummy package installed. APT will now skip system texlive dependencies."
+

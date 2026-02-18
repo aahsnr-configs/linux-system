@@ -1,0 +1,3 @@
+#!/bin/bash
+sudo apt install --no-install-recommends switcheroo-control greetd tuigreet wlsunset pymol sqlite3 transmission-gtk gnome-tweaks nautilus kitty kitty-shell-integration kitty-terminfo imv qt5ct qt6ct nwg-look swappy mpv gnome-keyring distrobox podman zsh zsh-common cronie bleachbit slurp grim zathura zathura-pdf-poppler xdg-desktop-portal xdg-desktop-portal-gnome xdg-desktop-portal-gtk file-roller brightnessctl emacs imagemagick neovim wl-clipboard evolution-data-server cava graphviz 
+

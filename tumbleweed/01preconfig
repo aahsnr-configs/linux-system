@@ -1,0 +1,3 @@
+#!/bin/bash
+sudo cp -R "$HOME/Git/configs/linux-system/tumbleweed/preconfig/99-custom-env.sh" "/etc/profile.d/"
+

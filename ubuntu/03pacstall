@@ -1,0 +1,6 @@
+#!/bin/bash
+sudo bash -c "$(curl -fsSL https://pacstall.dev/q/install)"
+# pacstall -I neovim
+# pacstall -I emacs
+pacstall -I adw-gtk3
+sudo apt autoremove

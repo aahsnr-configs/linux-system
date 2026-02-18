@@ -1,6 +1,0 @@
-sudo dnf remove gnome-shell nobara-controller-config nobara-bookmarks kde* nobara-welcome --setopt=protected_packages=
-qt6-qtwayland
-gcc-gfortran
-fastfetch
-rpmfusion-nonfree-appstream-data
-rpmfusion-nonfree-appstream-data

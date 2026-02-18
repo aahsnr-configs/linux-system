@@ -1,0 +1,4 @@
+#!/bin/bash
+sudo add-apt-repository ppa:cppiber/hyprland
+sudo apt update
+sudo apt install --no-install-recommends hyprland hypridle xdg-desktop-portal-hyprland hyprsysteminfo hyprland-guiutils hyprpolkitagent qt6-gtk-platformtheme 

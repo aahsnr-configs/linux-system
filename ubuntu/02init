@@ -1,0 +1,9 @@
+#!/bin/bash
+sudo apt install --no-install-recommends nala curl wget python3-pynvim lsb-release build-essential git-core
+# wget -qO - https://dl.xanmod.org/archive.key | sudo gpg --dearmor -vo /etc/apt/keyrings/xanmod-archive-keyring.gpg
+# echo "deb [signed-by=/etc/apt/keyrings/xanmod-archive-keyring.gpg] http://deb.xanmod.org $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/xanmod-release.list
+# sudo apt update && sudo apt install linux-xanmod-x64v3 --install-recommends
+# sudo apt install --no-install-recommends dkms libdw-dev clang lld llvm
+# echo "deb [signed-by=/etc/apt/keyrings/xanmod-archive-keyring.gpg] http://deb.xanmod.org $(lsb_release -sc) main non-free" | sudo tee /etc/apt/sources.list.d/xanmod-release.list
+# sudo apt update && sudo apt install nvidia-driver-580-open --install-recommends
+# sudo apt reboot
