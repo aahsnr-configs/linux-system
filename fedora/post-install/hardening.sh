@@ -14,7 +14,7 @@ sudo systemctl enable bluetooth power-profiles-daemon
 
 sudo cp /etc/issue /etc/issue.net
 
-sudo tee /etc/security/limits.d/99-custom-limits.conf >/dev/null <<'EOF'
-* soft nofile 65536
-* hard nofile 1048576
-EOF
+# sudo tee /etc/security/limits.d/99-custom-limits.conf >/dev/null <<'EOF'
+# * soft nofile 65536
+# * hard nofile 1048576
+# EOF

@@ -1,0 +1,6 @@
+#!/bin/bash
+sudo dnf config-manager addrepo --from-repofile=https://negativo17.org/repos/fedora-multimedia.repo
+sudo dnf install kernel-devel kernel-headers
+sudo dnf distro-sync
+sudo dnf install nvidia-driver nvidia-settings nvidia-driver-cuda cuda-devel nvenc nvidia-driver-NvFBCOpenGL vulkan vulkan-tools libva-nvidia-driver gstreamer1-plugins-base gstreamer1-plugins-good gstreamer1-plugins-ugly gstreamer1-plugins-bad-free gstreamer1-plugins-bad-freeworld ffmpeg libva-utils 
+

@@ -1,0 +1,16 @@
+#!/bin/bash
+sudo cp -R "$HOME/Git/configs/linux-system/fedora/preconfig/99-custom-env.sh" "/etc/profile.d/"
+sudo cp -R "$HOME/Git/configs/linux-system/fedora/preconfig/dnf.conf" "/etc/dnf/"
+sudo hostnamectl set-hostname zephyrus
+
+echo "setup repos"
+sleep 5
+sudo dnf copr enable sdegler/hyprland -y
+sudo dnf copr enable atim/starship -y
+sudo dnf copr enable errornointernet/packages -y
+sudo dnf copr enable dejan/lazygit -y
+sudo dnf copr enable sneexy/zen-browser -y
+sudo dnf copr enable lukenukem/asus-linux -y
+sudo dnf install dnf-plugins-core -y
+sudo dnf copr enable tofik/nwg-shell -y
+sudo dnf install --nogpgcheck --repofrompath 'terra,https://repos.fyralabs.com/terra$releasever' terra-release -y
