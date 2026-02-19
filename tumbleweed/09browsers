@@ -1,12 +1,2 @@
 #!/bin/bash
-# Floorp browser
-curl -fsSL https://ppa.floorp.app/KEY.gpg | sudo gpg --dearmor -o /usr/share/keyrings/Floorp.gpg
-sudo curl -sS --compressed -o /etc/apt/sources.list.d/Floorp.list 'https://ppa.floorp.app/Floorp.list'
-sudo apt update
-sudo apt --no-install-recommends install floorp
-
-# Brave Browser
-sudo curl -fsSLo /usr/share/keyrings/brave-browser-archive-keyring.gpg https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg
-sudo curl -fsSLo /etc/apt/sources.list.d/brave-browser-release.sources https://brave-browser-apt-release.s3.brave.com/brave-browser.sources
-sudo apt update
-sudo apt --no-install-recommends install brave-browser
+curl -fsS https://dl.brave.com/install.sh | sh
