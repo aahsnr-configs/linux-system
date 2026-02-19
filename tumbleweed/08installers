@@ -1,6 +1,0 @@
-#!/bin/bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-curl -fsSL https://pixi.sh/install.sh | sh
-curl -fsSL https://bun.com/install | bash
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-

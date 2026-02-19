@@ -1,6 +1,0 @@
-#!/bin/bash
-mkdir -p $HOME/.config/systemd/user/
-cd $HOME/Git/configs/linux-system/arch/user-systemd-files/ && cp -R * $HOME/.config/systemd/user/ && cd
-
-systemctl --user --now enable wireplumber.service pipewire.service pipewire-pulse.service
-systemctl --user enable --now gnome-keyring-daemon pyprland

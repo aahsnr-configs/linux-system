@@ -1,3 +1,0 @@
-#!/bin/bash
-rustup default stable
-cargo install emacs-lsp-booster texlab

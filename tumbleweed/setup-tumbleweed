@@ -1,15 +1,39 @@
 #!/bin/bash
 sudo cp -R "$HOME/Git/configs/linux-system/tumbleweed/preconfig/99-custom-env.sh" "/etc/profile.d/"
 
-sudo zypper in atuin bat bleachbit bpftune brightnessctl btop cava mpv chafa cronie curl ddcutil direnv distrobox podman dust emacs-pgtk eza fail2ban fd fzf git-core git-lfs gh gnome-keyring gnome-tweaks gnuplot go grim slurp gsettings-desktop-schemas hunspell gzip haveged i2c-tools imv inotify-tools ispell jq lazygit logrotate luajit lynis papers papirus-icon-theme topgrade podman profile-sync-daemon pymol swappy trash-cli udiskie xdg-user-dirs xdg-user-dirs-gtk zoxide zram-generator zsh bluez bluez-firmware wget nautilus xdg-desktop-portal-gtk xdg-desktop-portal-hyprland wlsunset nautilus-file-roller evolution-data-server nwg-look transmission-gtk hyprpolkitagent zathura zathura-plugin-pdf-mupdf qt6ct qt5ct switcheroo-control hyprland hyprland-devel python313-pipx ucode-amd starship tealdeer yazi wl-clipboard tmux kitty cliphist
+sudo zypper ref
+sudo zypper up
+sudo zypper in curl wget git-core git-lfs gh 
+sudo zypper addrepo https://developer.download.nvidia.com/compute/cuda/repos/opensuse15/x86_64/cuda-opensuse15.repo
+sudo zypper refresh
+sudo zypper install nvidia-open
 
+
+echo "brew setup and pkgs"
+cd 
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv bash)"' >> /home/ahsan/.bashrc
+source ~/.bashrc
+cd
+brew install pandoc
+brew install --cask font-jetbrains-mono
+brew install --cask font-jetbrains-mono-nerd-font
+brew install --cask font-noto-color-emoji
+brew install --cask font-google-sans-code
+brew install --cask font-symbols-only-nerd-font
+
+sudo zypper in atuin bat bleachbit bpftune brightnessctl btop cava mpv chafa cronie ddcutil direnv distrobox dust emacs eza fail2ban fd fzf gnome-keyring gnome-tweaks gnuplot go grim slurp gsettings-desktop-schemas hunspell hunspell-tools gzip haveged i2c-tools imv inotify-tools ispell jq lazygit logrotate luajit lynis papers papirus-icon-theme topgrade podman podman-docker profile-sync-daemon python313-pymol swappy trash-cli udiskie xdg-user-dirs xdg-user-dirs-gtk zoxide zram-generator zsh bluez bluez-firmware npm24 nodejs24 xdg-desktop-portal-gtk xdg-desktop-portal-hyprland wlsunset xdg-desktop-portal-gnome evolution-data-server nwg-look transmission-gtk hyprpolkitagent zathura zathura-plugin-pdf-mupdf qt6ct qt5ct aspell switcheroo-control hyprland hyprland-devel python313-pipx ucode-amd starship tealdeer yazi wl-clipboard tmux kitty kitty-shell-integration kitty-terminfo cliphist opi cpio hypridle enchant-devel pkgconf-pkg-config fastfetch flatpak fwupd fwupd-efi groff ImageMagick meson neovim pipewire pipewire-alsa pipewire-jack pipewire-pulseaudio thunar thunar-archive-plugin thunar-media-tags-plugin thunar-volman wireplumber zeromq-devel zeromq-tools zstd plantuml graphviz acpid pciutils 
+
+curl -fsS https://dl.brave.com/install.sh | sh
 curl -LsSf https://astral.sh/uv/install.sh | sh
 curl -fsSL https://pixi.sh/install.sh | sh
 curl -fsSL https://bun.com/install | bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-pipx install pyprland
+rustup default stable
+cargo install emacs-lsp-booster texlab pay-respects
+
 
 PIA_INSTALLER=$(mktemp --suffix=.run)
 trap "rm -f '$PIA_INSTALLER'" EXIT
@@ -17,7 +41,19 @@ wget -O "$PIA_INSTALLER" https://installers.privateinternetaccess.com/download/p
 chmod +x "$PIA_INSTALLER"
 bash "$PIA_INSTALLER"
 
+opi codecs
+opi noctalia-shell
+opi texlive-dummy
+opi adw-gtk3
+opi hyprland-guiutils
+opi ly
+opi noctalia-shell
+opi zotero
+
+echo "symlink and directory"
+sleep 5
 ln -sv "$HOME/Git/configs/linux-system/dots/bin/" "$HOME/"
+sudo rm -rf ~/.zshrc
 ln -sv "$HOME/Git/configs/linux-system/dots/.zshrc" "$HOME/"
 ln -sv "$HOME/Git/configs/linux-system/dots/.config/atuin/" "$HOME/.config/"
 ln -sv "$HOME/Git/configs/linux-system/dots/.config/bat/" "$HOME/.config/"
@@ -25,7 +61,7 @@ ln -sv "$HOME/Git/configs/linux-system/dots/.config/btop/" "$HOME/.config/"
 ln -sv "$HOME/Git/configs/linux-system/dots/.config/enchant/" "$HOME/.config/"
 ln -sv "$HOME/Git/configs/linux-system/dots/.config/fd/" "$HOME/.config/"
 ln -sv "$HOME/Git/configs/linux-system/dots/.config/gh/" "$HOME/.config/"
-ln -sv "$HOME/Git/configs/linux-system/dots/.config/ghostty/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/kitty/" "$HOME/.config/"
 ln -sv "$HOME/Git/configs/linux-system/dots/.config/home-manager/" "$HOME/.config/"
 ln -sv "$HOME/Git/configs/linux-system/dots/.config/hypr/" "$HOME/.config/"
 ln -sv "$HOME/Git/configs/linux-system/dots/.config/imv/" "$HOME/.config/"
@@ -50,5 +86,13 @@ ln -sv "$HOME/Git/configs/linux-system/dots/.config/user-dirs.dirs" "$HOME/.conf
 mkdir -p "$HOME/.npm-global"
 npm config set prefix "$HOME/.npm-global"
 
-systemctl enable --user app-com.mitchellh.ghostty.service
+PIA_INSTALLER=$(mktemp --suffix=.run)
+trap "rm -f '$PIA_INSTALLER'" EXIT
+wget -O "$PIA_INSTALLER" https://installers.privateinternetaccess.com/download/pia-linux-3.6.2-08398.run
+chmod +x "$PIA_INSTALLER"
+bash "$PIA_INSTALLER"
+
+systemctl --user enable wireplumber.service pipewire.service pipewire-pulse.service
+systemctl --user enable gnome-keyring-daemon
+
 chsh -s $(which zsh)
