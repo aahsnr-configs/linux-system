@@ -1,0 +1,53 @@
+# =============================================================================
+# /etc/systemd/system/asus-performance.service
+#
+# Runs the ASUS G14 performance setup script once on every cold boot and
+# restart.  Wake-from-sleep is handled separately by:
+#   asus-performance-resume.service
+#
+# Script installed at:  /usr/local/bin/asus-performance-setup.sh
+# Install with:         sudo ./install.sh
+# =============================================================================
+
+[Unit]
+Description=ASUS G14 Performance Profile (Boot)
+Documentation=https://github.com/FlyGoat/RyzenAdj
+
+# ── Ordering ──────────────────────────────────────────────────────────────────
+# sysinit.target  → guarantees kernel modules (asus-nb-wmi) are fully loaded
+# local-fs.target → guarantees /usr/local/bin is mounted and readable
+# Both are implicit via multi-user.target's chain, but listed here explicitly
+# to document intent and guard against edge-case ordering regressions.
+After=sysinit.target local-fs.target
+
+# ── Sleep interaction ─────────────────────────────────────────────────────────
+# Declaring Conflicts=sleep.target causes systemd to transition this unit to
+# "inactive" the moment any sleep state begins.  This is intentional:
+#   • It accurately reflects that the profile has not been applied since
+#     the last wake-up, because firmware resets limits on every transition.
+#   • It has NO interaction with asus-performance-resume.service, which is
+#     a completely separate unit with its own WantedBy=sleep.target trigger.
+Conflicts=sleep.target
+
+[Service]
+Type=oneshot
+
+# RemainAfterExit=yes keeps the unit in "active (exited)" state after
+# ExecStart finishes.  This is required for Conflicts=sleep.target to work
+# correctly: systemd can only conflict an "active" unit.
+RemainAfterExit=yes
+
+ExecStart=/usr/local/bin/asus-performance-setup.sh
+
+# Generous timeout for loaded boot environments.  The script itself takes
+# roughly 2–4 seconds (1s settle sleep + ryzenadj call).
+TimeoutStartSec=60
+
+# Treat exit code 1 as success.  The setup script exits 0 on a clean run
+# and only exits non-zero on an unexpected error caught by `set -euo pipefail`.
+# This prevents a non-fatal issue (e.g. ryzenadj not installed) from marking
+# the unit as "failed" and cluttering boot logs.
+SuccessExitStatus=0 1
+
+[Install]
+WantedBy=multi-user.target
