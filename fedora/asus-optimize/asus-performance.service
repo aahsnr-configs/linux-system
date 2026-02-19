@@ -2,11 +2,57 @@
 # /etc/systemd/system/asus-performance.service
 #
 # Runs the ASUS G14 performance setup script once on every cold boot and
-# restart.  Wake-from-sleep is handled separately by:
+# restart.  Wake-from-sleep handling is done separately by:
 #   asus-performance-resume.service
+#
+# Periodic refresh (to re-apply limits after firmware or daemon resets) is
+# done by:
+#   asus-performance-refresh.timer / asus-performance-refresh.service
 #
 # Script installed at:  /usr/local/bin/asus-performance-setup.sh
 # Install with:         sudo ./install.sh
+#
+# ── WHY WE DO NOT ORDER After=asusd.service OR After=power-profiles-daemon ──
+#
+# This unit is WantedBy=multi-user.target.  Systemd implicitly adds
+# Before=multi-user.target to any unit placed in multi-user.target.wants/.
+#
+# power-profiles-daemon.service has Before=multi-user.target in its own unit
+# file.  It is also WantedBy=graphical.target, which itself is ordered after
+# multi-user.target.  This means PPD ends up with effective ordering
+# constraints on both sides of multi-user.target in the full dependency graph.
+#
+# Adding After=power-profiles-daemon.service to this unit creates a closed
+# ordering loop that systemd detects and breaks by deleting this unit's
+# start job entirely — which is exactly the failure seen in the journal:
+#
+#   "Found ordering cycle: multi-user.target/start
+#    after asus-performance.service/start
+#    after power-profiles-daemon.service/start
+#    - after multi-user.target"
+#   "Job asus-performance.service/start deleted to break ordering cycle"
+#
+# asusd.service has a similar transitive ordering relationship through
+# dbus.service and graphical.target and must not be used as an After= target
+# for the same reason.
+#
+# ── HOW WE HANDLE "DAEMONS START AFTER US AND OVERWRITE OUR LIMITS" ──────────
+#
+# The correct solution is NOT to try to order after the daemons — that path
+# leads to ordering cycles for the reasons above.  Instead:
+#
+#   1. This unit fires early (after dbus.service is up, which is safely before
+#      multi-user.target in all dependency chains) and applies limits as a
+#      first pass.
+#
+#   2. asus-performance-refresh.timer fires at T+90s and then every 60s.
+#      This is always after asusd and power-profiles-daemon have finished
+#      their boot-time profile restore.  The timer is the definitive mechanism
+#      for ensuring limits are applied after daemon resets.
+#
+# dbus.service is safe to list in After= because it has Before=multi-user.target
+# (not After=multi-user.target) and has no transitive dependency path back
+# through multi-user.target.
 # =============================================================================
 
 [Unit]
@@ -14,39 +60,40 @@ Description=ASUS G14 Performance Profile (Boot)
 Documentation=https://github.com/FlyGoat/RyzenAdj
 
 # ── Ordering ──────────────────────────────────────────────────────────────────
-# sysinit.target  → guarantees kernel modules (asus-nb-wmi) are fully loaded
-# local-fs.target → guarantees /usr/local/bin is mounted and readable
-# Both are implicit via multi-user.target's chain, but listed here explicitly
-# to document intent and guard against edge-case ordering regressions.
-After=sysinit.target local-fs.target
+# sysinit.target   → kernel modules (asus-nb-wmi) are guaranteed to be loaded
+# local-fs.target  → /usr/local/bin is guaranteed to be mounted and readable
+# dbus.service     → D-Bus is up; safe to list here because dbus has
+#                    Before=multi-user.target (no cycle risk)
+#
+# DO NOT add power-profiles-daemon.service or asusd.service here.
+# See the header comment above for the full explanation.
+After=sysinit.target local-fs.target dbus.service
 
 # ── Sleep interaction ─────────────────────────────────────────────────────────
-# Declaring Conflicts=sleep.target causes systemd to transition this unit to
-# "inactive" the moment any sleep state begins.  This is intentional:
-#   • It accurately reflects that the profile has not been applied since
-#     the last wake-up, because firmware resets limits on every transition.
-#   • It has NO interaction with asus-performance-resume.service, which is
-#     a completely separate unit with its own WantedBy=sleep.target trigger.
+# Conflicts=sleep.target transitions this unit to "inactive" when any sleep
+# state begins.  This is informational only — it accurately reflects that the
+# profile has not been re-applied since the last wake.  The resume unit handles
+# wake events independently.
 Conflicts=sleep.target
 
 [Service]
 Type=oneshot
 
 # RemainAfterExit=yes keeps the unit in "active (exited)" state after
-# ExecStart finishes.  This is required for Conflicts=sleep.target to work
-# correctly: systemd can only conflict an "active" unit.
+# ExecStart finishes.  Required for Conflicts=sleep.target to work correctly:
+# systemd can only conflict an "active" unit.
 RemainAfterExit=yes
 
 ExecStart=/usr/local/bin/asus-performance-setup.sh
 
-# Generous timeout for loaded boot environments.  The script itself takes
-# roughly 2–4 seconds (1s settle sleep + ryzenadj call).
+# Generous timeout — the script includes a 1-second settle sleep between
+# sysfs writes and the ryzenadj call.
 TimeoutStartSec=60
 
 # Treat exit code 1 as success.  The setup script exits 0 on a clean run
 # and only exits non-zero on an unexpected error caught by `set -euo pipefail`.
-# This prevents a non-fatal issue (e.g. ryzenadj not installed) from marking
-# the unit as "failed" and cluttering boot logs.
+# Marking code 1 as success prevents transient non-fatal issues (e.g. a
+# ryzenadj error on a fresh install) from marking the unit "failed".
 SuccessExitStatus=0 1
 
 [Install]

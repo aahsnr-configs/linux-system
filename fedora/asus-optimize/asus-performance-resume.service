@@ -12,6 +12,7 @@
 #
 # Script installed at:  /usr/local/bin/asus-performance-setup.sh
 # Companion unit:       asus-performance.service  (boot/restart)
+# Refresh unit:         asus-performance-refresh.timer  (periodic)
 # Install with:         sudo ./install.sh
 #
 # ── How the ExecStop= wake pattern works ─────────────────────────────────────
@@ -31,47 +32,53 @@
 #   2. StopWhenUnneeded=yes sees that nothing requires this unit anymore
 #      (sleep.target is gone) and tells systemd to stop it.
 #   3. Stopping a oneshot unit with RemainAfterExit=yes runs ExecStop=.
-#   4. ExecStop=/usr/local/bin/asus-performance-setup.sh fires.  ✓
-#      The firmware's power limits have been reset by the wake transition;
-#      the script re-applies them.
+#   4. ExecStop= fires a short delay followed by the setup script.  ✓
 #
-#  WHY NOT use After=suspend.target / After=hibernate.target ?
-#   Those targets are active *before* sleep begins, not after resume.
-#   The ExecStop= approach is the correct systemd idiom for post-resume
-#   execution.  It is confirmed in the systemd-devel mailing list archives
-#   and used in production (e.g. bluefin, wicd, network managers).
+# ── WHY THE 3-SECOND DELAY IN ExecStop= ──────────────────────────────────────
+#
+# With DefaultDependencies=no, this unit has no implicit ordering relative to
+# driver re-initialisation.  After a hibernate resume in particular, the
+# asus-nb-wmi kernel module takes a moment to re-register its sysfs nodes
+# with the embedded controller.  If the setup script fires too early, sysfs
+# writes return exit code 0 (the node exists and accepts bytes) but the EC
+# never actually receives the values because the WMI transport layer is still
+# initialising.
+#
+# A 3-second delay before the script reliably covers this race condition
+# without adding perceptible latency to the user experience.
+#
+# ── WHY DefaultDependencies=no ───────────────────────────────────────────────
+#
+# DefaultDependencies=no removes the implicit After=basic.target,
+# After=sysinit.target, Before=shutdown.target, and Conflicts=shutdown.target
+# dependencies that systemd adds to all services by default.
+#
+# These implicit dependencies are designed for normal long-running services
+# and are counter-productive for a sleep hook:
+#   • After=basic.target would prevent clean ordering relative to sleep.target.
+#   • Before=shutdown.target / Conflicts=shutdown.target are irrelevant here;
+#     this unit is only ever started by sleep.target, not at boot.
+#
+# /usr/local/bin is on the root filesystem which remains mounted throughout
+# all sleep/wake cycles, so removing After=local-fs.target is safe.
 # =============================================================================
 
 [Unit]
 Description=ASUS G14 Performance Profile (Resume from Sleep/Hibernate)
 Documentation=https://github.com/FlyGoat/RyzenAdj
 
-# DefaultDependencies=no removes implicit After=basic.target,
-# After=sysinit.target, Before=shutdown.target, and Conflicts=shutdown.target
-# that systemd adds to all services by default.
-#
-# These implicit dependencies are designed for normal long-running services
-# and are counter-productive for a sleep hook:
-#   • After=basic.target would prevent the unit from being ordered cleanly
-#     relative to sleep.target during sleep entry.
-#   • Before=shutdown.target / Conflicts=shutdown.target are irrelevant
-#     here; this unit is only ever started by sleep.target, not at boot.
-#
-# /usr/local/bin is on the root filesystem which remains mounted throughout
-# sleep/wake cycles, so removing After=local-fs.target is safe.
 DefaultDependencies=no
 
 # Ordered before sleep.target so systemd registers this unit's state before
-# sleep begins.  This is what makes StopWhenUnneeded=yes work correctly on
-# wake: systemd knows the unit was active and stops it when sleep.target
-# deactivates, which triggers ExecStop=.
+# sleep begins.  This is what makes StopWhenUnneeded=yes work on wake:
+# systemd knows the unit was active and stops it when sleep.target deactivates,
+# which fires ExecStop=.
 Before=sleep.target
 
-# Stop this unit when no active unit requires or wants it anymore.
-# Since the only unit that pulls us in is sleep.target (via WantedBy),
-# this unit will be stopped automatically when sleep.target deactivates
-# (i.e. immediately after the system resumes).  That stop is what fires
-# ExecStop= below.
+# Stop this unit automatically when sleep.target deactivates (on wake).
+# Since the only thing that pulls us in is sleep.target (via WantedBy),
+# the unit will be stopped as soon as sleep.target is no longer active.
+# That automatic stop is what triggers ExecStop=.
 StopWhenUnneeded=yes
 
 [Service]
@@ -82,20 +89,25 @@ Type=oneshot
 # will not run ExecStop= when the unit is later stopped.
 RemainAfterExit=yes
 
-# A no-op placeholder.  systemd requires a non-empty ExecStart= for
-# oneshot units.  The prefix "-" means "ignore if this command fails"
-# (it won't, but it makes the intent unambiguous).
+# A deliberate no-op placeholder.  systemd requires a non-empty ExecStart=
+# for oneshot units.  The "-" prefix means "ignore failure" (it won't fail,
+# but the intent is explicit).
 ExecStart=-/bin/true
 
-# This is the real payload — runs on wake when the unit is stopped.
-ExecStop=/usr/local/bin/asus-performance-setup.sh
+# The real payload.  Fires on wake when the unit is stopped by
+# StopWhenUnneeded=yes as sleep.target deactivates.
+#
+# The 3-second sleep before the script is intentional — see the header comment
+# above for the full explanation of the WMI re-initialisation race.
+ExecStop=/bin/bash -c 'sleep 3 && /usr/local/bin/asus-performance-setup.sh'
 
-# Generous stop timeout for post-hibernate scenarios where driver
-# re-initialisation may delay the asus-nb-wmi sysfs nodes being ready.
+# Generous stop timeout: hibernate resume can take longer than suspend resume
+# before drivers are fully re-initialised.  The 3-second delay plus the
+# script runtime (≈4 seconds) is comfortably within this limit.
 TimeoutStopSec=90
 
 [Install]
 # sleep.target is the common parent of suspend.target, hibernate.target,
 # hybrid-sleep.target, and suspend-then-hibernate.target.
-# One line here covers all four sleep states.
+# One entry here covers all four sleep states.
 WantedBy=sleep.target

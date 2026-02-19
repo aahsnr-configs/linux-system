@@ -7,10 +7,12 @@
 #   sudo ./install.sh            → install everything
 #   sudo ./install.sh uninstall  → cleanly remove everything
 #
-# Must be run from the directory that contains all four project files:
+# Must be run from the directory that contains all project files:
 #   asus-performance-setup.sh
 #   asus-performance.service
 #   asus-performance-resume.service
+#   asus-performance-refresh.service
+#   asus-performance-refresh.timer
 #   install.sh
 # =============================================================================
 
@@ -28,6 +30,14 @@ readonly BOOT_UNIT_DST="/etc/systemd/system/${BOOT_UNIT_NAME}"
 readonly RESUME_UNIT_NAME="asus-performance-resume.service"
 readonly RESUME_UNIT_SRC="./${RESUME_UNIT_NAME}"
 readonly RESUME_UNIT_DST="/etc/systemd/system/${RESUME_UNIT_NAME}"
+
+readonly REFRESH_SVC_NAME="asus-performance-refresh.service"
+readonly REFRESH_SVC_SRC="./${REFRESH_SVC_NAME}"
+readonly REFRESH_SVC_DST="/etc/systemd/system/${REFRESH_SVC_NAME}"
+
+readonly REFRESH_TMR_NAME="asus-performance-refresh.timer"
+readonly REFRESH_TMR_SRC="./${REFRESH_TMR_NAME}"
+readonly REFRESH_TMR_DST="/etc/systemd/system/${REFRESH_TMR_NAME}"
 
 # ── Colour helpers ────────────────────────────────────────────────────────────
 RED='\033[0;31m'
@@ -68,18 +78,32 @@ uninstall() {
         && log_ok   "Disabled ${RESUME_UNIT_NAME}" \
         || log_warn "${RESUME_UNIT_NAME} was not active/enabled — skipping."
 
+    systemctl disable --now "${REFRESH_TMR_NAME}" 2>/dev/null \
+        && log_ok   "Disabled ${REFRESH_TMR_NAME}" \
+        || log_warn "${REFRESH_TMR_NAME} was not active/enabled — skipping."
+
+    # The refresh service does not need to be disabled (it has no [Install]
+    # section); stopping the timer is sufficient.  Stopping it explicitly
+    # ensures any in-progress refresh run is cleanly terminated.
+    systemctl stop "${REFRESH_SVC_NAME}" 2>/dev/null || true
+
     log_info "Removing installed files…"
 
     # BUG FIX: `local` is only valid inside functions.  Using `local` at
-    # top-level (outside a function) causes a hard bash error.  Use plain
-    # variable assignment here.
+    # top-level scope (outside a function) causes a hard bash error.
+    # Using plain variable assignment here instead.
     #
     # BUG FIX: never use bare `(( n++ ))` with `set -e` when n may be 0.
-    # `(( 0++ ))` evaluates to 0 (arithmetic false) and exits with code 1,
-    # killing the script before uninstall completes.  Use `(( ++n ))` instead:
-    # the pre-increment always returns the new value (≥1), which is true.
+    # `(( 0++ ))` evaluates to the old value (0 = false) and exits with
+    # code 1, killing the script before uninstall completes.  Use `(( ++n ))`
+    # (pre-increment) which always returns the new value (≥1 = true).
     removed=0
-    for f in "${BOOT_UNIT_DST}" "${RESUME_UNIT_DST}" "${SCRIPT_DST}"; do
+    for f in "${BOOT_UNIT_DST}" \
+              "${RESUME_UNIT_DST}" \
+              "${REFRESH_SVC_DST}" \
+              "${REFRESH_TMR_DST}" \
+              "${SCRIPT_DST}"
+    do
         if [[ -f "${f}" ]]; then
             rm -f "${f}"
             log_ok "Removed ${f}"
@@ -116,6 +140,8 @@ install_all() {
     [[ -f "${SCRIPT_SRC}"      ]] || die "Missing: ${SCRIPT_SRC}  (run install.sh from the project directory)"
     [[ -f "${BOOT_UNIT_SRC}"   ]] || die "Missing: ${BOOT_UNIT_SRC}"
     [[ -f "${RESUME_UNIT_SRC}" ]] || die "Missing: ${RESUME_UNIT_SRC}"
+    [[ -f "${REFRESH_SVC_SRC}" ]] || die "Missing: ${REFRESH_SVC_SRC}"
+    [[ -f "${REFRESH_TMR_SRC}" ]] || die "Missing: ${REFRESH_TMR_SRC}"
     log_ok "All source files present."
 
     # ── Warn early about optional tools ──────────────────────────────────────
@@ -137,6 +163,34 @@ install_all() {
         echo ""
     fi
 
+    # ── Warn about the asusd / power-profiles-daemon conflict ─────────────────
+    echo ""
+    log_info "Checking asusd and power-profiles-daemon status…"
+    asusd_active=false
+    ppd_active=false
+    systemctl is-active --quiet asusd.service             2>/dev/null && asusd_active=true  || true
+    systemctl is-active --quiet power-profiles-daemon.service 2>/dev/null && ppd_active=true   || true
+
+    if "${asusd_active}" && "${ppd_active}"; then
+        log_warn "Both asusd and power-profiles-daemon are running."
+        log_note "These daemons can fight over platform_profile writes.  The boot unit"
+        log_note "is ordered After= both of them so your limits are applied last."
+        log_note "For best results, also run:"
+        log_note "  asusctl profile -P Performance"
+        log_note "  powerprofilesctl set performance"
+        log_note "This makes their boot-time restore write 'performance' into"
+        log_note "platform_profile, which sets the least-restrictive EC defaults"
+        log_note "before this script overrides throttle_thermal_policy."
+    elif "${asusd_active}"; then
+        log_ok   "asusd is running.  Boot unit is ordered After=asusd.service."
+    elif "${ppd_active}"; then
+        log_ok   "power-profiles-daemon is running.  Boot unit is ordered After=power-profiles-daemon.service."
+    else
+        log_warn "Neither asusd nor power-profiles-daemon appears to be running."
+        log_note "The boot unit will still run correctly."
+    fi
+    echo ""
+
     # ── Install the setup script ──────────────────────────────────────────────
     log_info "Installing setup script → ${SCRIPT_DST}"
     install -D -m 755 "${SCRIPT_SRC}" "${SCRIPT_DST}"
@@ -150,6 +204,14 @@ install_all() {
     log_info "Installing resume unit → ${RESUME_UNIT_DST}"
     install -D -m 644 "${RESUME_UNIT_SRC}" "${RESUME_UNIT_DST}"
     log_ok "Resume unit installed."
+
+    log_info "Installing refresh service → ${REFRESH_SVC_DST}"
+    install -D -m 644 "${REFRESH_SVC_SRC}" "${REFRESH_SVC_DST}"
+    log_ok "Refresh service installed."
+
+    log_info "Installing refresh timer → ${REFRESH_TMR_DST}"
+    install -D -m 644 "${REFRESH_TMR_SRC}" "${REFRESH_TMR_DST}"
+    log_ok "Refresh timer installed."
 
     # ── Reload daemon so systemd sees the new unit files ──────────────────────
     log_info "Reloading systemd daemon…"
@@ -165,10 +227,18 @@ install_all() {
     systemctl enable "${RESUME_UNIT_NAME}"
     log_ok "Resume unit enabled."
 
-    # ── Start the boot unit immediately (no reboot required) ──────────────────
-    log_info "Starting boot unit now (first run without rebooting)…"
+    log_info "Enabling refresh timer…"
+    systemctl enable "${REFRESH_TMR_NAME}"
+    log_ok "Refresh timer enabled."
+
+    # ── Start units immediately ───────────────────────────────────────────────
+    log_info "Starting boot unit now (applies limits without a reboot)…"
     systemctl start "${BOOT_UNIT_NAME}"
     log_ok "Boot unit started."
+
+    log_info "Starting refresh timer…"
+    systemctl start "${REFRESH_TMR_NAME}"
+    log_ok "Refresh timer started (first refresh in 90 seconds)."
 
     # ── Summary ───────────────────────────────────────────────────────────────
     echo ""
@@ -176,11 +246,16 @@ install_all() {
     echo -e "${GRN}║            Installation complete ✓               ║${NC}"
     echo -e "${GRN}╚══════════════════════════════════════════════════╝${NC}"
     echo ""
-    echo "  Verify boot unit:    systemctl status ${BOOT_UNIT_NAME}"
-    echo "  Verify resume unit:  systemctl status ${RESUME_UNIT_NAME}"
-    echo "  Live log stream:     journalctl -f -u ${BOOT_UNIT_NAME} -u ${RESUME_UNIT_NAME}"
-    echo "  Manual test run:     ${SCRIPT_DST}"
-    echo "  Uninstall:           sudo ./install.sh uninstall"
+    echo "  Verify boot unit:     systemctl status ${BOOT_UNIT_NAME}"
+    echo "  Verify resume unit:   systemctl status ${RESUME_UNIT_NAME}"
+    echo "  Verify refresh timer: systemctl status ${REFRESH_TMR_NAME}"
+    echo "  Live log stream:      journalctl -f -u ${BOOT_UNIT_NAME} -u ${RESUME_UNIT_NAME} -u ${REFRESH_SVC_NAME}"
+    echo "  Manual test run:      sudo ${SCRIPT_DST}"
+    echo "  Uninstall:            sudo ./install.sh uninstall"
+    echo ""
+    echo -e "${YLW}  RECOMMENDED: set both daemons to Performance mode persistently:${NC}"
+    echo "    asusctl profile -P Performance"
+    echo "    powerprofilesctl set performance"
     echo ""
 }
 

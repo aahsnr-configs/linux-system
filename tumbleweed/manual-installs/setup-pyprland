@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 ################################################################################
-# Pyprland Installation Script for Fedora Linux and Fedora-Derived Distros
+# Pyprland Installation Script for openSUSE Tumbleweed
 #
 # Converted from: pyprland-git PKGBUILD (AUR)
 # Source: https://aur.archlinux.org/packages/pyprland-git
@@ -20,10 +20,15 @@
 #   - Binaries: /usr/local/bin/pypr, /usr/local/bin/pypr-client (symlinked)
 #   - This avoids ALL pip warnings while providing system-wide access
 #
-# Supported Distributions:
-#   - Fedora Linux (all current releases)
-#   - Fedora-derived distros: RHEL, CentOS Stream, AlmaLinux, Rocky Linux,
-#     Nobara, Ultramarine, Bazzite, and any distro with ID_LIKE="fedora"
+# Supported Distribution:
+#   - openSUSE Tumbleweed ONLY (rolling release)
+#     ID=opensuse-tumbleweed in /etc/os-release
+#
+# openSUSE Tumbleweed Python packaging notes:
+#   On Tumbleweed, Python library packages are named with the full version
+#   number: python313-<name> (NOT python3-<name>). As of current Tumbleweed,
+#   python313 is the primary Python flavor and /usr/bin/python3 is a symlink
+#   to /usr/bin/python3.13.
 #
 # This script is fully idempotent - safe to run multiple times.
 ################################################################################
@@ -72,26 +77,24 @@ check_root() {
     fi
 }
 
-# Check for Fedora or a Fedora-derived distribution
-check_fedora_distro() {
+# Check for openSUSE Tumbleweed specifically
+check_tumbleweed_distro() {
     if [[ ! -f /etc/os-release ]]; then
         log_error "Cannot determine OS version. /etc/os-release not found."
         exit 1
     fi
 
-    local os_id os_id_like os_pretty_name
+    local os_id os_pretty_name
     os_id=$(grep "^ID=" /etc/os-release | cut -d'=' -f2 | tr -d '"')
-    os_id_like=$(grep "^ID_LIKE=" /etc/os-release 2>/dev/null | cut -d'=' -f2 | tr -d '"' || echo "")
     os_pretty_name=$(grep "^PRETTY_NAME=" /etc/os-release | cut -d'=' -f2 | tr -d '"')
 
-    if [[ "${os_id}" == "fedora" ]] || [[ "${os_id_like}" == *"fedora"* ]]; then
+    if [[ "${os_id}" == "opensuse-tumbleweed" ]]; then
         log_info "Detected ${os_pretty_name}"
     else
-        log_error "This script requires Fedora Linux or a Fedora-derived distribution."
+        log_error "This script requires openSUSE Tumbleweed ONLY."
         log_error "Detected: ${os_pretty_name} (ID=${os_id})"
-        log_error "Supported distributions include: Fedora, RHEL, CentOS Stream,"
-        log_error "  AlmaLinux, Rocky Linux, Nobara, Ultramarine, Bazzite, and"
-        log_error "  any distribution where ID_LIKE includes 'fedora'."
+        log_error "This script does NOT support Fedora, openSUSE Leap,"
+        log_error "or any other distribution."
         exit 1
     fi
 }
@@ -99,7 +102,7 @@ check_fedora_distro() {
 # Check Python version
 check_python_version() {
     if ! command -v python3 &> /dev/null; then
-        log_error "Python 3 is not installed"
+        log_error "Python 3 is not installed. Install python313 via zypper."
         exit 1
     fi
 
@@ -110,45 +113,59 @@ check_python_version() {
 
     if [[ $python_major -lt $MIN_PYTHON_MAJOR ]] || \
        [[ $python_major -eq $MIN_PYTHON_MAJOR && $python_minor -lt $MIN_PYTHON_MINOR ]]; then
-        log_error "Python ${MIN_PYTHON_MAJOR}.${MIN_PYTHON_MINOR} or higher is required. Found: $python_version"
+        log_error "Python ${MIN_PYTHON_MAJOR}.${MIN_PYTHON_MINOR}+ is required. Found: $python_version"
         exit 1
     fi
 
     log_success "Python version check passed: $python_version"
 }
 
-# Install system dependencies via dnf
+# Install system dependencies via zypper
 install_dependencies() {
-    log_info "Installing system dependencies via dnf..."
+    log_info "Installing system dependencies via zypper..."
 
-    # Fedora package equivalents of the AUR PKGBUILD makedepends/depends:
-    #   gcc           -> gcc            (C compiler for pypr-client binary)
-    #   make          -> make           (build tooling)
-    #   git           -> git            (source checkout)
-    #   python-build  -> python3-build  (PEP 517 build frontend)
-    #   python-installer -> python3-installer (wheel installer)
-    #   python-pillow -> python3-pillow (Pillow imaging library)
-    #   python-poetry -> python3-poetry-core (build backend)
-    #   python-aiofiles -> python3-aiofiles (runtime dependency)
+    # openSUSE Tumbleweed package equivalents of AUR PKGBUILD makedepends/depends.
     #
-    # Note: On Fedora, 'python3 -m venv' is available out of the box
-    # from the python3 package itself (no separate python3-venv needed).
+    # On Tumbleweed, Python library packages are named with the full Python
+    # version number: python313-<name>. The python3-<name> convention is NOT
+    # correct for Tumbleweed.
+    #
+    # Package mapping (AUR name -> Tumbleweed package name):
+    #   gcc                 -> gcc                    (C compiler for pypr-client)
+    #   make                -> make                   (build tooling)
+    #   git                 -> git                    (source checkout)
+    #   python (interp.)    -> python313              (Python 3.13 interpreter)
+    #   python-pip          -> python313-pip          (pip for Python 3.13)
+    #   python-devel        -> python313-devel        (headers/libs for C extensions)
+    #   python-build        -> python313-build        (PEP 517 build frontend)
+    #   python-setuptools   -> python313-setuptools   (build tooling)
+    #   python-wheel        -> python313-wheel        (wheel packaging support)
+    #   python-poetry       -> python313-poetry-core  (poetry build backend)
+    #   python-pillow       -> python313-Pillow       (Pillow imaging; capital P)
+    #   python-aiofiles     -> python313-aiofiles     (async file I/O; runtime dep)
     local -a packages=(
         git
         gcc
         make
-        python3
-        python3-pip
-        python3-devel
-        python3-build
-        python3-installer
-        python3-poetry-core
-        python3-pillow
-        python3-aiofiles
+        python313
+        python313-pip
+        python313-devel
+        python313-build
+        python313-setuptools
+        python313-wheel
+        python313-poetry-core
+        python313-Pillow
+        python313-aiofiles
     )
 
+    log_info "Refreshing zypper repositories..."
+    if ! sudo zypper --non-interactive refresh; then
+        log_error "Failed to refresh zypper repositories"
+        exit 1
+    fi
+
     log_info "Installing packages: ${packages[*]}"
-    if ! sudo dnf install -y "${packages[@]}"; then
+    if ! sudo zypper --non-interactive install "${packages[@]}"; then
         log_error "Failed to install dependencies"
         exit 1
     fi
@@ -244,8 +261,10 @@ setup_venv() {
         rm -rf "$VENV_DIR"
     fi
 
-    # Create fresh virtual environment
-    # On Fedora, python3 -m venv is available without a separate package
+    # Create fresh virtual environment using python3, which on Tumbleweed is
+    # a symlink to /usr/bin/python3.13 provided by the python313 package.
+    # The venv module is included in python313 itself on Tumbleweed;
+    # no separate python313-venv package is required.
     if ! python3 -m venv "$VENV_DIR"; then
         log_error "Failed to create virtual environment"
         exit 1
@@ -266,7 +285,11 @@ build_pyprland() {
     # Clean previous builds
     rm -rf dist/ build/ ./*.egg-info/ 2>/dev/null || true
 
-    # Build wheel as regular user
+    # Build wheel using system-installed build backend (poetry-core).
+    # --no-isolation tells the PEP 517 build frontend to use the system-installed
+    # python313-poetry-core rather than creating an isolated environment and
+    # downloading it from PyPI. This works correctly on Tumbleweed because
+    # python313-poetry-core is available in the official OSS repository.
     log_info "Building wheel package..."
     if ! python3 -m build --wheel --no-isolation; then
         log_error "Failed to build wheel"
@@ -296,8 +319,9 @@ install_pyprland_in_venv() {
 
     log_info "Installing wheel in venv: $(basename "$wheel_file")"
 
-    # Install in venv with dependencies (NO sudo, NO warnings!)
-    # The venv has its own pip, so no --break-system-packages needed
+    # Install the wheel and all its runtime dependencies into the isolated venv.
+    # The venv pip does not produce --break-system-packages warnings because it
+    # is operating inside an isolated virtual environment, not the system Python.
     if ! "${VENV_DIR}/bin/pip" install "$wheel_file"; then
         log_error "Failed to install pyprland in virtual environment"
         exit 1
@@ -423,13 +447,13 @@ verify_installation() {
 # Display usage
 usage() {
     cat << 'EOF'
-Pyprland Installation Script for Fedora Linux and Fedora-Derived Distributions
+Pyprland Installation Script for openSUSE Tumbleweed
 
 Converted from pyprland-git PKGBUILD (AUR)
 Combines pipx isolation with AUR build methodology
 
 USAGE:
-    ./install-pyprland.sh [COMMAND]
+    ./setup-pyprland [COMMAND]
 
 COMMANDS:
     install         Install or update pyprland (default)
@@ -439,10 +463,10 @@ COMMANDS:
     help            Display this help message
 
 EXAMPLES:
-    ./install-pyprland.sh install       # Install or update
-    ./install-pyprland.sh check-update  # Check for updates
-    ./install-pyprland.sh remove        # Completely remove
-    ./install-pyprland.sh clean         # Clean build cache
+    ./setup-pyprland install       # Install or update
+    ./setup-pyprland check-update  # Check for updates
+    ./setup-pyprland remove        # Completely remove
+    ./setup-pyprland clean         # Clean build cache
 
 INSTALLATION DETAILS:
     Build directory:  ~/.cache/pyprland-build
@@ -457,9 +481,8 @@ WHY THIS APPROACH:
     - Clean, idempotent, production-ready
 
 REQUIREMENTS:
-    - Fedora Linux or a Fedora-derived distribution
-      (e.g. RHEL, CentOS Stream, AlmaLinux, Rocky Linux, Nobara, Bazzite)
-    - Python 3.11 or higher
+    - openSUSE Tumbleweed ONLY (rolling release)
+    - Python 3.11 or higher (Tumbleweed ships python313 by default)
     - Sudo privileges
     - Internet connection
 
@@ -522,7 +545,7 @@ main_install() {
     echo
 
     check_root
-    check_fedora_distro
+    check_tumbleweed_distro
     check_python_version
     install_dependencies
     prepare_source
