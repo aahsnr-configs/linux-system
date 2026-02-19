@@ -1,3 +1,0 @@
-- [ ] Setup quickshell and noctalia
-- [ ] Install nvidia drivers using `sudo ubuntu-drivers autoinstall`
-- [ ] Also get the ubuntu gui packages for managing drivers and updates
