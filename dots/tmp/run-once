@@ -1,0 +1,10 @@
+#!/bin/bash
+for ws_offset in $(seq 0 8); do
+    src=$((ws_offset + 10))
+    dst=$((ws_offset + 1))
+    # Get all window addresses on source workspace
+    addrs=$(hyprctl clients -j | jq -r --argjson ws "$src" '.[] | select(.workspace.id == $ws) | .address')
+    for addr in $addrs; do
+        hyprctl dispatch movetoworkspacesilent "${dst},address:${addr}"
+    done
+done
