@@ -51,6 +51,8 @@ wget -O "$PIA_INSTALLER" https://installers.privateinternetaccess.com/download/p
 chmod +x "$PIA_INSTALLER"
 bash "$PIA_INSTALLER"
 
+echo "Opi pkgs"
+sleep 5
 opi codecs
 opi noctalia-shell
 opi texlive-dummy
@@ -61,6 +63,7 @@ opi noctalia-shell
 opi zotero
 opi asusctl
 opi asusctl-rog-gui
+opi zen-browser
 
 echo "symlink and directory"
 sleep 5
@@ -93,6 +96,8 @@ ln -sv "$HOME/Git/configs/linux-system/dots/.config/mimeapps.list" "$HOME/.confi
 ln -sv "$HOME/Git/configs/linux-system/dots/.config/starship.toml" "$HOME/.config/"
 sudo rm -rf ~/.config/user-dirs.dirs
 ln -sv "$HOME/Git/configs/linux-system/dots/.config/user-dirs.dirs" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/noctalia/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/tmp/" "$HOME/"
 
 # Configure User
 mkdir -p "$HOME/.npm-global"
