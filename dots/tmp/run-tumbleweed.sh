@@ -5,7 +5,7 @@ IMAGE="registry.opensuse.org/opensuse/tumbleweed"
 
 # 1. Pull the latest version of the image to ensure you have recent updates
 echo "Fetching the latest openSUSE Tumbleweed image..."
-podman pull "$IMAGE"
+podman pull opensuse/tumbleweed:latest
 
 # 2. Run the container
 # -i: Keeps STDIN open (interactive)
