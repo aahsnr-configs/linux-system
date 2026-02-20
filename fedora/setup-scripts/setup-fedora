@@ -1,8 +1,31 @@
 #!/bin/bash
 
+sudo cp -R "$HOME/Git/configs/linux-system/fedora/preconfig/99-custom-env.sh" "/etc/profile.d/"
+sudo cp -R "$HOME/Git/configs/linux-system/fedora/preconfig/dnf.conf" "/etc/dnf/"
+sudo hostnamectl set-hostname zephyrus
+
+echo "setup repos"
+sleep 5
+sudo dnf copr enable sdegler/hyprland -y
+sudo dnf copr enable atim/starship -y
+sudo dnf copr enable errornointernet/packages -y
+sudo dnf copr enable dejan/lazygit -y
+sudo dnf copr enable sneexy/zen-browser -y
+sudo dnf copr enable lukenukem/asus-linux -y
+sudo dnf install dnf-plugins-core -y
+sudo dnf copr enable tofik/nwg-shell -y
+sudo dnf install --nogpgcheck --repofrompath 'terra,https://repos.fyralabs.com/terra$releasever' terra-release -y
+
 echo "core pkgs"
 sleep 2
 sudo dnf install git-core curl wget pciutils
+
+echo "nvidia"
+sleep 5
+sudo dnf config-manager addrepo --from-repofile=https://negativo17.org/repos/fedora-multimedia.repo
+sudo dnf install kernel-devel kernel-headers
+sudo dnf distro-sync
+sudo dnf install nvidia-driver nvidia-settings nvidia-driver-cuda cuda-devel nvenc nvidia-driver-NvFBCOpenGL vulkan vulkan-tools libva-nvidia-driver gstreamer1-plugins-base gstreamer1-plugins-good gstreamer1-plugins-ugly gstreamer1-plugins-bad-free gstreamer1-plugins-bad-freeworld ffmpeg libva-utils
 
 echo "brew setup"
 sleep 5
