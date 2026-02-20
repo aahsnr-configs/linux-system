@@ -41,7 +41,7 @@ sudo zypper in acpid aspell atuin bat bleachbit bluez bluez-firmware bpftune bri
 echo "rust pkgs"
 sleep 5
 rustup default stable
-cargo install emacs-lsp-booster texlab pay-respects hyprshell
+cargo install emacs-lsp-booster texlab pay-respects
 
 echo "piavpn"
 sleep 5
@@ -60,9 +60,16 @@ opi hyprland-guiutils
 opi ly
 opi noctalia-shell
 opi zotero
-opi asusctl
-opi asusctl-rog-gui
 opi zen-browser
+
+echo "Build and Install asusctl"
+sleep 5
+cd && git clone https://gitlab.com/asus-linux/asusctl.git
+cd asusctl
+sudo zypper in -t pattern devel_basis
+zypper in make cmake clang-devel libxkbcommon-devel systemd-devel expat-devel pcre2-devel libzstd-devel gtk3-devel
+make -j8
+sudo make install && cd
 
 echo "symlink and directory"
 sleep 5
