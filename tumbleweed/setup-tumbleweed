@@ -4,7 +4,7 @@ sleep 5
 sudo cp -R "$HOME/Git/configs/linux-system/tumbleweed/preconfig/99-custom-env.sh" "/etc/profile.d/"
 sudo zypper ref
 sudo zypper up
-sudo zypper in curl wget git-core git-lfs gh 
+sudo zypper in curl wget git-core git-lfs gh unzip zip
 
 echo "nvidia"
 sleep 5
@@ -23,8 +23,8 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 echo "brew setup and pkgs"
 sleep 5
-cd 
-echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv bash)"' >> /home/ahsan/.bashrc
+cd
+echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv bash)"' >>/home/ahsan/.bashrc
 source ~/.bashrc
 cd
 brew install pandoc
@@ -36,7 +36,7 @@ brew install --cask font-symbols-only-nerd-font
 
 echo "main pkgs"
 sleep 5
-sudo zypper in acpid aspell atuin bat bleachbit bluez bluez-firmware bpftune brightnessctl btop cava chafa cliphist cpio cronie ddcutil direnv distrobox dust emacs enchant-devel evolution-data-server eza fail2ban fastfetch fd flatpak fwupd fwupd-efi fzf gnome-keyring gnome-tweaks gnuplot go graphviz grim groff gsettings-desktop-schemas gtk4-layer-shell-devel gzip haveged hunspell hunspell-tools hypridle hyprland hyprland-devel hyprpolkitagent i2c-tools ImageMagick imv inotify-tools ispell jq kitty kitty-shell-integration kitty-terminfo lazygit libgtk4-layer-shell0 logrotate luajit lynis meson mpv neovim nodejs24 npm24 nwg-look opi papers papirus-icon-theme pciutils pipewire pipewire-alsa pipewire-jack pipewire-pulseaudio pkgconf-pkg-config plantuml podman podman-docker profile-sync-daemon python313-pipx python313-pymol qt5ct qt6ct ryzenadj slurp starship swappy switcheroo-control tealdeer thunar thunar-archive-plugin thunar-media-tags-plugin thunar-volman tmux topgrade transmission-gtk trash-cli ucode-amd udiskie wireplumber wl-clipboard wlsunset xdg-desktop-portal-gnome xdg-desktop-portal-gtk xdg-desktop-portal-hyprland xdg-user-dirs xdg-user-dirs-gtk yazi zathura zathura-plugin-pdf-mupdf zeromq-devel zeromq-tools zoxide zram-generator zsh zstd 
+sudo zypper in acpid aspell atuin bat bleachbit bluez bluez-firmware bpftune brightnessctl btop cava chafa cliphist cpio cronie ddcutil direnv distrobox dust emacs enchant-devel evolution-data-server eza fail2ban fastfetch fd flatpak fwupd fwupd-efi fzf gnome-keyring gnome-tweaks gnuplot go graphviz grim groff gsettings-desktop-schemas gtk4-layer-shell-devel gzip haveged hunspell hunspell-tools hypridle hyprpolkitagent i2c-tools ImageMagick imv inotify-tools ispell jq kitty kitty-shell-integration kitty-terminfo lazygit libgtk4-layer-shell0 logrotate luajit lynis meson mpv neovim nodejs24 npm24 nwg-look opi papers papirus-icon-theme pciutils pipewire pipewire-alsa pipewire-jack pipewire-pulseaudio pkgconf-pkg-config plantuml podman podman-docker profile-sync-daemon python313-pipx python313-pymol qt5ct qt6ct ryzenadj slurp starship swappy switcheroo-control tealdeer thunar thunar-archive-plugin thunar-media-tags-plugin thunar-volman tmux topgrade transmission-gtk trash-cli ucode-amd udiskie wireplumber wl-clipboard wlsunset xdg-desktop-portal-gnome xdg-desktop-portal-gtk xdg-desktop-portal-hyprland xdg-user-dirs xdg-user-dirs-gtk yazi zathura zathura-plugin-pdf-mupdf zeromq-devel zeromq-tools zoxide zram-generator zsh zstd
 
 echo "rust pkgs"
 sleep 5
@@ -54,7 +54,6 @@ bash "$PIA_INSTALLER"
 echo "Opi pkgs"
 sleep 5
 opi codecs
-opi noctalia-shell
 opi texlive-dummy
 opi adw-gtk3
 opi hyprland-guiutils
@@ -103,6 +102,8 @@ ln -sv "$HOME/Git/configs/linux-system/dots/tmp/" "$HOME/"
 mkdir -p "$HOME/.npm-global"
 npm config set prefix "$HOME/.npm-global"
 
+echo "piavpn"
+sleep 5
 PIA_INSTALLER=$(mktemp --suffix=.run)
 trap "rm -f '$PIA_INSTALLER'" EXIT
 wget -O "$PIA_INSTALLER" https://installers.privateinternetaccess.com/download/pia-linux-3.6.2-08398.run
