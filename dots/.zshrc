@@ -193,6 +193,8 @@ zsh_plugin_remove() {
     fi
 }
 
+eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv zsh)"
+
 ### ENVIRONMENT VARIABLES
 # XDG Base Directory Specification
 export XDG_BIN_HOME="${HOME}/.local/bin"
