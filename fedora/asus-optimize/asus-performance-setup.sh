@@ -63,7 +63,7 @@ readonly SLOW_MW=44000
 # Thermal control temperature ceiling in °C              [tctl-temp]
 # This is the AMD SMU thermal ceiling — it works alongside
 # throttle_thermal_policy=1 (overboost) which removes the EC-level ~82°C cap.
-readonly TCTL_TEMP=83
+readonly TCTL_TEMP=84
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Colour helpers
