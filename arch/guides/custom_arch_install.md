@@ -53,13 +53,8 @@ Create three partitions:
 ### 1.2 Format and Encrypt the Root Partition
 
 ```bash
-# Format ESP
 mkfs.vfat -F 32 /dev/nvme0n1p1
-
-# Format the swap partition (plain, unencrypted)
 mkswap /dev/nvme0n1p2
-
-# Create LUKS2 encrypted container directly on the root partition (no LVM)
 cryptsetup --type luks2 \
            --cipher aes-xts-plain64 \
            --hash sha512 \
@@ -68,13 +63,8 @@ cryptsetup --type luks2 \
            --verify-passphrase \
            luksFormat /dev/nvme0n1p3
 
-# Open the encrypted container — mapper name is 'cryptroot'
 cryptsetup luksOpen /dev/nvme0n1p3 cryptroot
-
-# Format btrfs directly on the mapper device (no LVM)
 mkfs.btrfs -f /dev/mapper/cryptroot
-
-# Initial mount
 mount /dev/mapper/cryptroot /mnt
 swapon /dev/nvme0n1p2
 ```
@@ -104,23 +94,14 @@ btrfs su cr /mnt/@var@spool
 btrfs su cr /mnt/@var@log
 btrfs su cr /mnt/@var@log@audit
 btrfs su cr /mnt/@snapshots
-
-# Unmount to remount with proper options
 umount /mnt
 ```
 
 ### 2.2 Mount Subvolumes with Optimal Options
 
 ```bash
-# Mount options for performance and compression (matching CachyOS defaults)
 BTRFS_OPTS="noatime,compress=zstd:3,space_cache=v2,discard=async"
-
-# Mount root subvolume
 mount -o ${BTRFS_OPTS},subvol=@ /dev/mapper/cryptroot /mnt
-
-# Create mount points and mount all subvolumes
-mkdir -p /mnt/{home,opt,tmp,root,srv,nix,usr/local,var/{cache/pacman/pkg,crash,tmp,spool,log/audit},.snapshots,boot}
-
 mkdir -p /mnt/home
 mount -o ${BTRFS_OPTS},subvol=@home /dev/mapper/cryptroot /mnt/home
 mkdir -p /mnt/opt
@@ -153,11 +134,7 @@ mkdir -p /mnt/var/log/audit
 mount -o ${BTRFS_OPTS},subvol=@var@log@audit /dev/mapper/cryptroot /mnt/var/log/audit
 mkdir -p /mnt/.snapshots
 mount -o ${BTRFS_OPTS},subvol=@snapshots /dev/mapper/cryptroot /mnt/.snapshots
-
-# Mount ESP
-mount /dev/nvme0n1p1 /mnt/boot
-
-# Enable swap
+mkdir /mnt/boot && mount /dev/nvme0n1p1 /mnt/boot
 swapon /dev/nvme0n1p2
 ```
 
@@ -209,27 +186,19 @@ arch-chroot /mnt
 # Set timezone (adjust to your location)
 ln -sf /usr/share/zoneinfo/Asia/Dhaka /etc/localtime
 hwclock --systohc
-
-# Configure locales
 echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
 locale-gen
 echo "LANG=en_US.UTF-8" > /etc/locale.conf
-
-# Set hostname
 echo "zephyrus" > /etc/hostname
 
 # Configure hosts file
 cat >> /etc/hosts << EOF
 127.0.0.1   localhost
 ::1         localhost
-127.0.1.1   zephyrus.localdomain archlinux
+127.0.1.1   zephyrus.localdomain zephyrus
 EOF
 
-# Set root password
-passwd
-
-# Create user account
-useradd -m -G users,wheel,audio,video -s /bin/bash ahsan && passwd ahsan && EDITOR=nvim visudo
+passwd && useradd -m -G users,wheel,audio,video -s /bin/bash ahsan && passwd ahsan && EDITOR=nvim visudo
 
 ```
 
@@ -255,19 +224,12 @@ pacman -Syyuu
 ### 5.1 Get Your UUIDs
 
 ```bash
-# Get LUKS UUID (the raw partition /dev/nvme0n1p3, NOT the mapper)
 LUKS_UUID=$(cryptsetup luksDump /dev/nvme0n1p3 | grep "UUID:" | head -1 | awk '{print $2}')
 echo "LUKS UUID: $LUKS_UUID"
-
-# Get root filesystem UUID (the btrfs mapper device /dev/mapper/cryptroot)
 ROOT_UUID=$(blkid -s UUID -o value /dev/mapper/cryptroot)
 echo "Root UUID: $ROOT_UUID"
-
-# Get swap UUID (the plain swap partition /dev/nvme0n1p2)
 SWAP_UUID=$(blkid -s UUID -o value /dev/nvme0n1p2)
 echo "Swap UUID: $SWAP_UUID"
-
-# Save these for later
 echo "LUKS_UUID=$LUKS_UUID" > /tmp/uuids.txt
 echo "ROOT_UUID=$ROOT_UUID" >> /tmp/uuids.txt
 echo "SWAP_UUID=$SWAP_UUID" >> /tmp/uuids.txt
@@ -354,21 +316,8 @@ UUID=<ESP_UUID>  /boot  vfat  rw,relatime,fmask=0022,dmask=0022,codepage=437,ioc
 
 ```bash
 # Install Limine and Java from official repos
-pacman -S limine jdk-openjdk
+pacman -S limine paru
 
-# Temporarily allow user to run sudo without password for AUR builds
-echo "ahsan ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers.d/temp_install
-chmod 440 /etc/sudoers.d/temp_install
-
-# Install paru from AUR (it is NOT in the official repos — pacman -S paru will fail)
-cd /tmp
-git clone https://aur.archlinux.org/paru-bin.git
-chown -R ahsan:ahsan paru-bin
-cd paru-bin
-sudo -u ahsan makepkg -si --noconfirm
-
-# Remove temporary passwordless sudo
-rm /etc/sudoers.d/temp_install
 ```
 
 ### 6.2 Install limine-dracut-support
@@ -388,15 +337,10 @@ rm /etc/sudoers.d/temp_install
 ### 6.3 Deploy Limine to ESP
 
 ```bash
-# Create Limine directories on ESP
 mkdir -p /boot/EFI/BOOT
 mkdir -p /boot/EFI/arch-limine
-
-# Copy Limine EFI binaries
 cp /usr/share/limine/BOOTX64.EFI /boot/EFI/BOOT/BOOTX64.EFI
 cp /usr/share/limine/BOOTX64.EFI /boot/EFI/arch-limine/BOOTX64.EFI
-
-# Register with UEFI (creates named boot entry)
 efibootmgr --create --disk /dev/nvme0n1 --part 1 \
     --label "Arch Linux (Limine)" \
     --loader /EFI/arch-limine/BOOTX64.EFI
@@ -407,16 +351,9 @@ efibootmgr --create --disk /dev/nvme0n1 --part 1 \
 This is where you set kernel parameters for dracut:
 
 ```bash
-# The variables from section 5.1 are still active in this shell session
-# Verify they are set
 echo "LUKS UUID: $LUKS_UUID"
 echo "Root UUID: $ROOT_UUID"
 echo "Swap UUID: $SWAP_UUID"
-
-# If variables are not set, source them:
-# source /tmp/uuids.txt
-
-# Create Limine configuration with dracut syntax
 cat > /etc/default/limine << EOF
 # ESP Path
 ESP_PATH="/boot"
@@ -451,8 +388,6 @@ BOOT_ORDER="*, *lts, *fallback, Snapshots"
 COMMANDS_BEFORE_SAVE="limine-reset-enroll"
 COMMANDS_AFTER_SAVE="limine-enroll-config"
 EOF
-
-# Verify configuration was created correctly
 cat /etc/default/limine
 ```
 
@@ -489,7 +424,7 @@ cat /boot/limine.conf
 ## Part 7: Install CachyOS Kernel (Optional but Recommended)
 
 ```bash
-pacman -S linux-cachyos linux-cachyos-headers
+pacman -S linux-cachyos linux-cachyos-headers linux-cachyos-nvidia-open linux-firmware amd-ucode cpio
 limine-dracut
 cat /boot/limine.conf
 ```
@@ -499,14 +434,14 @@ cat /boot/limine.conf
 ### 8.1 Install Essential Packages
 
 ```bash
-pacman -S sof-firmware mesa vulkan-radeon chrony power-profiles-daemon  exfatprogs unrar unzip p7zip zip smartmontools pipewire pipewire-alsa pipewire-pulse pipewire-jack wireplumber alsa-utils bluez bluez-utils lshw usbutils pciutils acpi thermald exfatprogs unrar unzip zip p7zip
+pacman -S sof-firmware mesa vulkan-radeon chrony power-profiles-daemon  exfatprogs unrar unzip p7zip zip smartmontools pipewire pipewire-alsa pipewire-pulse pipewire-jack wireplumber alsa-utils bluez bluez-utils lshw usbutils pciutils acpi thermald exfatprogs unrar unzip zip p7zip linux-firmware amd-ucode
 
 ```
 
 ### 8.2 Enable Essential Services
 
 ```bash
-systemctl enable NetworkManager fstrim.timer chronyd power-profiles-daemon auditd sshd bluetooth
+systemctl enable NetworkManager fstrim.timer chronyd power-profiles-daemon auditd sshd bluetooth acpid
 ```
 
 ### 8.2 Final Verification
