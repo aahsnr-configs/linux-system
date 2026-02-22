@@ -30,7 +30,7 @@ This guide creates a custom Arch Linux installation that replicates CachyOS feat
 
 - Running Ubuntu system on a **separate drive** (the target disk is `/dev/nvme0n1`)
 - Install required tools on Ubuntu:
-  ```bash
+- ```bash
   sudo apt install arch-install-scripts btrfs-progs cryptsetup dosfstools
   ```
 - Working network connection
@@ -121,21 +121,37 @@ mount -o ${BTRFS_OPTS},subvol=@ /dev/mapper/cryptroot /mnt
 # Create mount points and mount all subvolumes
 mkdir -p /mnt/{home,opt,tmp,root,srv,nix,usr/local,var/{cache/pacman/pkg,crash,tmp,spool,log/audit},.snapshots,boot}
 
+mkdir -p /mnt/home
 mount -o ${BTRFS_OPTS},subvol=@home /dev/mapper/cryptroot /mnt/home
+mkdir -p /mnt/opt
 mount -o ${BTRFS_OPTS},subvol=@opt /dev/mapper/cryptroot /mnt/opt
+mkdir -p /mnt/tmp
 mount -o ${BTRFS_OPTS},subvol=@tmp /dev/mapper/cryptroot /mnt/tmp
+mkdir -p /mnt/root
 mount -o ${BTRFS_OPTS},subvol=@root /dev/mapper/cryptroot /mnt/root
+mkdir -p /mnt/srv
 mount -o ${BTRFS_OPTS},subvol=@srv /dev/mapper/cryptroot /mnt/srv
+mkdir -p /mnt/nix
 mount -o ${BTRFS_OPTS},subvol=@nix /dev/mapper/cryptroot /mnt/nix
+mkdir -p /mnt/usr/local
 mount -o ${BTRFS_OPTS},subvol=@usr@local /dev/mapper/cryptroot /mnt/usr/local
+mkdir -p /mnt/var
 mount -o ${BTRFS_OPTS},subvol=@var /dev/mapper/cryptroot /mnt/var
+mkdir -p /mnt/var/cache
 mount -o ${BTRFS_OPTS},subvol=@var@cache /dev/mapper/cryptroot /mnt/var/cache
+mkdir -p /mnt/var/cache/pacman/pkg
 mount -o ${BTRFS_OPTS},subvol=@pkg /dev/mapper/cryptroot /mnt/var/cache/pacman/pkg
+mkdir -p /mnt/var/crash
 mount -o ${BTRFS_OPTS},subvol=@var@crash /dev/mapper/cryptroot /mnt/var/crash
+mkdir -p /mnt/var/tmp
 mount -o ${BTRFS_OPTS},subvol=@var@tmp /dev/mapper/cryptroot /mnt/var/tmp
+mkdir -p /mnt/var/spool
 mount -o ${BTRFS_OPTS},subvol=@var@spool /dev/mapper/cryptroot /mnt/var/spool
+mkdir -p /mnt/var/log
 mount -o ${BTRFS_OPTS},subvol=@var@log /dev/mapper/cryptroot /mnt/var/log
+mkdir -p /mnt/var/log/audit
 mount -o ${BTRFS_OPTS},subvol=@var@log@audit /dev/mapper/cryptroot /mnt/var/log/audit
+mkdir -p /mnt/.snapshots
 mount -o ${BTRFS_OPTS},subvol=@snapshots /dev/mapper/cryptroot /mnt/.snapshots
 
 # Mount ESP
@@ -176,13 +192,15 @@ lsattr -d /mnt/var/log /mnt/var/cache /mnt/var/tmp
 
 ```bash
 # Install essential packages including dracut
-pacstrap -K /mnt base base-devel neovim git wget curl btrfs-progs cryptsetup dracut networkmanager sudo
+pacstrap /mnt base base-devel neovim git wget curl btrfs-progs cryptsetup dracut networkmanager sudo
 
 # Generate fstab
 genfstab -U /mnt >> /mnt/etc/fstab
 
 # Chroot into the new system
 arch-chroot /mnt
+
+
 ```
 
 ### 3.2 Basic System Configuration
@@ -198,7 +216,7 @@ locale-gen
 echo "LANG=en_US.UTF-8" > /etc/locale.conf
 
 # Set hostname
-echo "archlinux" > /etc/hostname
+echo "zephyrus" > /etc/hostname
 
 # Configure hosts file
 cat >> /etc/hosts << EOF
@@ -211,11 +229,8 @@ EOF
 passwd
 
 # Create user account
-useradd -m -G users,wheel,audio,video -s /bin/bash ahsan
-passwd ahsan
+useradd -m -G users,wheel,audio,video -s /bin/bash ahsan && passwd ahsan && EDITOR=nvim visudo
 
-# Configure sudo
-EDITOR=nvim visudo
 ```
 
 ## Part 4: Setup CachyOS Repositories
@@ -484,7 +499,7 @@ cat /boot/limine.conf
 ### 8.1 Install Essential Packages
 
 ```bash
-pacman -S sof-firmware mesa vulkan-radeon nvidia-open-dkms nvidia-utils  chrony power-profiles-daemon  exfatprogs unrar unzip p7zip zip smartmontools pipewire pipewire-alsa pipewire-pulse pipewire-jack wireplumber alsa-utils bluez bluez-utils lshw usbutils pciutils acpi thermald exfatprogs unrar unzip zip p7zip
+pacman -S sof-firmware mesa vulkan-radeon chrony power-profiles-daemon  exfatprogs unrar unzip p7zip zip smartmontools pipewire pipewire-alsa pipewire-pulse pipewire-jack wireplumber alsa-utils bluez bluez-utils lshw usbutils pciutils acpi thermald exfatprogs unrar unzip zip p7zip
 
 ```
 
@@ -1062,4 +1077,31 @@ python3 -c "import sysconfig; print(sysconfig.get_config_var('PY_CFLAGS') + sysc
 - find / -name ".git"
 
 
+```
+
+# Post Chroot
+
+```bash
+cryptsetup luksOpen /dev/nvme0n1p3 cryptroot
+BTRFS_OPTS="noatime,compress=zstd:3,space_cache=v2,discard=async"
+mount -o ${BTRFS_OPTS},subvol=@ /dev/mapper/cryptroot /mnt
+mount -o ${BTRFS_OPTS},subvol=@home /dev/mapper/cryptroot /mnt/home
+mount -o ${BTRFS_OPTS},subvol=@opt /dev/mapper/cryptroot /mnt/opt
+mount -o ${BTRFS_OPTS},subvol=@tmp /dev/mapper/cryptroot /mnt/tmp
+mount -o ${BTRFS_OPTS},subvol=@root /dev/mapper/cryptroot /mnt/root
+mount -o ${BTRFS_OPTS},subvol=@srv /dev/mapper/cryptroot /mnt/srv
+mount -o ${BTRFS_OPTS},subvol=@nix /dev/mapper/cryptroot /mnt/nix
+mount -o ${BTRFS_OPTS},subvol=@usr@local /dev/mapper/cryptroot /mnt/usr/local
+mount -o ${BTRFS_OPTS},subvol=@var /dev/mapper/cryptroot /mnt/var
+mount -o ${BTRFS_OPTS},subvol=@var@cache /dev/mapper/cryptroot /mnt/var/cache
+mount -o ${BTRFS_OPTS},subvol=@pkg /dev/mapper/cryptroot /mnt/var/cache/pacman/pkg
+mount -o ${BTRFS_OPTS},subvol=@var@crash /dev/mapper/cryptroot /mnt/var/crash
+mount -o ${BTRFS_OPTS},subvol=@var@tmp /dev/mapper/cryptroot /mnt/var/tmp
+mount -o ${BTRFS_OPTS},subvol=@var@spool /dev/mapper/cryptroot /mnt/var/spool
+mount -o ${BTRFS_OPTS},subvol=@var@log /dev/mapper/cryptroot /mnt/var/log
+mount -o ${BTRFS_OPTS},subvol=@var@log@audit /dev/mapper/cryptroot /mnt/var/log/audit
+mount -o ${BTRFS_OPTS},subvol=@snapshots /dev/mapper/cryptroot /mnt/.snapshots
+mount /dev/nvme0n1p1 /mnt/boot
+
+swapon /dev/nvme0n1p2
 ```

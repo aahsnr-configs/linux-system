@@ -68,7 +68,7 @@ systemctl --user enable --now pipewire.service pipewire-pulse.service pipewire.s
 systemctl --user enable --now gnome-keyring-daemon
 # systemctl --user add-wants hyprland-session.target noctalia.service
 # systemctl --user add-wants hyprland-session.target xdg-desktop-autostart.target
-sudo systemctl enable ly@tty2.service
-sudo systemctl disable getty@tty2.service
-sudo systemctl enabel acpid
+# sudo systemctl enable ly@tty2.service
+# sudo systemctl disable getty@tty2.service
+sudo systemctl enable acpid
 

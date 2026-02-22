@@ -1,0 +1,33 @@
+# =============================================================================
+# /etc/systemd/system/asus-performance-refresh.timer
+#
+# Fires asus-performance-refresh.service every 60 seconds to silently
+# re-apply PPT sysfs limits, throttle_thermal_policy, and ryzenadj values.
+#
+# OnActiveSec=90s — delays the first refresh for 90 seconds after the timer
+# is activated.  This gives asusd and power-profiles-daemon time to finish
+# their full boot-time profile restore sequence before the timer fires for the
+# first time, so the refresh does not race against daemon startup.
+#
+# OnUnitActiveSec=60s — fires every 60 seconds after each refresh completes,
+# measured from the previous activation of the *service* unit.
+#
+# Install with:  sudo ./install.sh
+# =============================================================================
+
+[Unit]
+Description=Refresh ASUS G14 Performance Limits Every 60 Seconds
+Documentation=https://github.com/FlyGoat/RyzenAdj
+
+[Timer]
+# First fire: 90 seconds after the timer activates (gives daemons time to
+# settle at boot before we make the first refresh pass).
+OnActiveSec=90s
+
+# Subsequent fires: every 60 seconds after the previous service run completes.
+OnUnitActiveSec=60s
+
+Unit=asus-performance-refresh.service
+
+[Install]
+WantedBy=timers.target
