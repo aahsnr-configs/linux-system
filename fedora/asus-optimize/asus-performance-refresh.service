@@ -5,6 +5,11 @@
 # Called by the timer every 60 seconds to re-apply PPT sysfs limits,
 # throttle_thermal_policy, and ryzenadj values.
 #
+# Compatible with kernel 6.18 and 6.19+ (including CachyOS): the setup script
+# auto-detects which sysfs interface (asus-armoury or legacy asus-nb-wmi) to
+# use on every invocation, so the interface transition on kernel upgrade is
+# completely transparent.
+#
 # WHY A PERIODIC REFRESH IS NEEDED
 #
 # The ASUS embedded controller and AMD firmware platform can reset ryzenadj

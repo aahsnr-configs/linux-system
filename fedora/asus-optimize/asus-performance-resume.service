@@ -2,8 +2,11 @@
 # /etc/systemd/system/asus-performance-resume.service
 #
 # Re-applies the ASUS G14 performance profile after the system wakes from
-# ANY sleep state.  sleep.target is the single common parent of all four
-# Linux sleep targets, so one WantedBy=sleep.target entry covers all of:
+# ANY sleep state.  Compatible with kernel 6.18 and 6.19+ (including CachyOS
+# kernels): the setup script it calls auto-detects the active sysfs interface.
+#
+# sleep.target is the single common parent of all four Linux sleep targets,
+# so one WantedBy=sleep.target entry covers all of:
 #
 #   suspend               (RAM sleep  / S3)  →  suspend.target
 #   hibernate             (disk sleep / S4)  →  hibernate.target

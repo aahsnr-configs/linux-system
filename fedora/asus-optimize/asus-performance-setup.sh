@@ -1,20 +1,46 @@
 #!/bin/bash
 # =============================================================================
 # asus-performance-setup.sh
-# ASUS G14 Performance Profile — Fedora 43 / Kernel 6.18
+# ASUS G14 Performance Profile — Fedora / CachyOS Kernel / Any systemd distro
+#
+# Compatible with:
+#   • Kernel 6.5–6.18  — legacy asus-nb-wmi platform sysfs (PPT nodes)
+#   • Kernel 6.19+     — asus-armoury firmware-attributes (PPT nodes)
+#   • CachyOS 6.18.xx  — may have asus-armoury ALREADY BACKPORTED; the script
+#                        detects and uses whichever interface is actually present
 #
 # Applies CPU power and thermal limits via two complementary mechanisms:
 #
-#   1. Kernel sysfs (asus-nb-wmi, kernel 6.5–6.18)  ← active on Fedora 43
-#      /sys/devices/platform/asus-nb-wmi/ppt_pl1_spl
-#      /sys/devices/platform/asus-nb-wmi/ppt_pl2_sppt
-#      /sys/devices/platform/asus-nb-wmi/ppt_fppt
-#      /sys/devices/platform/asus-nb-wmi/throttle_thermal_policy
-#      NOTE: The PPT interface is marked DEPRECATED upstream.  The script
-#      auto-detects and switches to the asus-armoury interface on kernel 6.19+.
-#      throttle_thermal_policy is NOT deprecated and remains at this path.
+#   1. Kernel sysfs PPT limits (auto-detected interface):
+#
+#      Armoury path (kernel 6.19+, or CachyOS backport) — DETECTED FIRST:
+#        /sys/class/firmware-attributes/asus-armoury/attributes/ppt_pl1_spl/current_value
+#        /sys/class/firmware-attributes/asus-armoury/attributes/ppt_pl2_sppt/current_value
+#        /sys/class/firmware-attributes/asus-armoury/attributes/ppt_fppt/current_value
+#
+#      Legacy path (kernel 6.5–6.18, asus-nb-wmi) — fallback:
+#        /sys/devices/platform/asus-nb-wmi/ppt_pl1_spl
+#        /sys/devices/platform/asus-nb-wmi/ppt_pl2_sppt
+#        /sys/devices/platform/asus-nb-wmi/ppt_fppt
+#
+#      NOTE: The legacy PPT interface is marked DEPRECATED upstream and will be
+#      removed in the LTS kernel after 6.19.  throttle_thermal_policy is NOT
+#      deprecated — it lives at the platform path on ALL supported kernels.
 #
 #   2. ryzenadj (AMD SMU direct) — complements sysfs writes.
+#
+# INTERFACE DETECTION ORDER:
+#   1. asus-armoury firmware-attributes path (6.19+ or CachyOS backport)
+#   2. Legacy asus-nb-wmi platform path (6.5–6.18 without armoury backport)
+#   The armoury path is probed first, so CachyOS 6.18.xx users with the
+#   backport automatically use the stable, non-deprecated interface.
+#
+# throttle_thermal_policy:
+#   This node lives at /sys/devices/platform/<device>/throttle_thermal_policy
+#   on ALL kernel versions (5.6–6.19+).  It is NOT part of asus-armoury and
+#   has NOT been deprecated (confirmed by kernel ABI documentation at
+#   kernel.org/doc/Documentation/ABI/testing/sysfs-platform-asus-wmi).
+#   It is always probed separately using `find`, not a hardcoded path.
 #
 # USAGE
 #   Invoked automatically by:
@@ -22,8 +48,11 @@
 #     asus-performance-resume.service   (every wake from sleep/hibernate)
 #     asus-performance-refresh.timer    (periodic 60-second refresh)
 #
-#   Manual test run (as root or with sudo access):
+#   Manual test run:
 #     sudo /usr/local/bin/asus-performance-setup.sh
+#
+#   Full diagnostic:
+#     sudo ./asus-kernel-check.sh
 #
 # WHY throttle_thermal_policy MATTERS
 #   asusd and power-profiles-daemon restore the platform power profile on boot.
@@ -32,12 +61,11 @@
 #   EC-level thermal ceiling of ~82 °C independent of ryzenadj or PPT sysfs
 #   values — the embedded controller will clock-throttle the CPU at that
 #   temperature regardless of what you write elsewhere.  Setting
-#   throttle_thermal_policy=1 (overboost) removes this EC-level cap, which is
-#   what this script does after writing the PPT limits.
+#   throttle_thermal_policy=1 (overboost) removes this EC-level cap.
 #
 # REQUIRES
 #   • sudo access (or root — the script detects both)
-#   • asus-nb-wmi kernel module loaded (automatic on ASUS hardware)
+#   • asus-nb-wmi (6.18) OR asus-armoury (6.19+) kernel module loaded
 #   • ryzenadj (optional; skipped gracefully if absent)
 # =============================================================================
 
@@ -157,8 +185,17 @@ preflight() {
         log_info "Running as root — _sudo calls will execute commands directly."
     fi
 
-    log_info "Kernel: $(uname -r)"
+    local kver
+    kver=$(uname -r)
+    log_info "Kernel: ${kver}"
     log_info "Script: ${BASH_SOURCE[0]}"
+
+    # Advisory note for CachyOS kernels: asus-armoury may be present even on
+    # 6.18.xx.  The interface detection below handles this transparently.
+    if echo "${kver}" | grep -qi 'cachyos\|cachy'; then
+        log_note "CachyOS kernel detected."
+        log_note "asus-armoury may already be available even on 6.18.xx — will auto-detect."
+    fi
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -169,13 +206,14 @@ preflight() {
 # interface.
 #
 # SYSFS_MODE values:
-#   "armoury"  — kernel 6.19+ firmware-attributes interface (future)
-#   "legacy"   — kernel 6.5–6.18 asus-nb-wmi platform sysfs (Fedora 43)
+#   "armoury"  — asus-armoury firmware-attributes interface
+#                (kernel 6.19+ mainline, or CachyOS 6.18.xx with backport)
+#   "legacy"   — kernel 6.5–6.18 asus-nb-wmi platform sysfs
 #   "none"     — neither found; module may not be loaded
 #
-# NOTE: throttle_thermal_policy lives at the legacy platform path on ALL
-# supported kernel versions.  It is NOT part of the asus-armoury interface
-# and is probed separately from the PPT nodes.
+# throttle_thermal_policy:
+#   Lives at the platform sysfs path on ALL kernel versions.  NOT part of
+#   asus-armoury.  NOT deprecated.  Probed independently of the PPT interface.
 # ─────────────────────────────────────────────────────────────────────────────
 SYSFS_MODE="none"
 SYSFS_PL1=""
@@ -186,7 +224,9 @@ SYSFS_THROTTLE=""   # throttle_thermal_policy — always at platform path
 detect_sysfs_interface() {
     log_info "Detecting ASUS sysfs interface…"
 
-    # ── Priority 1: kernel 6.19+ asus-armoury firmware-attributes ────────────
+    # ── Priority 1: asus-armoury firmware-attributes ──────────────────────────
+    # Present on kernel 6.19+ (mainline) and on CachyOS kernels that have
+    # backported the asus-armoury driver from the ASUS Linux project.
     local armoury_base="/sys/class/firmware-attributes/asus-armoury/attributes"
     if [[ -d "${armoury_base}" ]]; then
         local a_pl1="${armoury_base}/ppt_pl1_spl/current_value"
@@ -197,7 +237,8 @@ detect_sysfs_interface() {
             SYSFS_PL1="${a_pl1}"
             SYSFS_PL2="${a_pl2}"
             [[ -f "${a_fppt}" ]] && SYSFS_FPPT="${a_fppt}"
-            log_ok "PPT interface: asus-armoury firmware-attributes (kernel ≥ 6.19)"
+            log_ok "PPT interface: asus-armoury firmware-attributes"
+            log_note "Using stable, non-deprecated interface (kernel 6.19+ or CachyOS backport)."
         fi
     fi
 
@@ -220,15 +261,17 @@ detect_sysfs_interface() {
 
             log_ok "PPT interface: asus-nb-wmi platform sysfs (kernel 6.5–6.18)"
             log_warn "This PPT interface is marked DEPRECATED upstream (will be removed"
-            log_warn "in a future kernel).  On kernel ≥ 6.19 the script will automatically"
-            log_warn "switch to asus-armoury — no changes needed."
+            log_warn "in the LTS kernel after 6.19).  When you upgrade to kernel 6.19+"
+            log_warn "(or to a CachyOS kernel with asus-armoury), the script switches"
+            log_warn "to the stable asus-armoury interface automatically — no changes needed."
             log_note "A one-time deprecation notice in dmesg is expected and harmless."
         fi
     fi
 
-    # ── throttle_thermal_policy is always at the platform path ───────────────
-    # It exists independently of the PPT interface version and is NOT part of
-    # the asus-armoury firmware-attributes hierarchy.
+    # ── throttle_thermal_policy — always at platform sysfs path ─────────────
+    # This node is NOT deprecated and NOT part of asus-armoury.
+    # Confirmed stable at the platform path for all kernel versions through 6.19+.
+    # Using `find` to handle device-name variation (asus-nb-wmi vs asus-wmi, etc.)
     local throttle_path=""
     throttle_path=$(find /sys/devices/platform -maxdepth 2 \
                          -name "throttle_thermal_policy" 2>/dev/null | head -n 1)
@@ -237,15 +280,20 @@ detect_sysfs_interface() {
         log_ok "throttle_thermal_policy found: ${SYSFS_THROTTLE}"
     else
         log_warn "throttle_thermal_policy node not found."
-        log_note "The asus-nb-wmi module may not be fully loaded yet."
+        log_note "This node is at the platform path on ALL kernel versions, including 6.19+."
+        log_note "The asus-wmi module must be loaded for this node to appear."
+        log_note "  lsmod | grep asus   →  should show asus_wmi and/or asus_nb_wmi"
+        log_note "  sudo modprobe asus-nb-wmi"
         log_note "The EC thermal cap (~82 °C) will remain in effect until the next run."
     fi
 
     # ── Neither PPT interface found ───────────────────────────────────────────
     if [[ "${SYSFS_MODE}" == "none" ]]; then
         log_warn "No ASUS sysfs PPT interface found."
-        log_note "Verify: lsmod | grep asus"
-        log_note "Load:   sudo modprobe asus-nb-wmi"
+        log_note "Kernel 6.18  → lsmod | grep asus_nb_wmi   (load: sudo modprobe asus-nb-wmi)"
+        log_note "Kernel 6.19+ → lsmod | grep asus_armoury"
+        log_note "CachyOS      → ls /sys/class/firmware-attributes/  (check for asus-armoury)"
+        log_note "Run:  sudo ./asus-kernel-check.sh  for full diagnostics"
     fi
 
     return 0
@@ -264,7 +312,7 @@ apply_ppt_sysfs() {
         # BUG NOTE: never use (( n++ )) bare with `set -e` — when n==0 the
         # arithmetic expression evaluates to 0 (false) and exits with code 1.
         # Use (( ++n )) (pre-increment) which always returns the new value
-        # (≥1 = true).
+        # (≥1 = true), which is safe under set -e.
         local written=0
 
         if [[ -n "${SYSFS_PL1}" ]]; then
@@ -294,14 +342,11 @@ apply_ppt_sysfs() {
     # other limits.  Setting it to 1 (overboost) removes that EC-level cap.
     #
     # Values:
-    #   0 = default/balanced — EC enforces ~82 °C ceiling (causes your symptom)
+    #   0 = default/balanced — EC enforces ~82 °C ceiling
     #   1 = overboost/performance — EC cap removed, fans run harder
     #   2 = silent — conservative limits
     #
-    # NOTE: this write does NOT conflict with asusd's profile management.
-    # asusd uses platform_profile to control the profile; the asus-wmi driver
-    # then reacts by setting throttle_thermal_policy internally.  Writing it
-    # directly here AFTER asusd has run simply overrides what asusd set.
+    # This node is at the platform path on ALL kernels including 6.19+.
     echo ""
     log_info "─── Phase 2: throttle_thermal_policy ───"
     if [[ -n "${SYSFS_THROTTLE}" ]]; then
@@ -309,7 +354,7 @@ apply_ppt_sysfs() {
             || log_warn "Could not set throttle_thermal_policy — EC thermal cap remains."
     else
         log_warn "Skipping throttle_thermal_policy — node not found."
-        log_note "If you are seeing ~82 °C throttle, ensure asus-nb-wmi is loaded."
+        log_note "Ensure asus-wmi module is loaded: lsmod | grep asus"
     fi
 
     return 0
@@ -325,8 +370,7 @@ apply_ppt_sysfs() {
 #
 # NOTE: the firmware can reset these values at any time (AC plug/unplug,
 # power state transitions, background EC timers).  The periodic refresh timer
-# (asus-performance-refresh.timer) re-applies them every 60 seconds to
-# compensate for this.
+# (asus-performance-refresh.timer) re-applies them every 60 seconds.
 # ─────────────────────────────────────────────────────────────────────────────
 apply_ryzenadj() {
     echo ""
@@ -371,9 +415,9 @@ apply_ryzenadj() {
 # main
 # ─────────────────────────────────────────────────────────────────────────────
 main() {
-    echo -e "\n${BLU}╔══════════════════════════════════════════════════════╗${NC}"
-    echo -e "${BLU}║   ASUS G14 Performance Profile  —  Fedora 43         ║${NC}"
-    echo -e "${BLU}╚══════════════════════════════════════════════════════╝${NC}\n"
+    echo -e "\n${BLU}╔═══════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${BLU}║  ASUS G14 Performance Profile — 6.18 / 6.19+ / CachyOS   ║${NC}"
+    echo -e "${BLU}╚═══════════════════════════════════════════════════════════╝${NC}\n"
 
     preflight
     detect_sysfs_interface
@@ -388,6 +432,7 @@ main() {
     log_note "  FPPT (fast burst)        = ${FPPT_WATTS}W"
     log_note "  tctl-temp (AMD SMU)      = ${TCTL_TEMP}°C"
     log_note "  throttle_thermal_policy  = 1 (overboost — EC cap removed)"
+    log_note "  sysfs mode               = ${SYSFS_MODE}"
     echo ""
 }
 

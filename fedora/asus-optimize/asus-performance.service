@@ -10,63 +10,69 @@
 #   asus-performance-refresh.timer / asus-performance-refresh.service
 #
 # Script installed at:  /usr/local/bin/asus-performance-setup.sh
+# Diagnostic utility:   /usr/local/bin/asus-kernel-check.sh
 # Install with:         sudo ./install.sh
 #
-# ── WHY WE DO NOT ORDER After=asusd.service OR After=power-profiles-daemon ──
+# ── COMPATIBILITY NOTE: kernel 6.18 and 6.19+ ────────────────────────────────
 #
-# This unit is WantedBy=multi-user.target.  Systemd implicitly adds
+# This unit is kernel-version-agnostic.  The setup script it calls
+# auto-detects whether to use the asus-armoury firmware-attributes interface
+# (kernel 6.19+ or CachyOS backport) or the legacy asus-nb-wmi platform sysfs
+# (kernel 6.5–6.18).  throttle_thermal_policy is always at the platform path
+# on all kernel versions and is handled separately from PPT detection.
+#
+# ── WHY After=asusd.service AND After=power-profiles-daemon ARE NOT LISTED ───
+#
+# This unit is WantedBy=multi-user.target.  systemd implicitly adds
 # Before=multi-user.target to any unit placed in multi-user.target.wants/.
 #
 # power-profiles-daemon.service has Before=multi-user.target in its own unit
-# file.  It is also WantedBy=graphical.target, which itself is ordered after
-# multi-user.target.  This means PPD ends up with effective ordering
-# constraints on both sides of multi-user.target in the full dependency graph.
+# file.  Adding After=power-profiles-daemon.service to this unit creates a
+# closed ordering loop:
 #
-# Adding After=power-profiles-daemon.service to this unit creates a closed
-# ordering loop that systemd detects and breaks by deleting this unit's
-# start job entirely — which is exactly the failure seen in the journal:
+#   multi-user.target → [this unit] → power-profiles-daemon → multi-user.target
+#
+# systemd detects this cycle and resolves it by deleting this unit's start job:
 #
 #   "Found ordering cycle: multi-user.target/start
 #    after asus-performance.service/start
 #    after power-profiles-daemon.service/start
-#    - after multi-user.target"
+#    — after multi-user.target"
 #   "Job asus-performance.service/start deleted to break ordering cycle"
 #
-# asusd.service has a similar transitive ordering relationship through
-# dbus.service and graphical.target and must not be used as an After= target
-# for the same reason.
+# asusd.service has the same transitive relationship and must NOT be listed
+# in After= for the same reason.
 #
-# ── HOW WE HANDLE "DAEMONS START AFTER US AND OVERWRITE OUR LIMITS" ──────────
+# ── HOW "DAEMONS START AFTER US AND OVERWRITE OUR LIMITS" IS HANDLED ─────────
 #
-# The correct solution is NOT to try to order after the daemons — that path
-# leads to ordering cycles for the reasons above.  Instead:
+# The correct solution is NOT to order after the daemons.  Instead:
 #
-#   1. This unit fires early (after dbus.service is up, which is safely before
-#      multi-user.target in all dependency chains) and applies limits as a
-#      first pass.
+#   1. This unit fires early (after dbus.service, which is safely before
+#      multi-user.target with no cycle risk) and applies limits as a first pass.
 #
 #   2. asus-performance-refresh.timer fires at T+90s and then every 60s.
 #      This is always after asusd and power-profiles-daemon have finished
 #      their boot-time profile restore.  The timer is the definitive mechanism
-#      for ensuring limits are applied after daemon resets.
+#      for ensuring limits stick after daemon resets.
 #
 # dbus.service is safe to list in After= because it has Before=multi-user.target
-# (not After=multi-user.target) and has no transitive dependency path back
-# through multi-user.target.
+# (not After=multi-user.target) and has no transitive path back through
+# multi-user.target.
 # =============================================================================
 
 [Unit]
-Description=ASUS G14 Performance Profile (Boot)
+Description=ASUS G14 Performance Profile (Boot) — kernel 6.18 / 6.19+ / CachyOS
 Documentation=https://github.com/FlyGoat/RyzenAdj
 
 # ── Ordering ──────────────────────────────────────────────────────────────────
-# sysinit.target   → kernel modules (asus-nb-wmi) are guaranteed to be loaded
+# sysinit.target   → kernel modules (asus-nb-wmi / asus-armoury) guaranteed loaded
 # local-fs.target  → /usr/local/bin is guaranteed to be mounted and readable
-# dbus.service     → D-Bus is up; safe to list here because dbus has
-#                    Before=multi-user.target (no cycle risk)
+# dbus.service     → D-Bus is up; safe to list here (has Before=multi-user.target,
+#                    no cycle risk — see header comment above)
 #
 # DO NOT add power-profiles-daemon.service or asusd.service here.
-# See the header comment above for the full explanation.
+# Doing so creates an ordering cycle that causes systemd to delete this unit's
+# start job entirely.  See the header comment above for the full explanation.
 After=sysinit.target local-fs.target dbus.service
 
 # ── Sleep interaction ─────────────────────────────────────────────────────────
