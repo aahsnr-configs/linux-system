@@ -224,6 +224,68 @@ SYSFS_THROTTLE=""   # throttle_thermal_policy — always at platform path
 detect_sysfs_interface() {
     log_info "Detecting ASUS sysfs interface…"
 
+    # ── Sysfs readiness wait loop ─────────────────────────────────────────────
+    #
+    # WHY THIS EXISTS:
+    # This script is invoked by a systemd service that starts at local-fs.target
+    # — early in the boot sequence.  The ASUS kernel module (asus-nb-wmi or
+    # asus-armoury) loads in parallel with other drivers during boot.  On fast
+    # machines (especially CachyOS with its scheduling optimisations), the service
+    # can start before the kernel module has finished registering its sysfs nodes.
+    #
+    # A simple fixed-duration sleep is fragile: too short and you still race;
+    # too long and you slow every boot unnecessarily.  Instead we poll with a
+    # short interval and a bounded maximum wait.  On most boots the sysfs nodes
+    # appear within the first 1–2 seconds; the loop exits immediately once found.
+    #
+    # WHAT HAPPENS WITHOUT THIS:
+    # The find probes return nothing, SYSFS_MODE stays "none", the script exits 0
+    # (did nothing), the unit shows "active (exited)" but no limits were applied.
+    # The user perceives default BIOS power limits until the T+90s refresh fires.
+    #
+    # MAXIMUM WAIT: 15 seconds.  In practice the driver always appears within
+    # a few seconds.  15 seconds is chosen to be safely beyond any plausible
+    # module load time while still well inside TimeoutStartSec=120.
+    #
+    # EXIT BEHAVIOUR: if sysfs nodes are still absent after 15 seconds, the
+    # function sets SYSFS_MODE="none" and returns normally.  The caller
+    # (apply_ppt_sysfs) then exits the script with code 1, which triggers
+    # Restart=on-failure in the service unit for a second attempt 15 seconds
+    # later — by which point all kernel modules are reliably up.
+
+    local wait_max=15
+    local wait_secs=0
+    local found=0
+
+    while (( wait_secs < wait_max )); do
+        # Probe armoury first (preferred interface)
+        if [[ -d "/sys/class/firmware-attributes/asus-armoury/attributes" && \
+              -f "/sys/class/firmware-attributes/asus-armoury/attributes/ppt_pl1_spl/current_value" ]]; then
+            found=1
+            break
+        fi
+        # Probe legacy platform sysfs
+        if find /sys/devices/platform -maxdepth 2 -name "ppt_pl1_spl" \
+                2>/dev/null | grep -q .; then
+            found=1
+            break
+        fi
+
+        if (( wait_secs == 0 )); then
+            log_info "ASUS sysfs nodes not yet visible — waiting for kernel module…"
+        fi
+        sleep 1
+        (( ++wait_secs ))
+    done
+
+    if (( found == 0 )); then
+        log_warn "ASUS sysfs nodes did not appear after ${wait_max}s."
+        log_note "Kernel module (asus-nb-wmi or asus-armoury) may not have loaded."
+        log_note "The systemd service will retry in 15s (Restart=on-failure)."
+    elif (( wait_secs > 0 )); then
+        log_ok "ASUS sysfs nodes appeared after ${wait_secs}s."
+    fi
+
     # ── Priority 1: asus-armoury firmware-attributes ──────────────────────────
     # Present on kernel 6.19+ (mainline) and on CachyOS kernels that have
     # backported the asus-armoury driver from the ASUS Linux project.
@@ -289,7 +351,7 @@ detect_sysfs_interface() {
 
     # ── Neither PPT interface found ───────────────────────────────────────────
     if [[ "${SYSFS_MODE}" == "none" ]]; then
-        log_warn "No ASUS sysfs PPT interface found."
+        log_warn "No ASUS sysfs PPT interface available after ${wait_max}s wait."
         log_note "Kernel 6.18  → lsmod | grep asus_nb_wmi   (load: sudo modprobe asus-nb-wmi)"
         log_note "Kernel 6.19+ → lsmod | grep asus_armoury"
         log_note "CachyOS      → ls /sys/class/firmware-attributes/  (check for asus-armoury)"
@@ -302,6 +364,13 @@ detect_sysfs_interface() {
 # ─────────────────────────────────────────────────────────────────────────────
 # apply_ppt_sysfs — write PL1, PL2, FPPT, and throttle_thermal_policy
 # ─────────────────────────────────────────────────────────────────────────────
+# apply_ppt_sysfs
+#
+# Returns:
+#   0 — at least one sysfs write succeeded (or was attempted with an interface)
+#   1 — no PPT interface is available AND throttle_thermal_policy is also absent
+#       This signals to main() that nothing at all was applied, which causes
+#       main() to exit 1 → triggers Restart=on-failure in the service unit.
 apply_ppt_sysfs() {
     echo ""
     log_info "─── Phase 1: sysfs PPT limits (mode: ${SYSFS_MODE}) ───"
@@ -349,12 +418,19 @@ apply_ppt_sysfs() {
     # This node is at the platform path on ALL kernels including 6.19+.
     echo ""
     log_info "─── Phase 2: throttle_thermal_policy ───"
+    local throttle_ok=0
     if [[ -n "${SYSFS_THROTTLE}" ]]; then
         sysfs_write "1" "${SYSFS_THROTTLE}" "throttle_thermal_policy (overboost)" "" \
-            || log_warn "Could not set throttle_thermal_policy — EC thermal cap remains."
+            && throttle_ok=1 || log_warn "Could not set throttle_thermal_policy — EC thermal cap remains."
     else
         log_warn "Skipping throttle_thermal_policy — node not found."
         log_note "Ensure asus-wmi module is loaded: lsmod | grep asus"
+    fi
+
+    # Return 1 if we had no PPT interface AND throttle also failed/absent.
+    # This tells main() to exit 1, triggering Restart=on-failure for a retry.
+    if [[ "${SYSFS_MODE}" == "none" && "${throttle_ok}" -eq 0 ]]; then
+        return 1
     fi
 
     return 0
@@ -421,10 +497,24 @@ main() {
 
     preflight
     detect_sysfs_interface
-    apply_ppt_sysfs
+
+    # apply_ppt_sysfs returns 1 if no PPT interface was available AND
+    # throttle_thermal_policy was also absent — meaning nothing was applied.
+    # In that case we capture the return value and exit 1 so the systemd
+    # service (Restart=on-failure, RestartSec=15) retries after 15 seconds.
+    local sysfs_result=0
+    apply_ppt_sysfs || sysfs_result=$?
+
     apply_ryzenadj
 
     echo ""
+    if (( sysfs_result != 0 )); then
+        log_warn "No ASUS sysfs interface was available — limits not applied."
+        log_note "Systemd will retry this service in 15 seconds (Restart=on-failure)."
+        log_note "If this persists, run: sudo /usr/local/bin/asus-kernel-check.sh"
+        exit 1
+    fi
+
     log_ok "Done."
     log_note "Active limits:"
     log_note "  PL1 (sustained)          = ${PL1_WATTS}W"

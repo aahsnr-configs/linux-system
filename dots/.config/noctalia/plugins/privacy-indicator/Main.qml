@@ -25,6 +25,12 @@ Item {
   property var _prevCamApps: []
   property var _prevScrApps: []
 
+  // Get active color from settings or default
+  property var cfg: pluginApi?.pluginSettings || ({})
+  property var defaults: pluginApi?.manifest?.metadata?.defaultSettings || ({})
+  property bool enableToast: cfg.enableToast ?? defaults.enableToast ?? true
+  property string activeColorKey: cfg.activeColor ?? defaults.activeColor ?? "primary"
+
   PwObjectTracker {
     objects: Pipewire.ready ? Pipewire.nodes.values : []
   }
@@ -236,10 +242,6 @@ Item {
     }
   }
 
-  // Get active color from settings or default
-  property var cfg: pluginApi?.pluginSettings || ({})
-  property var defaults: pluginApi?.manifest?.metadata?.defaultSettings || ({})
-  property string activeColorKey: cfg.activeColor ?? defaults.activeColor ?? "primary"
 
   onMicAppsChanged: {
     checkAppChanges(micApps, _prevMicApps, "Microphone", "microphone", activeColorKey);
@@ -248,7 +250,7 @@ Item {
   // Helper to detect activation edge
   property bool oldMicActive: false
   onMicActiveChanged: {
-    if (micActive && (!oldMicActive)) {
+    if (enableToast && micActive && !oldMicActive) {
         ToastService.showNotice(pluginApi?.tr("toast.mic-on") || "Microphone is active", "", "microphone");
     }
     oldMicActive = micActive
@@ -256,7 +258,7 @@ Item {
 
   property bool oldCamActive: false
   onCamActiveChanged: {
-      if (camActive && !oldCamActive) {
+      if (enableToast && camActive && !oldCamActive) {
           ToastService.showNotice(pluginApi?.tr("toast.cam-on") || "Camera is active", "", "camera");
       }
       oldCamActive = camActive
@@ -268,7 +270,7 @@ Item {
 
   property bool oldScrActive: false
   onScrActiveChanged: {
-      if (scrActive && !oldScrActive) {
+      if (enableToast && scrActive && !oldScrActive) {
           ToastService.showNotice(pluginApi?.tr("toast.screen-on") || "Screen sharing is active", "", "screen-share");
       }
       oldScrActive = scrActive

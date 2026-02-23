@@ -4,7 +4,7 @@
 SWAPSIZE=$(free | awk '/Mem/ {x=$2/1024/1024; printf "%.0fG", (x<2 ? 2*x : x<8 ? 1.5*x : x) }')
 sudo btrfs subvolume create /var/swap
 sudo chattr +C /var/swap
-sudo fallocate -l "$SWAPSIZE" /var/swap/swapfile
+sudo fallocate -l 16GB /var/swap/swapfile
 sudo chmod 600 /var/swap/swapfile
 sudo mkswap -L SWAPFILE /var/swap/swapfile
 echo "/var/swap/swapfile none swap defaults 0 0" | sudo tee -a /etc/fstab

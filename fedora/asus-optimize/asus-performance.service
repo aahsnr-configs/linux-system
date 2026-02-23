@@ -21,43 +21,64 @@
 # (kernel 6.5–6.18).  throttle_thermal_policy is always at the platform path
 # on all kernel versions and is handled separately from PPT detection.
 #
-# ── WHY After=asusd.service AND After=power-profiles-daemon ARE NOT LISTED ───
+# ── WHY ONLY After=local-fs.target IS LISTED ─────────────────────────────────
 #
 # This unit is WantedBy=multi-user.target.  systemd implicitly adds
 # Before=multi-user.target to any unit placed in multi-user.target.wants/.
 #
-# power-profiles-daemon.service has Before=multi-user.target in its own unit
-# file.  Adding After=power-profiles-daemon.service to this unit creates a
-# closed ordering loop:
+# The most common reason this service fails at boot and must be started
+# manually is a spurious ordering cycle in the boot graph:
 #
-#   multi-user.target → [this unit] → power-profiles-daemon → multi-user.target
+#   ORDERING CYCLE PATH 1 (power-profiles-daemon):
+#     power-profiles-daemon.service has Before=multi-user.target in its own
+#     unit file.  Adding After=power-profiles-daemon.service would create:
+#       multi-user.target → [this unit] → ppd → multi-user.target
 #
-# systemd detects this cycle and resolves it by deleting this unit's start job:
+#   ORDERING CYCLE PATH 2 (dbus.service / dbus-broker.service):
+#     On Fedora, dbus.service is a symlink to dbus-broker.service.
+#     dbus-broker.service has After=sysinit.target in its own unit file.
+#     Combined with our own After=sysinit.target, this creates a transitive
+#     graph path that the systemd cycle resolver can flag.  Specifically,
+#     dbus-broker.service has Before=multi-user.target, so:
+#       multi-user.target → [this unit] → dbus.service → multi-user.target
+#     This is ALSO an ordering cycle.  Even though dbus.service looks safe
+#     at first glance, the cycle resolver follows transitive paths.
+#
+# In both cases, systemd resolves the cycle by deleting this unit's start job:
 #
 #   "Found ordering cycle: multi-user.target/start
 #    after asus-performance.service/start
-#    after power-profiles-daemon.service/start
-#    — after multi-user.target"
+#    after [dbus|ppd|asusd].service/start — after multi-user.target"
 #   "Job asus-performance.service/start deleted to break ordering cycle"
 #
-# asusd.service has the same transitive relationship and must NOT be listed
-# in After= for the same reason.
+# This explains why the service silently never starts at boot but works
+# perfectly when started manually with `systemctl start`.
+#
+# THE ONLY SAFE After= ENTRY IS local-fs.target:
+#   • Guarantees /usr/local/bin is mounted before the script runs.
+#   • Has Before=sysinit.target (not After=multi-user.target) — no cycle path.
+#   • This script does not use D-Bus, so After=dbus.service is both
+#     unnecessary and harmful.
+#   • It does not use systemd units that depend on multi-user.target.
 #
 # ── HOW "DAEMONS START AFTER US AND OVERWRITE OUR LIMITS" IS HANDLED ─────────
 #
 # The correct solution is NOT to order after the daemons.  Instead:
 #
-#   1. This unit fires early (after dbus.service, which is safely before
-#      multi-user.target with no cycle risk) and applies limits as a first pass.
+#   1. This unit fires early (after local-fs.target only) and applies limits
+#      as a first pass.  The setup script has a built-in sysfs readiness wait
+#      loop (up to 15 seconds, polling every second) to handle the case where
+#      kernel modules haven't finished creating their sysfs nodes yet.
 #
 #   2. asus-performance-refresh.timer fires at T+90s and then every 60s.
 #      This is always after asusd and power-profiles-daemon have finished
 #      their boot-time profile restore.  The timer is the definitive mechanism
 #      for ensuring limits stick after daemon resets.
 #
-# dbus.service is safe to list in After= because it has Before=multi-user.target
-# (not After=multi-user.target) and has no transitive path back through
-# multi-user.target.
+#   3. Restart=on-failure with RestartSec=15 provides a safety net: if the
+#      script exits non-zero (sysfs nodes still not available after the wait
+#      loop, or ryzenadj failed hard), systemd retries after 15 seconds.
+#      By that point, all kernel modules are reliably up.
 # =============================================================================
 
 [Unit]
@@ -65,15 +86,17 @@ Description=ASUS G14 Performance Profile (Boot) — kernel 6.18 / 6.19+ / CachyO
 Documentation=https://github.com/FlyGoat/RyzenAdj
 
 # ── Ordering ──────────────────────────────────────────────────────────────────
-# sysinit.target   → kernel modules (asus-nb-wmi / asus-armoury) guaranteed loaded
-# local-fs.target  → /usr/local/bin is guaranteed to be mounted and readable
-# dbus.service     → D-Bus is up; safe to list here (has Before=multi-user.target,
-#                    no cycle risk — see header comment above)
+# local-fs.target  → /usr/local/bin is guaranteed mounted and readable.
 #
-# DO NOT add power-profiles-daemon.service or asusd.service here.
-# Doing so creates an ordering cycle that causes systemd to delete this unit's
-# start job entirely.  See the header comment above for the full explanation.
-After=sysinit.target local-fs.target dbus.service
+# That is the ONLY safe entry here.  Do NOT add any of the following —
+# each creates an ordering cycle that causes systemd to silently delete
+# this unit's start job (see the header comment above for the full analysis):
+#
+#   ✗ After=sysinit.target              (transitive cycle via dbus-broker)
+#   ✗ After=dbus.service                (cycle: this → dbus → multi-user.target)
+#   ✗ After=power-profiles-daemon.service  (direct cycle via multi-user.target)
+#   ✗ After=asusd.service               (same cycle path as ppd)
+After=local-fs.target
 
 # ── Sleep interaction ─────────────────────────────────────────────────────────
 # Conflicts=sleep.target transitions this unit to "inactive" when any sleep
@@ -92,15 +115,28 @@ RemainAfterExit=yes
 
 ExecStart=/usr/local/bin/asus-performance-setup.sh
 
-# Generous timeout — the script includes a 1-second settle sleep between
-# sysfs writes and the ryzenadj call.
-TimeoutStartSec=60
+# Generous timeout — the setup script polls for sysfs readiness for up to
+# 15 seconds before running, then writes sysfs values and calls ryzenadj.
+# Total worst-case runtime is approximately 20 seconds.
+TimeoutStartSec=120
 
-# Treat exit code 1 as success.  The setup script exits 0 on a clean run
-# and only exits non-zero on an unexpected error caught by `set -euo pipefail`.
-# Marking code 1 as success prevents transient non-fatal issues (e.g. a
-# ryzenadj error on a fresh install) from marking the unit "failed".
-SuccessExitStatus=0 1
+# ── Retry on failure ──────────────────────────────────────────────────────────
+# If the script exits non-zero (sysfs nodes not available even after the
+# 15-second readiness wait, or an unexpected error under set -euo pipefail),
+# systemd will retry the unit after 15 seconds.  By 15 seconds post-boot,
+# all kernel modules are reliably initialised regardless of boot speed.
+#
+# RestartSec=15      — pause 15 seconds before the retry attempt
+# StartLimitBurst=3  — allow at most 3 start attempts within the interval
+# StartLimitIntervalSec=90 — reset the attempt counter after 90 seconds
+#
+# NOTE: Restart= only fires when the unit exits with a failure status.
+# The script exits 0 on success and 1 when nothing could be applied
+# (sysfs unavailable + no ryzenadj).  Exit 1 triggers a retry here.
+Restart=on-failure
+RestartSec=15
+StartLimitBurst=3
+StartLimitIntervalSec=90
 
 [Install]
 WantedBy=multi-user.target
