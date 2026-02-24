@@ -76,22 +76,22 @@ set -euo pipefail
 # ─────────────────────────────────────────────────────────────────────────────
 
 # Sustained (long-run) CPU package power ceiling, watts  [PL1 / SPL]
-readonly PL1_WATTS=33
+readonly PL1_WATTS=30
 
 # Boost (short-burst) CPU package power ceiling, watts   [PL2 / SPPT]
-readonly PL2_WATTS=54
+readonly PL2_WATTS=50
 
 # Fast package power tracking limit, watts               [FPPT]
 # Governs the very first milliseconds of a burst.  Usually equal to PL2.
-readonly FPPT_WATTS=54
+readonly FPPT_WATTS=50
 
 # Slow limit in milliwatts — intermediate ramp-down (ryzenadj only)
-readonly SLOW_MW=44000
+readonly SLOW_MW=41000
 
 # Thermal control temperature ceiling in °C              [tctl-temp]
 # This is the AMD SMU thermal ceiling — it works alongside
 # throttle_thermal_policy=1 (overboost) which removes the EC-level ~82°C cap.
-readonly TCTL_TEMP=84
+readonly TCTL_TEMP=83
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Colour helpers
