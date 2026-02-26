@@ -27,3 +27,26 @@ For all the tasks search the web and think longer before you proceed with any of
 ---
 
 Give a link for the syntax rules for the windowrules
+
+You said
+The attached tags.conf file contains my tags configuration for mangowc. Modify it so that it has more sensible and practical settings and then the tags.conf fille. Search the web and think longer for this task.
+
+I know swhkd claims to be a wayland clone of sxhkd but it is it possible to get the keychord behaviour from sxhkd to some degree in mangowc either internally through mangowc own config or other external program.
+
+The second thing I wanted to ask is the following: the key to escape a particular a keymode, is it unique to that particular keymode? In other words let's say I have a unique keymode and I want to exit to the default keymode and keybinding for this behaviour in this keymode is the Escape key. Can I use the same Escape for other different unique keymodes?
+
+The keymodes you wrote contain commands that start with qs -c noctalia-shell . Will these commands work with spawn or do I need spawn_shell.
+
+---
+
+---
+
+---
+
+Your 1st task carefully and meticulously study the emacs configuration in the attached config.org. Otherwise you cannot proceed to the next task. Using this emacs configuration you are going to help me write a scientific paper in an org file. You are not supposed to help me write the contents of the scientific paper itself, but help me navigate my emacs configuration and its various functionalities and features so that I can easily write the scientific paper without too much delay. Then I am going to ask you a series of questions.
+
+My 1st question is as follows:
+
+The main org file for my research paper exists in the root folder of my project, but the .bib exists in a subfolder called citatation with citation/reference.bib. Here every reference exists with lead author surname with year like in the screenshot. I also have another .bib where the entries start with number. For my emacs configuration, does it matter how the entry for the bib starts? The attached txt file contains a preamble for the org file I just talked about. How do I make sure my org file correctly detects my .bib file and, if it does detect it, how do I cite a particular paper in the org file? Furthermore, in my org file I want to employ various techniques of citations like in the 2nd, 3rd and subsequent screenshots. In the last screenshot you will notice the format of the citation I will be using. Keep in mind that, except for the 1st screenshot, all other screenshots are from rendered pdf files. So the ultimate goal would be for the org file to export to latex and then to pdf. Write, in detail, a guide with regards to my emacs configuration, so that I can achieve all these things I just mentioned. Make sure to search the web and think longer before proceeding.
+
+For all the questions from now on you only task is answer the questions or help with the tasks. But do not write up any extra documentation. Only write what is needed to help.

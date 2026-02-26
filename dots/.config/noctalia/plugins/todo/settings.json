@@ -8,15 +8,6 @@
   "current_page_id": 0,
   "todos": [
     {
-      "id": 1771829086919,
-      "text": "Study mirtazapine and clonidine for my use",
-      "completed": false,
-      "createdAt": "2026-02-23T06:44:46.919Z",
-      "pageId": 0,
-      "priority": "high",
-      "details": ""
-    },
-    {
       "id": 1771824798665,
       "text": "Finish customizing noctalia shell",
       "completed": false,
@@ -33,10 +24,19 @@
       "pageId": 0,
       "priority": "medium",
       "details": ""
+    },
+    {
+      "id": 1771829086919,
+      "text": "Study mirtazapine and clonidine for my use",
+      "completed": true,
+      "createdAt": "2026-02-23T06:44:46.919Z",
+      "pageId": 0,
+      "priority": "high",
+      "details": ""
     }
   ],
   "count": 3,
-  "completedCount": 0,
+  "completedCount": 1,
   "isExpanded": false,
   "useCustomColors": false,
   "priorityColors": {

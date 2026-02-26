@@ -1,0 +1,46 @@
+# -*- mode: org; -*-
+#+STARTUP: latexpreview
+
+# ========================================
+# ELSEVIER CAS DOUBLE-COLUMN CONFIGURATION
+# ========================================
+
+# === LATEX CLASS ===
+#+LATEX_COMPILER: lualatex
+#+LATEX_CLASS: cas-dc
+#+LATEX_CLASS_OPTIONS: [review,longmktitle]
+
+# === ORG OPTIONS ===
+#+OPTIONS: toc:nil num:t
+#+OPTIONS: ^:{}
+#+OPTIONS: author:nil date:nil title:t
+#+OPTIONS: H:3 \n:nil @:t ::t |:t ^:{} -:t f:t *:t <:t
+#+OPTIONS: tex:t latex:t skip:nil d:nil todo:nil pri:nil tags:nil
+
+# === REQUIRED CAS PACKAGES ===
+#+LATEX_HEADER: \usepackage{natbib}
+
+# === MODERN FONT SYSTEM (LuaLaTeX) ===
+#+LATEX_HEADER: \usepackage{fontspec}
+#+LATEX_HEADER: \setmathfont{STIX Two Math}
+
+# === CORE MATH PACKAGES ===
+#+LATEX_HEADER: \usepackage{amsmath}
+#+LATEX_HEADER: \usepackage{amsfonts}
+#+LATEX_HEADER: \usepackage{mathtools}
+#+LATEX_HEADER: \usepackage{unicode-math}
+#+LATEX_HEADER: \usepackage{physics}
+#+LATEX_HEADER: \usepackage{siunitx}
+
+# === REFERENCES AND LINKS ===
+#+LATEX_HEADER: \usepackage{hyperref}
+#+LATEX_HEADER: \hypersetup{colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue}
+#+LATEX_HEADER: \usepackage{cleveref}
+
+# === BIBLIOGRAPHY (Using CAS BibTeX style) ===
+#+LATEX_HEADER: \bibliographystyle{cas-model2-names}
+
+# === PHYSICS-SPECIFIC PACKAGES ===
+#+LATEX_HEADER: \usepackage{braket}
+#+LATEX_HEADER: \usepackage{tensor}
+

@@ -1,0 +1,162 @@
+
+# ───────────────────────────────────────────────────────────────────────────────
+# LAYER RULES
+# Discover layer names with:  mmsg -e  (while the layer surface is open)
+# Format: layerrule=Param:Value,...,layer_name:<regex>
+# ───────────────────────────────────────────────────────────────────────────────
+
+# Screenshot area-selector — disable blur/animation to prevent artefacts
+layerrule=noanim:1,noblur:1,layer_name:selection
+
+# Waybar — slide in from screen edge
+layerrule=animation_type_open:slide,animation_type_close:slide,layer_name:waybar
+
+# swaync notification popup — zoom in, fade out
+layerrule=animation_type_open:zoom,animation_type_close:fade,layer_name:swaync-notification-window
+
+# swaync control-centre panel — slide in/out
+layerrule=animation_type_open:slide,animation_type_close:slide,layer_name:swaync-control-center
+
+# Rofi / any launcher — zoom in and out
+layerrule=animation_type_open:zoom,animation_type_close:zoom,layer_name:rofi
+
+# swaylock — no animation, no blur leaking behind the lock screen
+layerrule=noanim:1,noblur:1,layer_name:swaylock
+
+# gtk4-layer-shell surfaces (GTK4 popovers, app menus) — direct translation of Hyprland's no_anim on
+layerrule=noanim:1,layer_name:gtk4-layer-shell
+
+# ───────────────────────────────────────────────────────────────────────────────
+# WINDOW RULES
+# Both appid and title fields support PCRE2 regex.
+# Discover appid / title with:  mmsg -e  (while hovering the window)
+#
+# Format:
+#   windowrule=Param:Value,...,appid:<regex>
+#   windowrule=Param:Value,...,title:<regex>
+#   windowrule=Param:Value,...,appid:<regex>,title:<regex>
+#
+# IMPORTANT — TUI applications (btop, htop, nvim, etc.) run inside a terminal
+# emulator and inherit its appid, NOT their own. Tag assignments for them
+# will never match. Launch TUI apps inside a terminal on Tag 1 instead.
+# ───────────────────────────────────────────────────────────────────────────────
+
+# ── Terminal swallow (isterm) ────────────────────────────────────────────────
+# A GUI window spawned from an isterm terminal temporarily replaces it until
+# the GUI window closes ("window swallowing").
+windowrule=isterm:1,appid:kitty
+windowrule=isterm:1,appid:foot
+windowrule=isterm:1,appid:footclient
+windowrule=isterm:1,appid:Alacritty
+windowrule=isterm:1,appid:org.wezfurlong.wezterm
+
+
+# ── Force floating windows ───────────────────────────────────────────────────
+windowrule=isfloating:1,appid:pavucontrol
+windowrule=isfloating:1,appid:nm-connection-editor
+windowrule=isfloating:1,appid:blueman-manager
+windowrule=isfloating:1,appid:nwg-look
+windowrule=isfloating:1,width:800,height:600,appid:qt5ct
+windowrule=isfloating:1,width:800,height:600,appid:qt6ct
+windowrule=isfloating:1,width:800,height:600,appid:kvantummanager
+windowrule=isfloating:1,width:600,height:600,noblur:1,appid:xdg-desktop-portal-gtk
+windowrule=isfloating:1,width:600,height:600,noblur:1,appid:xdg-desktop-portal-gnome
+windowrule=isfloating:1,width:600,height:600,noblur:1,appid:xdg-desktop-portal-wlr
+
+# Dialog detection by title (works across apps that share a parent appid)
+windowrule=isfloating:1,title:Open File
+windowrule=isfloating:1,title:Save File
+windowrule=isfloating:1,title:Save As
+windowrule=isfloating:1,title:Print
+windowrule=isfloating:1,isglobal:1,isoverlay:1,width:576,height:324,focused_opacity:0.95,unfocused_opacity:0.75,offsetx:75,offsety:-57,title:Picture-in-Picture
+
+
+# ── Floating window preset sizes ─────────────────────────────────────────────
+windowrule=isfloating:1,width:900,height:640,appid:pavucontrol
+windowrule=isfloating:1,width:780,height:540,appid:nm-connection-editor
+windowrule=isfloating:1,width:680,height:500,appid:blueman-manager
+
+# ── Scroller proportion overrides ────────────────────────────────────────────
+# Give browsers a wider slot when they land in the scroller (Tags 1 or 9)
+windowrule=scroller_proportion:0.65,appid:firefox
+windowrule=scroller_proportion:0.65,appid:brave-browser
+
+# ── Silent open (no focus steal on launch) ────────────────────────────────────
+windowrule=isopensilent:1,appid:com.obsproject.Studio
+windowrule=isopensilent:1,appid:discord
+
+# ── Global keybinding — app-level shortcut that works from any tag ────────────
+# The globalkeybinding windowrule wires a compositor-level hotkey into a
+# specific window. Only works for Wayland-native apps.
+windowrule=globalkeybinding:ctrl+alt-o,appid:com.obsproject.Studio
+
+# ── Gaming — per-window tearing ───────────────────────────────────────────────
+# Uncomment and set allow_tearing=1 globally if you want tearing for games.
+# windowrule=force_tearing:1,appid:steam
+# windowrule=force_tearing:1,appid:gamescope
+
+# ── Named scratchpad size rules ───────────────────────────────────────────────
+# The appid must exactly match what the spawned command registers with the WM.
+# Dimensions set here; the matching bind= line (below) provides the command.
+windowrule=isnamedscratchpad:1,width:1300,height:820,appid:foot-yazi
+windowrule=isnamedscratchpad:1,width:500,height:650,appid:gnome-calculator
+windowrule=isnamedscratchpad:1,width:1100,height:700,appid:com.spotify.Client
+
+windowrule=isnamedscratchpad:1,width:1344,height:756,appid:kitty-dropterm
+windowrule=isnamedscratchpad:1,width:1728,height:972,appid:explorer
+windowrule=isnamedscratchpad:1,width:1536,height:864,appid:git-terminal
+windowrule=isnamedscratchpad:1,appid:thunar
+
+# Ghostty — 0.95 opacity both focused and unfocused (matches opacity = 0.95 0.95)
+windowrule=focused_opacity:0.95,unfocused_opacity:0.95,appid:com.mitchellh.ghostty
+
+# kitty-dropterm — slide-in animation; size/scratchpad already set in isnamedscratchpad rule above
+windowrule=isfloating:1,animation_type_open:slide,animation_type_close:slide,appid:kitty-dropterm
+
+# Nautilus — floating, popin animation
+windowrule=isfloating:1,width:1000,height:800,animation_type_open:zoom,animation_type_close:zoom,appid:org.gnome.Nautilus
+
+# BleachBit — floating, no blur, no animation
+windowrule=isfloating:1,width:600,height:600,noblur:1,isnoanimation:1,appid:org.bleachbit.BleachBit
+
+# Thunar — general floating rule; popin matches Hyprland's animation = popin
+windowrule=isfloating:1,width:800,height:600,animation_type_open:zoom,animation_type_close:zoom,appid:thunar
+
+# Thunar file operation progress dialog — specific appid+title match overrides the general thunar rule above
+# Size: 26% of 1920 ≈ 499 → 500, 18% of 1080 ≈ 194. Cursor-relative positioning has no mangowc equivalent.
+windowrule=isfloating:1,width:500,height:194,appid:thunar,title:File Operation Progress
+
+# nwg-look
+windowrule=isfloating:1,width:600,height:400,appid:nwg-look
+
+# pavucontrol (both appid variants) — 60% × 70% of 1920×1080 = 1152×756
+windowrule=isfloating:1,width:1152,height:756,appid:org.pulseaudio.pavucontrol
+
+# yad icon browser — same size as pavucontrol
+windowrule=isfloating:1,width:1152,height:756,appid:yad-icon-browser
+
+# Brave — Google sign-in popup (matched by appid + title)
+windowrule=isfloating:1,width:450,height:600,noblur:1,isnoanimation:1,appid:brave-browser,title:Untitled - Brave
+
+# Brave — Bitwarden extension popup (matched by appid + title)
+windowrule=isfloating:1,width:450,height:600,noblur:1,isnoanimation:1,appid:brave-nngceckbapebfimnlniiiahkandclblb-Default,title:_crx_nngceckbapebfimnlniiiahkandclblb
+
+# Additional float-only rules from rules.conf
+windowrule=isfloating:1,appid:org.gnome.FileRoller
+windowrule=isfloating:1,appid:file-roller
+windowrule=isfloating:1,appid:imv
+windowrule=isfloating:1,appid:system-config-printer
+windowrule=isfloating:1,appid:CachyOSHello
+
+# Dialog title patterns — PCRE2 regex
+windowrule=isfloating:1,title:(Select|Open)( a)? (File|Folder)(s)?
+windowrule=isfloating:1,title:File (Operation|Upload)( Progress)?
+windowrule=isfloating:1,title:.* Properties
+windowrule=isfloating:1,title:Export Image as PNG
+windowrule=isfloating:1,title:GIMP Crash Debug
+windowrule=isfloating:1,title:Library
+
+# XWayland unnamed popups (win0, win1, …) — remove shadow
+# no_dim has no mangowc equivalent; rounding is already applied globally via border_radius=10
+windowrule=isnoshadow:1,title:win[0-9]+
+

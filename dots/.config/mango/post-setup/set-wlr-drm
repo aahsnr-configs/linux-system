@@ -1,0 +1,3 @@
+#!/bin/bash
+echo 'WLR_DRM_DEVICES=/dev/dri/card0:/dev/dri/card1' | sudo tee -a /etc/environment
+echo "Done. Please reboot for the change to take effect."

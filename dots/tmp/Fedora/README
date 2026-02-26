@@ -1,0 +1,99 @@
+This is the README for texlive-dummy-fc36, version
+2022-07-17.
+
+WARNING! This is a serious hack and you should be clear about what you are doing.
+
+The texlive packages available for RHEL-8 (and derived
+distributions such as CentOS-8) are relatively old (2018)
+and seriously incomplete. For Fedora, they seem to be more
+up-to-date, but still cannot "compete" with TeX-Live's own
+distribution mechanism. Although it is possible to
+remove the native texlive packages and install a more
+recent complete TeXLive distribution, any attempt to
+install packages that depend on texlive resources (such
+as latex2html, lyx, etc.) will normally trigger the
+re-installation of the obsolete native packages. This is
+inefficient and the redundant packages can interfere with
+the TeXLive resources.
+
+This package contains a "dummy" rpm which is intended
+to satisfy any dependencies on texlive resources,
+allowing packages like latex2html, lyx, etc. to be
+installed without using --nodeps and without triggering
+re-installation of texlive rpms. All native texlive packages
+will be removed when the texlive-dummy package is installed.
+
+It is the responsibility of the user to ensure that any
+necessary resources normally provided by native packages
+have in fact been installed. A recent TeXLive distribution
+should suffice. If necessary, packages can be installed
+directly from CTAN into a local or personal texmf tree.
+
+This version is based on a Fedora 36 installation and is
+building on the original CentOS-version by Bob Tennent
+(rdt at cs.queensu.ca). Since Bob does not have a
+CentOS machine available anymore, the old dummy packages
+are a bit outdated. However, this Fedora-based version
+should (sic!) work on other RHEL-derived distributions
+as well. But your mileage may vary…
+
+The source rpm is included in case the user needs to
+add/remove lines to/from the spec file. Please send the
+maintainer a note about this so this package can be updated.
+
+A brief intro in how to do this:
+
+Download the src rpm (texlive-dummy-2022-1.fc36.src.rpm) from CTAN.
+
+Create a temporary directory and move the file there.
+Now extract the source package:
+
+rpm2cpio texlive-dummy-2022-1.fc36.src.rpm | cpio -idmv
+
+
+This gives the `texlive-dummy.fc36.spec` file we can
+edit to add extra dependecies. E. g., towards the end,
+add a little part to include what is needed for the
+package you try to install and that still triggers
+"dnf" or "yum" to pull in a whole lot of texlive
+stuff. Add the required "Provides:" after the last
+other "Provides:" and before the line with `%prep`
+
+To find out what is needed, use e.g.
+
+sudo dnf install --assumeno sagemath | \
+awk -e '/^ texlive/ {print "Provides: "$1}' >APPEND
+
+This will try to install a package, sagemath in this
+case, but since it is assuming "no", nothing will
+be done in the end. Yet the required packages are
+listed. Extracting those starting with (indented by
+one space) "texlive" should give you a good list.
+ATTENTION! Some dependent packages do not begin
+with "texlive"; biber (included in this version)
+is one such example!
+
+Now rebuild the rpms:
+
+rpmbuild -ba texlive-dummy.fc36.spec
+
+This will rebuild both the src and installation
+rpm packages and tell you where they are to be
+found, usually under
+~/rpmbuild/RPMS/noarch/texlive-dummy-2022-1.fc36.noarch.rpm
+~/rpmbuild/SRPMS/texlive-dummy-2022-1.fc36.src.rpm
+
+Install these by using
+
+sudo dnf reinstall ~/rpmbuild/RPMS/noarch/texlive-dummy-2022-1.fc36.noarch.rpm
+
+
+If this works for you, please send me your changes
+or the updated spec-file. Thanks!
+
+Hendrik G Seliger, July 2022
+ctan at hseliger . eu
+
+Permission is granted to copy, distribute and/or modify this
+software under the terms of the LaTeX Project Public License
+(LPPL), version 1.3.
