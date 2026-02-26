@@ -931,3 +931,6 @@ function y() {
 }
 
 export PATH="/home/ahsan/.pixi/bin:$PATH"
+
+# bun completions
+[ -s "/home/ahsan/.bun/_bun" ] && source "/home/ahsan/.bun/_bun"
