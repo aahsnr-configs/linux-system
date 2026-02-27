@@ -40,7 +40,7 @@
         "autoHideDelay": 500,
         "autoShowDelay": 150,
         "backgroundOpacity": 0.93,
-        "barType": "framed",
+        "barType": "simple",
         "capsuleColorKey": "none",
         "capsuleOpacity": 1,
         "density": "comfortable",
@@ -283,19 +283,6 @@
                     "id": "plugin:todo"
                 },
                 {
-                    "defaultSettings": {
-                        "cursorPosition": 0,
-                        "filePath": "",
-                        "fontSize": 14,
-                        "panelHeight": 400,
-                        "panelWidth": 600,
-                        "scratchpadContent": "",
-                        "scrollPositionX": 0,
-                        "scrollPositionY": 0
-                    },
-                    "id": "plugin:notes-scratchpad"
-                },
-                {
                     "id": "plugin:weekly-calendar"
                 }
             ]
@@ -430,7 +417,7 @@
         "clockFormat": "hh\\nmm",
         "clockStyle": "custom",
         "compactLockScreen": false,
-        "dimmerOpacity": 0.2,
+        "dimmerOpacity": 0,
         "enableLockScreenCountdown": true,
         "enableShadows": false,
         "forceBlackScreenCorners": false,
@@ -702,6 +689,10 @@
             {
                 "enabled": true,
                 "id": "zathura"
+            },
+            {
+                "enabled": true,
+                "id": "mango"
             }
         ],
         "enableUserTheming": true

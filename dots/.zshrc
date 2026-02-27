@@ -683,7 +683,8 @@ command_not_found_handler() {
 
 ### ALIASES
 alias upgrade="topgrade"
-alias listPkgs='paru -Qq > packages.list'
+# alias listPkgs='paru -Qq > packages.list'
+alias listPkgs='dnf repoquery --installed --qf "%{name}\n" | sort -u > packages.list'
 alias delOrphans='paru -Rns $(paru -Qtdq)'
 alias delCache='paru -Scc'
 alias tuimacs="emacsclient -t -a 'emacs'"
