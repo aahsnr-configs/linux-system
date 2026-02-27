@@ -29,7 +29,6 @@ sudo dnf copr enable bieszczaders/kernel-cachyos
 sudo dnf install kernel-cachyos kernel-cachyos-devel-matched --setopt=install_weak_deps=True
 sudo dnf update
 
-
 echo "nvidia"
 sleep 5
 sudo dnf config-manager addrepo --from-repofile=https://negativo17.org/repos/fedora-multimedia.repo
@@ -38,9 +37,9 @@ sudo dnf install nvidia-driver nvidia-settings nvidia-driver-cuda cuda-devel nve
 echo "brew setup"
 sleep 5
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv bash)"' >> /home/ahsan/.bashrc
+echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv bash)"' >>/home/ahsan/.bashrc
 source ~/.bashrc
-brew install atuin bat btop cava chafa dust eza fastfetch fd fzf gh git git-lfs lazygit pandoc plantuml ripgrep starship tealdeer tmux topgrade yazi zoxide 
+brew install atuin bat btop cava chafa dust eza fastfetch fd fzf gh git git-lfs lazygit pandoc plantuml ripgrep starship tealdeer tmux topgrade yazi zoxide
 
 curl -fsS https://dl.brave.com/install.sh | sh
 
@@ -57,7 +56,7 @@ cargo install emacs-lsp-booster texlab
 
 echo "installing pkgs"
 sleep 5
-sudo dnf install abattis-cantarell-vf-fonts adobe-source-code-pro-fonts adwaita-mono-fonts adwaita-sans-fonts asusctl asusctl-rog-gui bleachbit bluez bluez-tools brightnessctl cliphist cronie curl ddcutil default-fonts default-fonts-core direnv distrobox dmidecode emacs emacs-pgtk evolution-data-server fail2ban file-roller fontconfig fonts-filesystem gnome-keyring gnome-tweaks gnuplot go google-noto-color-emoji-fonts google-noto-sans-symbols-fonts google-noto-sans-symbols2-fonts graphviz greetd grim gsettings-desktop-schemas gtk4-layer-shell gzip haveged hunspell hypridle hyprland hyprland-devel hyprland-guiutils hyprpolkitagent hyprqt6engine hyprshutdown hyprsysteminfo i2c-tools ImageMagick imv inotify-tools ispell jq kitty kitty-kitten kitty-shell-integration kitty-terminfo liberation-fonts logrotate luajit lynis material-icons-fonts mpv neovim noctalia-shell node npm nwg-look papers papirus-icon-theme pipewire pipewire-alsa pipewire-gstreamer pipewire-pulseaudio pipewire-utils pipx podman podman-compose policycoreutils-python-utils power-profiles-daemon pymol qt5ct qt6ct ryzenadj slurp sqlite swappy switcheroo-control transmission-gtk trash-cli tuigreet udiskie urw-base35-fonts util-linux wget wireplumber wl-clipboard wlsunset xdg-desktop-portal xdg-desktop-portal-gnome xdg-desktop-portal-gtk xdg-desktop-portal-hyprland xdg-user-dirs xdg-user-dirs-gtk xorg-x11-server-Xorg xorg-x11-server-Xwayland zathura zathura-pdf-mupdf zathura-zsh-completion zen-browser zram-generator zsh
+sudo dnf install abattis-cantarell-vf-fonts adobe-source-code-pro-fonts adwaita-mono-fonts adwaita-sans-fonts asusctl asusctl-rog-gui bleachbit bluez bluez-tools brightnessctl cliphist cronie curl ddcutil default-fonts default-fonts-core direnv distrobox emacs emacs-pgtk evolution-data-server fail2ban file-roller fontconfig fonts-filesystem gnome-keyring gnome-tweaks gnuplot go google-noto-color-emoji-fonts google-noto-sans-symbols-fonts google-noto-sans-symbols2-fonts graphviz grim gsettings-desktop-schemas gtk4-layer-shell gzip haveged hunspell ImageMagick imv inotify-tools ispell jq kitty kitty-kitten kitty-shell-integration kitty-terminfo liberation-fonts logrotate luajit lynis mpv neovim node npm nwg-look papers papirus-icon-theme pipewire pipewire-alsa pipewire-gstreamer pipewire-pulseaudio pipewire-utils pipx podman podman-compose policycoreutils-python-utils power-profiles-daemon pymol qt5ct qt6ct ryzenadj slurp sqlite swappy switcheroo-control transmission-gtk trash-cli tuigreet udiskie urw-base35-fonts util-linux wget wireplumber wl-clipboard wlsunset xdg-desktop-portal xdg-desktop-portal-gnome xdg-desktop-portal-gtk xdg-desktop-portal-hyprland xdg-user-dirs xdg-user-dirs-gtk xorg-x11-server-Xorg xorg-x11-server-Xwayland zathura zathura-pdf-mupdf zathura-zsh-completion zen-browser zsh jetbrainsmono-nerd-fonts nerdfontssymbolsonly-nerd-fonts
 
 echo "symlink and directory"
 sleep 5
@@ -106,5 +105,5 @@ chmod +x "$PIA_INSTALLER"
 bash "$PIA_INSTALLER"
 
 systemctl --user enable wireplumber.service pipewire.service pipewire-pulse.service
-systemctl --user enable gnome-keyring-daemon 
+systemctl --user enable gnome-keyring-daemon
 sudo systemctl enable power-profiles-daemon
