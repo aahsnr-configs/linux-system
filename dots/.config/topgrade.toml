@@ -1,0 +1,5 @@
+[misc]
+pre_sudo = true
+
+[commands]
+"noctalia-qs" = "/home/ahsan/bin/build-noctalia-qs.sh --non-interactive"
