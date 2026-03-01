@@ -2,4 +2,6 @@
 pre_sudo = true
 
 [commands]
-"noctalia-qs" = "/home/ahsan/bin/build-noctalia-qs.sh --non-interactive"
+# "noctalia-qs" = "/home/ahsan/bin/build-noctalia-qs.sh --non-interactive"
+# "emacs-lsp-booster" = "install-emacs-lsp-booster"
+"System Cargo packages" = "sudo cargo install-update --all --root /usr/local"

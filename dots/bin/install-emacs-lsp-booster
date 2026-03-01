@@ -1,0 +1,567 @@
+#!/usr/bin/env python3
+"""
+install_emacs_lsp_booster.py
+────────────────────────────
+Idempotent, system-wide installer and updater for emacs-lsp-booster, built
+directly from its upstream Git repository.  Mirrors the AUR package
+``emacs-lsp-booster-git`` PKGBUILD:
+
+  1. Clone (or fast-forward pull) https://github.com/blahgeek/emacs-lsp-booster
+  2. Build with  ``cargo build --release --locked``
+  3. Install the binary  →  /usr/local/bin/emacs-lsp-booster   (via sudo)
+  4. Install the LICENSE →  /usr/local/share/licenses/…/LICENSE (via sudo)
+
+Re-running the script is fully safe: it rebuilds and reinstalls only when
+the upstream HEAD commit has changed since the last successful install.
+
+─── Quick-start ────────────────────────────────────────────────────────────
+Bootstrap (one time only):
+
+    python3 install_emacs_lsp_booster.py --self-install
+
+After that, invoke the script as a plain command — no python3 prefix needed:
+
+    install-emacs-lsp-booster           # install or upgrade
+    install-emacs-lsp-booster --check   # check for an upstream update
+    install-emacs-lsp-booster --force   # force rebuild even if up-to-date
+
+─── Topgrade integration ───────────────────────────────────────────────────
+After running --self-install, add the following block to
+~/.config/topgrade.toml so that topgrade upgrades emacs-lsp-booster
+automatically alongside the rest of the system:
+
+    [commands]
+    "emacs-lsp-booster" = "install-emacs-lsp-booster"
+
+─── Requirements ───────────────────────────────────────────────────────────
+  • Python ≥ 3.11  (3.13 recommended; tomllib requires ≥ 3.11)
+  • git
+  • cargo  (Rust toolchain – https://rustup.rs)
+  • sudo   (for writing to /usr/local)
+
+─── All options ────────────────────────────────────────────────────────────
+  --self-install        Copy this script to /usr/local/bin as the command
+                        'install-emacs-lsp-booster' (chmod 755, via sudo)
+                        and exit.  Run this once after downloading the file.
+  --self-uninstall      Remove the installed command from /usr/local/bin
+                        and exit.
+  --src-dir DIR         Where to keep the cloned source tree
+                        (default: ~/.local/share/emacs-lsp-booster-src)
+  --force               Rebuild and reinstall even if HEAD has not changed.
+  --check               Exit 0 if up-to-date, 1 if an update is available.
+                        Nothing is built or installed.
+  -v / --verbose        Show every shell command executed.
+  -h / --help           Show this help and exit.
+"""
+
+from __future__ import annotations
+
+import argparse
+import logging
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+import tomllib
+from pathlib import Path
+
+# ── Python version guard ───────────────────────────────────────────────────
+if sys.version_info < (3, 11):
+    sys.exit(
+        "ERROR: Python 3.11 or newer is required "
+        f"(running {sys.version_info.major}.{sys.version_info.minor})."
+    )
+
+# ── Constants ──────────────────────────────────────────────────────────────
+REPO_URL: str = "https://github.com/blahgeek/emacs-lsp-booster"
+
+# The name of the emacs-lsp-booster binary that cargo produces.
+BINARY_NAME: str = "emacs-lsp-booster"
+
+# The name this installer script will be installed as in /usr/local/bin.
+INSTALLER_CMD: str = "install-emacs-lsp-booster"
+
+# Source tree lives under the invoking user's home directory so that cargo
+# never runs as root and never pollutes the root-owned registry cache.
+DEFAULT_SRC_DIR: Path = Path.home() / ".local" / "share" / "emacs-lsp-booster-src"
+
+# System-wide installation paths.  We use /usr/local (not /usr) so that
+# package-manager-owned paths are never touched.
+INSTALL_BIN_DIR: Path = Path("/usr/local/bin")
+INSTALL_LICENSE_DIR: Path = Path("/usr/local/share/licenses/emacs-lsp-booster")
+
+# State file: records the HEAD SHA that is currently installed so that
+# idempotency works across reboots without inspecting /usr/local at all.
+STATE_FILE: Path = (
+    Path.home() / ".local" / "state" / "emacs-lsp-booster" / "installed.sha"
+)
+
+# ── Logging ────────────────────────────────────────────────────────────────
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(levelname)s: %(message)s",
+    stream=sys.stdout,
+)
+log: logging.Logger = logging.getLogger(__name__)
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Helper utilities
+# ══════════════════════════════════════════════════════════════════════════
+
+
+def require_tool(name: str) -> Path:
+    """Return the absolute path to *name*, or exit with a clear error."""
+    found: str | None = shutil.which(name)
+    if found is None:
+        log.error(
+            "Required tool '%s' was not found on PATH.\n"
+            "  Please install it and re-run this script.",
+            name,
+        )
+        sys.exit(1)
+    return Path(found)
+
+
+def run(
+    cmd: list[str | Path],
+    *,
+    cwd: Path | None = None,
+    capture: bool = False,
+    check: bool = True,
+) -> subprocess.CompletedProcess[str]:
+    """
+    Execute *cmd* without a shell and return the completed-process object.
+
+    Arguments are always passed as a list — never through a shell — so no
+    injection is possible even when paths contain spaces or special characters.
+    """
+    str_cmd: list[str] = [str(c) for c in cmd]
+    log.debug("$ %s  [cwd=%s]", " ".join(str_cmd), cwd or ".")
+    return subprocess.run(
+        str_cmd,
+        cwd=cwd,
+        check=check,
+        text=True,
+        capture_output=capture,
+    )
+
+
+def git_head_sha(repo: Path, git: Path) -> str:
+    """Return the full 40-character SHA of HEAD in the local clone."""
+    return run([git, "rev-parse", "HEAD"], cwd=repo, capture=True).stdout.strip()
+
+
+def pkgver(repo: Path, git: Path) -> str:
+    """
+    Return a version string that matches the PKGBUILD's ``pkgver()``::
+
+        printf "r%s.g%s" "$(git rev-list --count HEAD)" \
+                         "$(git rev-parse --short HEAD)"
+
+    Example: ``r59.g678641d``
+    """
+    count = run(
+        [git, "rev-list", "--count", "HEAD"], cwd=repo, capture=True
+    ).stdout.strip()
+    short = run(
+        [git, "rev-parse", "--short", "HEAD"], cwd=repo, capture=True
+    ).stdout.strip()
+    return f"r{count}.g{short}"
+
+
+def read_state() -> str:
+    """Return the previously recorded installed-HEAD SHA, or '' if absent."""
+    try:
+        return STATE_FILE.read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+
+
+def write_state(sha: str) -> None:
+    """
+    Atomically persist *sha* to STATE_FILE.
+
+    Writes to a temporary file in the same directory then renames it into
+    place, so a mid-write crash never leaves a corrupt state file.
+    """
+    STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_str = tempfile.mkstemp(dir=STATE_FILE.parent, text=True)
+    tmp = Path(tmp_str)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(sha + "\n")
+        tmp.replace(STATE_FILE)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
+
+
+def cargo_package_name(src_dir: Path) -> str:
+    """
+    Read the [package] name from Cargo.toml using the stdlib ``tomllib``.
+
+    Falls back to BINARY_NAME when the key is absent — defensive but should
+    never be needed for this particular project.
+    """
+    with (src_dir / "Cargo.toml").open("rb") as fh:
+        data = tomllib.load(fh)
+    return str(data.get("package", {}).get("name", BINARY_NAME))
+
+
+def sudo_install(src: Path, dest: Path, mode: str, sudo: Path) -> None:
+    """
+    Copy *src* to *dest* system-wide using ``sudo install -Dm<mode>``.
+
+    Flags:
+        ``-D``       Create parent directories automatically.
+        ``-m<mode>`` Set exact permissions (``'755'`` or ``'644'``).
+
+    Mirrors the PKGBUILD's ``install -Dm755`` / ``install -Dm644`` calls,
+    with sudo for privilege escalation.
+    """
+    log.info("  sudo install -Dm%s %s → %s", mode, src.name, dest)
+    run([sudo, "install", f"-Dm{mode}", str(src), str(dest)])
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Self-install / self-uninstall
+# ══════════════════════════════════════════════════════════════════════════
+
+
+def self_install(sudo: Path) -> None:
+    """
+    Install *this script* to /usr/local/bin as ``install-emacs-lsp-booster``
+    with executable permissions (mode 755).
+
+    After this one-time step the script can be invoked directly as::
+
+        install-emacs-lsp-booster [options]
+
+    without any ``python3`` prefix.  The shebang line (``#!/usr/bin/env
+    python3``) at the top of the file is what tells the kernel which
+    interpreter to use.
+    """
+    script_path = Path(sys.argv[0]).resolve()
+    dest = INSTALL_BIN_DIR / INSTALLER_CMD
+
+    log.info("Installing installer script as '%s' …", dest)
+    sudo_install(script_path, dest, "755", sudo)
+    log.info("Done.  You can now run:  %s [options]", INSTALLER_CMD)
+    _print_topgrade_hint(installed=True)
+
+
+def self_uninstall(sudo: Path) -> None:
+    """
+    Remove ``install-emacs-lsp-booster`` from /usr/local/bin.
+    """
+    dest = INSTALL_BIN_DIR / INSTALLER_CMD
+    if not dest.exists():
+        log.info("'%s' is not installed — nothing to remove.", dest)
+        return
+    log.info("Removing %s …", dest)
+    run([sudo, "rm", "--", str(dest)])
+    log.info("Done.")
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Core build / install steps
+# ══════════════════════════════════════════════════════════════════════════
+
+
+def clone_or_pull(src_dir: Path, git: Path) -> tuple[str, str]:
+    """
+    Ensure *src_dir* contains an up-to-date clone of REPO_URL.
+
+    Returns ``(sha_before, sha_after)``.  ``sha_before`` is the empty
+    string when the repository did not exist yet (i.e. a fresh clone).
+    """
+    if (src_dir / ".git").is_dir():
+        sha_before = git_head_sha(src_dir, git)
+        log.info("Fetching latest commits from %s …", REPO_URL)
+        run([git, "fetch", "--prune", "origin"], cwd=src_dir)
+        # Hard-reset so the workspace exactly matches remote HEAD, removing
+        # any risk from stale local modifications.
+        run([git, "reset", "--hard", "origin/HEAD"], cwd=src_dir)
+        sha_after = git_head_sha(src_dir, git)
+    else:
+        sha_before = ""
+        log.info("Cloning %s → %s …", REPO_URL, src_dir)
+        src_dir.parent.mkdir(parents=True, exist_ok=True)
+        run([git, "clone", "--", REPO_URL, str(src_dir)])
+        sha_after = git_head_sha(src_dir, git)
+
+    return sha_before, sha_after
+
+
+def build(src_dir: Path, cargo: Path, git: Path) -> Path:
+    """
+    Build the release binary with ``cargo build --release --locked``.
+
+    ``--locked`` refuses to update Cargo.lock, giving a reproducible build
+    exactly as the PKGBUILD specifies.
+
+    Returns the path to the compiled binary inside the build tree.
+    """
+    version = pkgver(src_dir, git)
+    log.info(
+        "Building emacs-lsp-booster %s (this may take a few minutes) …",
+        version,
+    )
+    run([cargo, "build", "--release", "--locked"], cwd=src_dir)
+
+    crate_name = cargo_package_name(src_dir)
+    binary = src_dir / "target" / "release" / crate_name
+    if not binary.is_file():
+        log.error(
+            "Build finished but the expected binary was not found: %s\n"
+            "  (Cargo.toml package.name resolved to '%s')",
+            binary,
+            crate_name,
+        )
+        sys.exit(1)
+    return binary
+
+
+def install_artifacts(src_dir: Path, binary: Path, sudo: Path) -> None:
+    """
+    Install the compiled binary and LICENSE to system-wide paths.
+
+    Mirrors the PKGBUILD ``package()`` function::
+
+        install -Dm755 target/release/emacs-lsp-booster /usr/bin/…
+        install -Dm644 LICENSE /usr/share/licenses/…/LICENSE
+    """
+    log.info(
+        "Installing emacs-lsp-booster (sudo will prompt if credentials have expired):"
+    )
+    sudo_install(binary, INSTALL_BIN_DIR / BINARY_NAME, "755", sudo)
+
+    license_src = src_dir / "LICENSE"
+    if license_src.is_file():
+        sudo_install(license_src, INSTALL_LICENSE_DIR / "LICENSE", "644", sudo)
+    else:
+        log.warning("LICENSE file not found in source tree — skipping license install.")
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# CLI
+# ══════════════════════════════════════════════════════════════════════════
+
+
+def _print_topgrade_hint(*, installed: bool) -> None:
+    """
+    Print the topgrade integration snippet.
+
+    When *installed* is True (called from --self-install) we show the clean
+    command name.  Otherwise we fall back to the full python3 invocation so
+    the hint is always correct regardless of whether self-install has been
+    done yet.
+    """
+    topgrade_cfg = Path.home() / ".config" / "topgrade.toml"
+
+    if installed:
+        cmd_hint = INSTALLER_CMD
+    else:
+        cmd_hint = f"python3 {Path(sys.argv[0]).resolve()}"
+
+    # Fixed-width box — 67 chars wide interior.
+    inner = 67
+    rule = "═" * inner
+    blank = "║" + " " * inner + "║"
+
+    def row(text: str) -> str:
+        return "║  " + text.ljust(inner - 2) + "║"
+
+    lines = [
+        f"╔{rule}╗",
+        row("Topgrade integration"),
+        row("─" * (inner - 2)),
+        row("Add the following block to ~/.config/topgrade.toml"),
+        row("so topgrade upgrades emacs-lsp-booster automatically:"),
+        blank,
+        row("    [commands]"),
+        row(f'    "emacs-lsp-booster" = "{cmd_hint}"'),
+        blank,
+        row(f"Config file: {topgrade_cfg}"),
+        f"╚{rule}╝",
+    ]
+    print("\n" + "\n".join(lines), flush=True)
+
+
+def parse_args() -> argparse.Namespace:
+    # Detect whether the script is running under its self-installed name so
+    # that the prog label in --help output stays consistent.
+    argv0_stem = Path(sys.argv[0]).stem
+    prog = INSTALLER_CMD if argv0_stem == INSTALLER_CMD else Path(sys.argv[0]).name
+
+    parser = argparse.ArgumentParser(
+        prog=prog,
+        description=(
+            "Idempotent, system-wide installer for emacs-lsp-booster "
+            "built from its upstream Git repository."
+        ),
+        epilog=(
+            "First-time setup:\n"
+            f"  python3 {Path(sys.argv[0]).name} --self-install\n"
+            "  # then forever after:\n"
+            f"  {INSTALLER_CMD}\n"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+
+    # ── Self-management flags ──────────────────────────────────────────────
+    self_group = parser.add_argument_group("self-management")
+    exclusive = self_group.add_mutually_exclusive_group()
+    exclusive.add_argument(
+        "--self-install",
+        action="store_true",
+        help=(
+            f"Install this script to {INSTALL_BIN_DIR}/{INSTALLER_CMD} "
+            f"(mode 755, via sudo) so it can be run directly as "
+            f"'{INSTALLER_CMD}' without a 'python3' prefix, then exit."
+        ),
+    )
+    exclusive.add_argument(
+        "--self-uninstall",
+        action="store_true",
+        help=(f"Remove {INSTALL_BIN_DIR}/{INSTALLER_CMD} from the system, then exit."),
+    )
+
+    # ── Normal operation flags ─────────────────────────────────────────────
+    op_group = parser.add_argument_group("operation")
+    op_group.add_argument(
+        "--src-dir",
+        type=Path,
+        default=DEFAULT_SRC_DIR,
+        metavar="DIR",
+        help=f"Source-tree location (default: {DEFAULT_SRC_DIR})",
+    )
+    op_group.add_argument(
+        "--force",
+        action="store_true",
+        help="Rebuild and reinstall even when HEAD has not changed.",
+    )
+    op_group.add_argument(
+        "--check",
+        action="store_true",
+        help=(
+            "Check for an upstream update without building anything. "
+            "Exit 0 = up-to-date; exit 1 = update available."
+        ),
+    )
+    op_group.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Show every command executed.",
+    )
+
+    return parser.parse_args()
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Entry point
+# ══════════════════════════════════════════════════════════════════════════
+
+
+def main() -> None:
+    args = parse_args()
+
+    if args.verbose:
+        logging.getLogger().setLevel(logging.DEBUG)
+
+    # sudo is needed for self-management and for the final artifact install.
+    # git and cargo are only needed for the normal build/install path.
+    sudo = require_tool("sudo")
+
+    # ── Self-management: handled before any git/cargo work ─────────────────
+    if args.self_install:
+        self_install(sudo)
+        sys.exit(0)
+
+    if args.self_uninstall:
+        self_uninstall(sudo)
+        sys.exit(0)
+
+    # ── Normal path: locate build tools ───────────────────────────────────
+    git = require_tool("git")
+    cargo = require_tool("cargo")
+    log.debug("git   = %s", git)
+    log.debug("cargo = %s", cargo)
+    log.debug("sudo  = %s", sudo)
+
+    # ── Step 1: synchronise source tree ───────────────────────────────────
+    sha_before, sha_after = clone_or_pull(args.src_dir, git)
+
+    installed_sha = read_state()
+    bin_dest = INSTALL_BIN_DIR / BINARY_NAME
+    already_current = bin_dest.is_file() and (installed_sha == sha_after)
+
+    # ── --check mode ───────────────────────────────────────────────────────
+    if args.check:
+        if already_current:
+            log.info(
+                "emacs-lsp-booster is up-to-date (HEAD %s).",
+                sha_after[:12],
+            )
+            sys.exit(0)
+        else:
+            log.info(
+                "Update available — installed: %s  upstream: %s",
+                installed_sha[:12] if installed_sha else "(not installed)",
+                sha_after[:12],
+            )
+            sys.exit(1)
+
+    # ── Idempotency guard ──────────────────────────────────────────────────
+    if already_current and not args.force:
+        log.info(
+            "emacs-lsp-booster is already up-to-date (HEAD %s). Nothing to do.",
+            sha_after[:12],
+        )
+        log.info("  Use --force to rebuild and reinstall anyway.")
+        sys.exit(0)
+
+    # Describe what triggered this run.
+    if not sha_before:
+        log.info("Fresh clone — HEAD is %s.", sha_after[:12])
+    elif sha_before != sha_after:
+        log.info("Upstream moved %s → %s.", sha_before[:12], sha_after[:12])
+    else:
+        log.info(
+            "HEAD unchanged (%s) but --force was requested.",
+            sha_after[:12],
+        )
+
+    # ── Step 2: build ──────────────────────────────────────────────────────
+    binary = build(args.src_dir, cargo, git)
+
+    # ── Step 3: install artifacts (requires sudo) ──────────────────────────
+    install_artifacts(args.src_dir, binary, sudo)
+
+    # ── Step 4: record the newly installed commit ──────────────────────────
+    write_state(sha_after)
+
+    version = pkgver(args.src_dir, git)
+    log.info("✓  emacs-lsp-booster %s installed to %s.", version, bin_dest)
+
+    # Show topgrade hint on first-ever install only.
+    if not installed_sha:
+        # Determine whether the user already ran --self-install.
+        self_installed = (INSTALL_BIN_DIR / INSTALLER_CMD).is_file()
+        _print_topgrade_hint(installed=self_installed)
+
+        if not self_installed:
+            print(
+                f"\nTIP: Run  python3 {Path(sys.argv[0]).resolve()} "
+                f"--self-install\n"
+                f"     to install the updater as '{INSTALLER_CMD}' so you\n"
+                f"     never need to type 'python3' again.",
+                flush=True,
+            )
+
+
+if __name__ == "__main__":
+    main()

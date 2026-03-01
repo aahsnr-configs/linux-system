@@ -1,0 +1,131 @@
+# pixi.toml — Unified Python + Bash development environment
+#
+# Managed by pixi (https://pixi.sh) — fast, reproducible, cross-platform.
+# All dependencies are resolved from conda-forge in a single locked environment.
+# No npm install step required: bash-language-server is on conda-forge directly.
+#
+# ── Quick start ──────────────────────────────────────────────────────────────
+#   Install pixi:         curl -fsSL https://pixi.sh/install.sh | bash
+#   Install environment:  pixi install
+#   Enter shell:          pixi shell
+#   Dev environment:      pixi shell --environment dev
+# ─────────────────────────────────────────────────────────────────────────────
+
+[workspace]
+name      = "python-bash-dev"
+version   = "0.1.0"
+channels  = ["conda-forge"]
+# Adjust for your machine: linux-64 | osx-arm64 | osx-64 | win-64
+platforms = ["linux-64"]
+
+# ── Tasks ────────────────────────────────────────────────────────────────────
+[tasks]
+
+# Python ── linting ────────────────────────────────────────────────────────────
+# Report all lint violations (E/W/F/B/UP/I/SIM/…)
+lint        = "ruff check ."
+# Auto-fix all safe violations and sort imports in one pass
+lint-fix    = "ruff check --fix ."
+# Format code (replaces black)
+format      = "ruff format ."
+# Type-check the whole project using the same binary Emacs uses via eglot
+typecheck   = "basedpyright ."
+
+# Python ── testing ────────────────────────────────────────────────────────────
+test        = "pytest -v"
+test-cov    = "pytest --cov=. --cov-report=term-missing"
+
+# Bash ── linting & formatting ─────────────────────────────────────────────────
+# Pass extra file arguments:  pixi run sh-lint scripts/deploy.sh
+sh-lint     = "shellcheck --shell=bash"
+# Format bash scripts in-place; shfmt reads sh-basic-offset for indent width
+sh-format   = "shfmt -w -i 2"
+
+# Combined quality gate ── run before every commit ─────────────────────────────
+check-all   = { depends-on = ["lint", "typecheck", "test"] }
+
+# ── Default environment (runtime + toolchain) ─────────────────────────────────
+[dependencies]
+python = ">=3.12,<3.14"
+
+# ── Python toolchain ──────────────────────────────────────────────────────────
+
+# ruff ≥ 0.4 — linter + formatter + import sorter
+# Used two ways in Emacs:
+#   1. CLI via flymake-ruff (flymake diagnostic backend, style/lint errors)
+#   2. CLI via apheleia (on-save formatter: ruff-isort → ruff format)
+# We deliberately do NOT use `ruff server` (ruff's built-in LSP mode) because
+# basedpyright handles all LSP features exclusively.
+ruff = ">=0.4"
+
+# basedpyright ≥ 1.14 — strict type-checker and LSP server
+# Current conda-forge version: 1.38.x (Feb 2025).
+# The `>=1.14` lower bound reflects when the eglot integration stabilised.
+# Emacs eglot connects to `basedpyright-langserver --stdio`.
+# disableOrganizeImports is set to true in the Emacs workspace config so that
+# basedpyright's import organiser does not conflict with ruff-isort on save.
+# Everything else basedpyright does (type inference, completions, hover, inlay
+# hints, go-to-def, code actions) is exclusive to it and not duplicated by ruff.
+basedpyright = ">=1.14"
+
+# Interactive REPL
+ipython = ">=8"
+
+# ── Bash toolchain ────────────────────────────────────────────────────────────
+
+# shellcheck ≥ 0.10 — static analysis for bash/sh
+# Used by Emacs as a flymake backend alongside bash-language-server (LSP).
+shellcheck = ">=0.10"
+
+# shfmt ≥ 3.8 — bash formatter
+# apheleia calls this on save for bash-ts-mode buffers.
+# The apheleia built-in shfmt formatter reads sh-basic-offset automatically.
+shfmt = ">=3.8"
+
+# bash-language-server ≥ 5.4 — LSP server for bash/sh
+# Available on conda-forge as a noarch (self-contained) package since v5.x.
+# No separate Node.js install is required; the conda-forge package bundles it.
+# Emacs eglot connects via: ("bash-language-server" "start")
+bash-language-server = ">=5.4"
+
+# ── Dev extras (testing, CI, git hooks) ───────────────────────────────────────
+[feature.dev.dependencies]
+pytest     = ">=8"
+pytest-cov = "*"
+pre-commit = "*"
+
+# ── Environments ──────────────────────────────────────────────────────────────
+[environments]
+default = { features = [],      solve-group = "default" }
+dev     = { features = ["dev"], solve-group = "default" }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Project-level config files (put these in your project root, not here)
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# ── pyproject.toml (ruff) ────────────────────────────────────────────────────
+#
+#   [tool.ruff]
+#   line-length    = 88
+#   target-version = "py312"
+#   # Rule sets: E/W = pycodestyle, F = pyflakes, I = isort,
+#   #            UP = pyupgrade, B = bugbear, SIM = simplify
+#   select         = ["E", "F", "I", "UP", "B", "SIM"]
+#   ignore         = ["E501"]
+#
+#   [tool.ruff.format]
+#   quote-style  = "double"
+#   indent-style = "space"
+#
+# ── pyrightconfig.json (basedpyright) ────────────────────────────────────────
+#
+#   {
+#     "typeCheckingMode": "standard",
+#     "venvPath": ".",
+#     "venv": ".pixi/envs/default"
+#   }
+#
+#   The venvPath + venv pair tells basedpyright to use the pixi virtual
+#   environment, so it resolves all installed packages correctly without any
+#   additional python.pythonPath configuration in Emacs.
+#   This file is project-specific and should be committed to version control.

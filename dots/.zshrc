@@ -193,7 +193,7 @@ zsh_plugin_remove() {
     fi
 }
 
-#eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv zsh)"
+eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv zsh)"
 
 ### ENVIRONMENT VARIABLES
 # XDG Base Directory Specification
@@ -823,6 +823,12 @@ if command -v atuin &> /dev/null; then
     eval "$(atuin init zsh)"
 fi
 
+# mise 
+if command -v mise &> /dev/null; then
+    eval "$(mise activate zsh)"
+fi
+
+
 # UV (Python package manager)
 if command -v uv &> /dev/null; then
     eval "$(uv generate-shell-completion zsh)"
@@ -935,3 +941,6 @@ export PATH="/home/ahsan/.pixi/bin:$PATH"
 
 # bun completions
 [ -s "/home/ahsan/.bun/_bun" ] && source "/home/ahsan/.bun/_bun"
+
+
+eval "$(~/.local/bin/mise activate zsh)"

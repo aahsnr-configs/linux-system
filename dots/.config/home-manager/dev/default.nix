@@ -2,13 +2,11 @@
 { pkgs, ... }:
 {
   home.packages = with pkgs; [
-    deadnix
-    nil
+    nixd
     alejandra
-    nixfmt
-    nixpkgs-fmt
-    statix
-  ];
+    nix-prefetch
+    nix-prefetch-github
+ ];
 
   # programs.direnv = {
   #   enable = true;

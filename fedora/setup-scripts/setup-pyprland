@@ -102,7 +102,7 @@ check_fedora_distro() {
 
 # Check Python version
 check_python_version() {
-    if ! command -v python3 &> /dev/null; then
+    if ! command -v python3 &>/dev/null; then
         log_error "Python 3 is not installed. Install python3 via dnf."
         exit 1
     fi
@@ -112,8 +112,8 @@ check_python_version() {
     python_major=$(echo "$python_version" | cut -d'.' -f1)
     python_minor=$(echo "$python_version" | cut -d'.' -f2)
 
-    if [[ $python_major -lt $MIN_PYTHON_MAJOR ]] || \
-       [[ $python_major -eq $MIN_PYTHON_MAJOR && $python_minor -lt $MIN_PYTHON_MINOR ]]; then
+    if [[ $python_major -lt $MIN_PYTHON_MAJOR ]] ||
+        [[ $python_major -eq $MIN_PYTHON_MAJOR && $python_minor -lt $MIN_PYTHON_MINOR ]]; then
         log_error "Python ${MIN_PYTHON_MAJOR}.${MIN_PYTHON_MINOR}+ is required. Found: $python_version"
         exit 1
     fi
@@ -124,25 +124,6 @@ check_python_version() {
 # Install system dependencies via dnf
 install_dependencies() {
     log_info "Installing system dependencies via dnf..."
-
-    # Fedora 43 package equivalents of AUR PKGBUILD makedepends/depends.
-    #
-    # On Fedora, Python library packages follow the python3-<name> convention.
-    # Fedora 43 ships Python 3.14 as /usr/bin/python3 by default.
-    #
-    # Package mapping (AUR name -> Fedora 43 package name):
-    #   gcc                 -> gcc                    (C compiler for pypr-client)
-    #   make                -> make                   (build tooling)
-    #   git                 -> git                    (source checkout)
-    #   python (interp.)    -> python3                (Python 3.14 interpreter)
-    #   python-pip          -> python3-pip            (pip for Python 3)
-    #   python-devel        -> python3-devel          (headers/libs for C extensions)
-    #   python-build        -> python3-build          (PEP 517 build frontend)
-    #   python-setuptools   -> python3-setuptools     (build tooling)
-    #   python-wheel        -> python3-wheel          (wheel packaging support)
-    #   python-poetry       -> python3-poetry-core    (poetry build backend)
-    #   python-pillow       -> python3-pillow         (Pillow imaging; lowercase on Fedora)
-    #   python-aiofiles     -> python3-aiofiles       (async file I/O; runtime dep)
     local -a packages=(
         git
         gcc
@@ -404,7 +385,7 @@ save_version() {
     cd "$BUILD_DIR" || return
     local current_commit
     current_commit=$(git rev-parse HEAD)
-    echo "$current_commit" > "$VERSION_FILE"
+    echo "$current_commit" >"$VERSION_FILE"
 }
 
 # Verify installation
@@ -416,7 +397,7 @@ verify_installation() {
     local all_good=true
 
     # Check pypr
-    if command -v pypr &> /dev/null; then
+    if command -v pypr &>/dev/null; then
         local pypr_version
         pypr_version=$(pypr --version 2>&1 || echo "version check failed")
         log_success "pypr command is available"
@@ -428,7 +409,7 @@ verify_installation() {
     fi
 
     # Check pypr-client
-    if command -v pypr-client &> /dev/null; then
+    if command -v pypr-client &>/dev/null; then
         log_success "pypr-client command is available"
         log_info "  Location: $(which pypr-client)"
     else
@@ -445,7 +426,7 @@ verify_installation() {
 
 # Display usage
 usage() {
-    cat << 'EOF'
+    cat <<'EOF'
 Pyprland Installation Script for Fedora Linux 43
 
 Converted from pyprland-git PKGBUILD (AUR)
@@ -563,7 +544,7 @@ main_install() {
     echo
     log_info "Commands available:"
     log_info "  pypr          - Main daemon (required)"
-    if command -v pypr-client &> /dev/null; then
+    if command -v pypr-client &>/dev/null; then
         log_info "  pypr-client   - Fast client for keybindings (optional)"
     fi
     echo
@@ -584,32 +565,32 @@ main() {
     local command="${1:-install}"
 
     case "$command" in
-        install)
-            main_install
-            ;;
-        check-update|check)
-            check_root
-            if check_for_updates; then
-                echo
-                log_info "To update: $0 install"
-            fi
-            ;;
-        remove|uninstall)
-            check_root
-            remove_pyprland
-            ;;
-        clean)
-            clean_build_dir
-            ;;
-        help|-h|--help)
-            usage
-            ;;
-        *)
-            log_error "Unknown command: $command"
+    install)
+        main_install
+        ;;
+    check-update | check)
+        check_root
+        if check_for_updates; then
             echo
-            usage
-            exit 1
-            ;;
+            log_info "To update: $0 install"
+        fi
+        ;;
+    remove | uninstall)
+        check_root
+        remove_pyprland
+        ;;
+    clean)
+        clean_build_dir
+        ;;
+    help | -h | --help)
+        usage
+        ;;
+    *)
+        log_error "Unknown command: $command"
+        echo
+        usage
+        exit 1
+        ;;
     esac
 }
 
