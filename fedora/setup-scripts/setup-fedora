@@ -7,8 +7,6 @@ sudo hostnamectl set-hostname zephyrus
 echo "setup repos"
 sleep 5
 sudo dnf copr enable shdwchn10/ryzenadj -y
-sudo dnf copr enable sdegler/hyprland -y
-sudo dnf copr enable errornointernet/packages -y
 sudo dnf copr enable sneexy/zen-browser -y
 sudo dnf copr enable lukenukem/asus-linux -y
 sudo dnf install dnf-plugins-core -y
@@ -19,44 +17,25 @@ echo "core pkgs"
 sleep 2
 sudo dnf install git-core curl wget pciutils
 
-echo "cachyos kernel"
-sleep 5
-sudo dnf config-manager setopt fedora.excludepkgs=kernel,kernel-core,kernel-modules,kernel-uki-virt,kernel-devel,kernel-modules-extra,kernel-modules-core,kernel-devel-matched
-sudo dnf config-manager setopt updates.excludepkgs=kernel,kernel-core,kernel-modules,kernel-uki-virt,kernel-devel,kernel-modules-extra,kernel-modules-core,kernel-devel-matched
-sudo dnf config-manager setopt updates-testing.excludepkgs=kernel,kernel-core,kernel-modules,kernel-uki-virt,kernel-devel,kernel-modules-extra,kernel-modules-core,kernel-devel-matched
-
-sudo dnf copr enable bieszczaders/kernel-cachyos
-sudo dnf install kernel-cachyos kernel-cachyos-devel-matched --setopt=install_weak_deps=True
-sudo dnf update
-
 echo "nvidia"
 sleep 5
 sudo dnf config-manager addrepo --from-repofile=https://negativo17.org/repos/fedora-multimedia.repo
-sudo dnf install nvidia-driver nvidia-settings nvidia-driver-cuda cuda-devel nvenc nvidia-driver-NvFBCOpenGL vulkan vulkan-tools libva-nvidia-driver gstreamer1-plugins-base gstreamer1-plugins-good gstreamer1-plugins-ugly gstreamer1-plugins-bad-free gstreamer1-plugins-bad-freeworld ffmpeg libva-utils --setopt=install_weak_deps=True
-
-echo "brew setup"
-sleep 5
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv bash)"' >>/home/ahsan/.bashrc
-source ~/.bashrc
-brew install atuin bat btop cava chafa dust eza fastfetch fd fzf gh git git-lfs lazygit pandoc plantuml ripgrep starship tealdeer tmux topgrade yazi zoxide
+sudo dnf install nvidia-driver nvidia-settings nvidia-driver-cuda cuda-devel nvenc nvidia-driver-NvFBCOpenGL vulkan vulkan-tools libva-nvidia-driver gstreamer1-plugins-base gstreamer1-plugins-good gstreamer1-plugins-ugly gstreamer1-plugins-bad-free gstreamer1-plugins-bad-freeworld ffmpeg libva-utils
 
 curl -fsS https://dl.brave.com/install.sh | sh
 
 echo "Installers"
 curl -LsSf https://astral.sh/uv/install.sh | sh
 curl -fsSL https://pixi.sh/install.sh | sh
-curl -fsSL https://bun.com/install | bash
 
 echo "cargo pkgs"
 sleep 5
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-rustup default stable
-cargo install emacs-lsp-booster texlab
+sudo dnf install cargo -y
+sudo carge install emacs-lsp-booster texlab --root /usr/local
 
 echo "installing pkgs"
 sleep 5
-sudo dnf install abattis-cantarell-vf-fonts adobe-source-code-pro-fonts adwaita-mono-fonts adwaita-sans-fonts asusctl asusctl-rog-gui bleachbit bluez bluez-tools brightnessctl cliphist cronie curl ddcutil direnv distrobox evolution-data-server fail2ban file-roller fontconfig fonts-filesystem gnome-keyring gnome-tweaks gnuplot go google-noto-color-emoji-fonts google-noto-sans-symbols-fonts google-noto-sans-symbols2-fonts graphviz grim gsettings-desktop-schemas gtk4-layer-shell gzip haveged hunspell ImageMagick imv inotify-tools ispell jq kitty kitty-kitten kitty-shell-integration kitty-terminfo liberation-fonts logrotate luajit lynis mpv neovim node npm nwg-look papers papirus-icon-theme pipewire pipewire-alsa pipewire-gstreamer pipewire-pulseaudio pipewire-utils pipx podman podman-compose policycoreutils-python-utils power-profiles-daemon pymol qt5ct qt6ct ryzenadj slurp sqlite swappy switcheroo-control transmission-gtk udiskie urw-base35-fonts util-linux wget wireplumber wl-clipboard wlsunset xdg-desktop-portal xdg-desktop-portal-gnome xdg-desktop-portal-gtk xdg-desktop-portal-hyprland xdg-user-dirs xdg-user-dirs-gtk xorg-x11-server-Xorg xorg-x11-server-Xwayland zathura zathura-pdf-mupdf zathura-zsh-completion zen-browser zsh poppler-utils jetbrainsmono-nerd-fonts nerdfontssymbolsonly-nerd-fonts jetbrains-mono-fonts-all stix-fonts texlive-stix texlive-stix2-otf default-fonts-cjk default-fonts-cjk-mono default-fonts-cjk-sans default-fonts-cjk-serif default-fonts-core default-fonts-core-emoji default-fonts-core-math default-fonts-core-mono default-fonts-core-serif google-noto-sans-math-fonts google-noto-sans-bengali-vf-fonts google-noto-sans-symbols-vf-fonts google-noto-serif-bengali-vf-fonts stix-fonts
+sudo dnf install lazygit pandoc-cli plantuml ripgrep starship tealdeer tmux topgrade yazi zoxide gh git git-lfs eza fastfetch fd-find fzf atuin bat btop cava chafa du-dust abattis-cantarell-vf-fonts adobe-source-code-pro-fonts adwaita-mono-fonts adwaita-sans-fonts asusctl asusctl-rog-gui bleachbit bluez bluez-tools brightnessctl cliphist cronie curl ddcutil direnv distrobox evolution-data-server fail2ban file-roller fontconfig fonts-filesystem gnome-keyring gnome-tweaks gnuplot go google-noto-color-emoji-fonts google-noto-sans-symbols-fonts google-noto-sans-symbols2-fonts graphviz grim gsettings-desktop-schemas gtk4-layer-shell gzip haveged hunspell ImageMagick imv inotify-tools ispell jq kitty kitty-kitten kitty-shell-integration kitty-terminfo liberation-fonts logrotate luajit lynis mpv neovim node npm nwg-look papers papirus-icon-theme pipewire pipewire-alsa pipewire-gstreamer pipewire-pulseaudio pipewire-utils pipx podman podman-compose policycoreutils-python-utils power-profiles-daemon pymol qt5ct qt6ct ryzenadj slurp sqlite swappy switcheroo-control transmission-gtk udiskie urw-base35-fonts util-linux wget wireplumber wl-clipboard wlsunset xdg-desktop-portal xdg-desktop-portal-gnome xdg-desktop-portal-gtk xdg-desktop-portal-hyprland xdg-user-dirs xdg-user-dirs-gtk xorg-x11-server-Xorg xorg-x11-server-Xwayland zathura zathura-pdf-mupdf zathura-zsh-completion zen-browser zsh poppler-utils jetbrainsmono-nerd-fonts nerdfontssymbolsonly-nerd-fonts jetbrains-mono-fonts-all stix-fonts texlive-stix texlive-stix2-otf default-fonts-cjk default-fonts-cjk-mono default-fonts-cjk-sans default-fonts-cjk-serif default-fonts-core default-fonts-core-emoji default-fonts-core-math default-fonts-core-mono default-fonts-core-serif google-noto-sans-math-fonts google-noto-sans-bengali-vf-fonts google-noto-sans-symbols-vf-fonts google-noto-serif-bengali-vf-fonts stix-fonts
 
 echo "symlink and directory"
 sleep 5
@@ -87,6 +66,7 @@ ln -sv "$HOME/Git/configs/linux-system/dots/.config/chrome-flags.conf" "$HOME/.c
 ln -sv "$HOME/Git/configs/linux-system/dots/.config/electron-flags.conf" "$HOME/.config/"
 ln -sv "$HOME/Git/configs/linux-system/dots/.config/mimeapps.list" "$HOME/.config/"
 ln -sv "$HOME/Git/configs/linux-system/dots/.config/starship.toml" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/topgrade.toml" "$HOME/.config/"
 sudo rm -rf ~/.config/user-dirs.dirs
 ln -sv "$HOME/Git/configs/linux-system/dots/.config/user-dirs.dirs" "$HOME/.config/"
 
