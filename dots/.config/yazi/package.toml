@@ -1,66 +1,46 @@
-# ============================================================
-# package.toml — Plugin & Flavor Dependencies
-# Version: 26.x  |  Updated: 2026-02
-#
-# Update all to latest:   ya pack -u
-# Install missing:        ya pack -i
-#
-# Plugin → Keybinding (see keymap.toml)
-# ───────────────────────────────────────
-# archive       →  zz (zip), zg (tar.gz)
-# bypass        →  zb  (auto-enter single-child dirs on launch)
-# bunny         →  zh  (bookmark manager)
-# chmod         →  zc  (change permissions visually)
-# git           →  zi  (overlay git status), zi to toggle
-# mount         →  zm  (mount / unmount devices)
-# full-border   →  (automatic — loaded in init.lua)
-# smart-enter   →  → / <Enter>  (enter dir or open file)
-# starship      →  (automatic — header prompt in init.lua)
-# ============================================================
-
 [[plugin.deps]]
-use  = "KKV9/archive"
-rev  = "cb6e8ec"
+use = "KKV9/archive"
+rev = "cb6e8ec"
 hash = "424ada4807b20ccd4fc85d1d7c26d1e4"
 
 [[plugin.deps]]
-use  = "Rolv-Apneseth/bypass"
-rev  = "c1e5fcf"
+use = "Rolv-Apneseth/bypass"
+rev = "c1e5fcf"
 hash = "208e77480824f62558a5b037c8569d61"
 
 [[plugin.deps]]
-use  = "stelcodes/bunny"
-rev  = "6ee99bc"
+use = "stelcodes/bunny"
+rev = "6ee99bc"
 hash = "417de633d0008580b386bd3358eea56f"
 
 [[plugin.deps]]
-use  = "yazi-rs/plugins:chmod"
-rev  = "1962818"
+use = "yazi-rs/plugins:chmod"
+rev = "1962818"
 hash = "f0c8c378184d5f8abd1b095a443d336d"
 
 [[plugin.deps]]
-use  = "yazi-rs/plugins:git"
-rev  = "1962818"
+use = "yazi-rs/plugins:git"
+rev = "1962818"
 hash = "26db011a778f261d730d4f5f8bf24b3f"
 
 [[plugin.deps]]
-use  = "yazi-rs/plugins:mount"
-rev  = "1962818"
+use = "yazi-rs/plugins:mount"
+rev = "1962818"
 hash = "91937a4a9b779eabc6983e258befdfe9"
 
 [[plugin.deps]]
-use  = "yazi-rs/plugins:full-border"
-rev  = "1962818"
+use = "yazi-rs/plugins:full-border"
+rev = "1962818"
 hash = "6fa6a05a81c98dd000fbca3cca6e9682"
 
 [[plugin.deps]]
-use  = "yazi-rs/plugins:smart-enter"
-rev  = "1962818"
+use = "yazi-rs/plugins:smart-enter"
+rev = "1962818"
 hash = "187cc58ba7ac3befd49c342129e6f1b6"
 
 [[plugin.deps]]
-use  = "Rolv-Apneseth/starship"
-rev  = "eca1861"
+use = "Rolv-Apneseth/starship"
+rev = "eca1861"
 hash = "e519d894e94ded741e06aae4d4775981"
 
 [flavor]

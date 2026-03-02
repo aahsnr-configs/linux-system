@@ -5,3 +5,4 @@ pre_sudo = true
 # "noctalia-qs" = "/home/ahsan/bin/build-noctalia-qs.sh --non-interactive"
 # "emacs-lsp-booster" = "install-emacs-lsp-booster"
 "System Cargo packages" = "sudo cargo install-update --all --root /usr/local"
+"Hyprland Source Ecosystem" = "hypr_installer --topgrade"

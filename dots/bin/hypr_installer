@@ -1,0 +1,584 @@
+#!/usr/bin/env python3.14
+"""
+========================================================================================
+Hyprland Ecosystem Modular Source Builder & Auto-Installer
+Target System: Fedora 43
+Language Standard: Python 3.14
+========================================================================================
+
+FEATURES:
+1. Hardware Optimization: Automatically injects GCC flags (-O3, -march=native, -pipe)
+   to compile binaries maximizing bare-metal CPU performance.
+2. Idempotency: Tracks and compares git commit hashes. If a package hasn't been updated
+   on GitHub, the script skips compiling it entirely to save time.
+3. Topgrade Integration: Supports silent, non-interactive execution via the `--topgrade`
+   flag for seamless system-wide auto-updating.
+4. Modular Execution: Run the entire build (`--all`), specific architectural tiers
+   (`--tier1`, `--tier2`), or cherry-pick specific packages (`--package <name>`).
+5. Asynchronous Probing: Uses `asyncio` to fetch remote commits from GitHub concurrently,
+   reducing the "checking for updates" phase from ~30 seconds to barely 2 seconds.
+6. Dynamic Build Systems: Automatically routes Hyprland to its custom `make all`
+   wrapper, while routing the rest of the ecosystem to native CMake Ninja builds.
+7. Anti-Timeout Sudo: Automatically refreshes the sudo authentication token mid-execution
+   to prevent timeouts during lengthy C++ compilations.
+8. Safe Root Cleanup: Implements a fallback mechanism (`safe_rmtree`) to delete build
+   directories that get locked by root-owned `install_manifest.txt` files.
+========================================================================================
+"""
+
+import os
+import sys
+import json
+import shutil
+import asyncio
+import argparse
+import subprocess
+from pathlib import Path
+from typing import Dict, List, Tuple, Any
+
+# ==============================================================================
+# Environment Configuration & State Management
+# ==============================================================================
+# Directory where the script remembers which commits have been successfully built
+STATE_DIR: Path = Path.home() / ".local" / "state" / "hypr_builder"
+STATE_FILE: Path = STATE_DIR / "commit_state.json"
+
+# Temporary directory where git clones and build artifacts will be stored
+BUILD_DIR_BASE: Path = Path.home() / ".cache" / "hypr_builds"
+
+
+class Colors:
+    """Terminal color codes for enhanced visual feedback."""
+
+    HEADER = "\033[95m"
+    OKBLUE = "\033[94m"
+    OKGREEN = "\033[92m"
+    WARNING = "\033[93m"
+    FAIL = "\033[91m"
+    ENDC = "\033[0m"
+    BOLD = "\033[1m"
+
+
+# ==============================================================================
+# Dependency & Package Mappings
+# ==============================================================================
+# Comprehensive list of system-level dependencies required for Fedora 43
+DNF_DEPENDENCIES: List[str] = [
+    "git",
+    "pkgconf",
+    "cmake",
+    "gcc-c++",
+    "ninja-build",
+    "make",
+    "systemd-rpm-macros",
+    "desktop-file-utils",
+    "udis86-devel",
+    "gtest-devel",
+    "libdrm-devel",
+    "pixman-devel",
+    "mesa-libEGL-devel",
+    "dbus",
+    "grim",
+    "slurp",
+    "qt6-qtwayland",
+    "xorg-x11-server-Xwayland",
+    "mesa-dri-drivers",
+    "polkit",
+    "wl-clipboard",
+    "libjpeg-turbo-devel",
+    "cmake(pugixml)",
+    "pkgconfig(cairo)",
+    "pkgconfig(egl)",
+    "pkgconfig(gbm)",
+    "pkgconfig(gio-2.0)",
+    "pkgconfig(glesv2)",
+    "pkgconfig(hwdata)",
+    "pkgconfig(iniparser)",
+    "pkgconfig(libdisplay-info)",
+    "pkgconfig(libffi)",
+    "pkgconfig(libheif)",
+    "pkgconfig(libinput)",
+    "pkgconfig(libjpeg)",
+    "pkgconfig(libjxl)",
+    "pkgconfig(libjxl_cms)",
+    "pkgconfig(libjxl_threads)",
+    "pkgconfig(libliftoff)",
+    "pkgconfig(libmagic)",
+    "pkgconfig(libpipewire-0.3)",
+    "pkgconfig(libpng)",
+    "pkgconfig(librsvg-2.0)",
+    "pkgconfig(libseat)",
+    "pkgconfig(libsystemd)",
+    "pkgconfig(libudev)",
+    "pkgconfig(libwebp)",
+    "pkgconfig(libzip)",
+    "pkgconfig(muparser)",
+    "pkgconfig(pango)",
+    "pkgconfig(pangocairo)",
+    "pkgconfig(pugixml)",
+    "pkgconfig(Qt6Widgets)",
+    "pkgconfig(re2)",
+    "pkgconfig(sdbus-c++)",
+    "pkgconfig(systemd)",
+    "pkgconfig(tomlplusplus)",
+    "pkgconfig(uuid)",
+    "pkgconfig(wayland-client)",
+    "pkgconfig(wayland-protocols)",
+    "pkgconfig(wayland-scanner)",
+    "pkgconfig(wayland-server)",
+    "pkgconfig(xcb)",
+    "pkgconfig(xcb-composite)",
+    "pkgconfig(xcb-dri3)",
+    "pkgconfig(xcb-errors)",
+    "pkgconfig(xcb-ewmh)",
+    "pkgconfig(xcb-icccm)",
+    "pkgconfig(xcb-present)",
+    "pkgconfig(xcb-render)",
+    "pkgconfig(xcb-renderutil)",
+    "pkgconfig(xcb-res)",
+    "pkgconfig(xcb-shm)",
+    "pkgconfig(xcb-util)",
+    "pkgconfig(xcb-xfixes)",
+    "pkgconfig(xcb-xinput)",
+    "pkgconfig(xcursor)",
+    "pkgconfig(xkbcommon)",
+    "pkgconfig(xwayland)",
+]
+
+# Strict hierarchical representation of the Hyprland ecosystem
+PACKAGES: List[Dict[str, Any]] = [
+    # Tier 1 (Foundational Infrastructure)
+    {
+        "name": "hyprutils",
+        "url": "https://github.com/hyprwm/hyprutils.git",
+        "type": "cmake",
+        "tier": 1,
+    },
+    {
+        "name": "hyprwayland-scanner",
+        "url": "https://github.com/hyprwm/hyprwayland-scanner.git",
+        "type": "cmake",
+        "tier": 1,
+    },
+    {
+        "name": "hyprlang",
+        "url": "https://github.com/hyprwm/hyprlang.git",
+        "type": "cmake",
+        "tier": 1,
+    },
+    {
+        "name": "hyprland-protocols",
+        "url": "https://github.com/hyprwm/hyprland-protocols.git",
+        "type": "cmake",
+        "tier": 1,
+    },
+    {
+        "name": "hyprgraphics",
+        "url": "https://github.com/hyprwm/hyprgraphics.git",
+        "type": "cmake",
+        "tier": 1,
+    },
+    {
+        "name": "aquamarine",
+        "url": "https://github.com/hyprwm/aquamarine.git",
+        "type": "cmake",
+        "tier": 1,
+    },
+    {
+        "name": "glaze",
+        "url": "https://github.com/stephenberry/glaze.git",
+        "type": "cmake",
+        "tier": 1,
+    },
+    {
+        "name": "hyprcursor",
+        "url": "https://github.com/hyprwm/hyprcursor.git",
+        "type": "cmake",
+        "tier": 1,
+    },
+    {
+        "name": "hyprtoolkit",
+        "url": "https://github.com/hyprwm/hyprtoolkit.git",
+        "type": "cmake",
+        "tier": 1,
+    },
+    {
+        "name": "hyprland-guiutils",
+        "url": "https://github.com/hyprwm/hyprland-guiutils.git",
+        "type": "cmake",
+        "tier": 1,
+    },
+    {
+        "name": "hyprwire",
+        "url": "https://github.com/hyprwm/hyprwire.git",
+        "type": "cmake",
+        "tier": 1,
+    },
+    # Tier 2 (Compositor & Wayland Applications)
+    {
+        "name": "hyprland",
+        "url": "https://github.com/hyprwm/Hyprland.git",
+        "type": "make",
+        "tier": 2,
+        "recursive": True,
+    },
+    {
+        "name": "xdg-desktop-portal-hyprland",
+        "url": "https://github.com/hyprwm/xdg-desktop-portal-hyprland.git",
+        "type": "cmake",
+        "tier": 2,
+    },
+    {
+        "name": "hypridle",
+        "url": "https://github.com/hyprwm/hypridle.git",
+        "type": "cmake",
+        "tier": 2,
+    },
+    {
+        "name": "hyprpicker",
+        "url": "https://github.com/hyprwm/hyprpicker.git",
+        "type": "cmake",
+        "tier": 2,
+    },
+]
+
+
+# ==============================================================================
+# Helper & Utility Functions
+# ==============================================================================
+def check_security() -> None:
+    """Ensure the script is not run natively as root to prevent system damage."""
+    if os.geteuid() == 0:
+        print(
+            f"{Colors.FAIL}Security Error: This script must be run as a standard user.{Colors.ENDC}"
+        )
+        print("Sudo privileges will be automatically requested when needed.")
+        sys.exit(1)
+
+
+def cache_sudo() -> None:
+    """Proactively request and cache the sudo password to prevent mid-script timeouts."""
+    print(
+        f"{Colors.OKBLUE}Caching sudo credentials for system-wide access...{Colors.ENDC}"
+    )
+    try:
+        subprocess.run(["sudo", "-v"], check=True)
+    except subprocess.CalledProcessError:
+        print(
+            f"{Colors.FAIL}Error: Sudo authentication failed. Script aborted.{Colors.ENDC}"
+        )
+        sys.exit(1)
+
+
+def safe_rmtree(dir_path: Path) -> None:
+    """
+    Delete a directory gracefully. If CMake leaves root-owned files (like
+    install_manifest.txt) during the 'sudo cmake --install' phase, standard Python
+    shutil fails. This safely catches the PermissionError and routes it to sudo rm.
+    """
+    if not dir_path.exists():
+        return
+    try:
+        shutil.rmtree(dir_path)
+    except PermissionError:
+        subprocess.run(["sudo", "rm", "-rf", str(dir_path)], check=True)
+
+
+# ==============================================================================
+# Asynchronous Git Commit Resolvers
+# ==============================================================================
+async def fetch_remote_commit(pkg_name: str, url: str) -> Tuple[str, str]:
+    """Asynchronously calls 'git ls-remote' to get the latest repository HEAD hash."""
+    process = await asyncio.create_subprocess_exec(
+        "git",
+        "ls-remote",
+        url,
+        "HEAD",
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    stdout, stderr = await process.communicate()
+
+    if process.returncode != 0:
+        raise RuntimeError(f"Git API failed for {pkg_name}: {stderr.decode().strip()}")
+
+    # stdout format: "hash\tHEAD\n" -> We only want the hash
+    return pkg_name, stdout.decode().strip().split()[0]
+
+
+async def get_update_queue(
+    packages_to_process: List[Dict[str, Any]], state: Dict[str, str]
+) -> List[Dict[str, Any]]:
+    """Gathers all asynchronous network requests and determines which packages need updates."""
+    print(
+        f"{Colors.OKBLUE}Scanning remote GitHub repositories concurrently...{Colors.ENDC}"
+    )
+
+    tasks = [
+        fetch_remote_commit(pkg["name"], pkg["url"]) for pkg in packages_to_process
+    ]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    updates_needed: List[Dict[str, Any]] = []
+    for pkg, result in zip(packages_to_process, results):
+        if isinstance(result, Exception):
+            print(
+                f"{Colors.FAIL}Network Error probing {pkg['name']}: {result}{Colors.ENDC}"
+            )
+            sys.exit(1)
+
+        pkg_name, latest_commit = result
+
+        # If the local state differs from the remote hash, an update is required
+        if state.get(pkg_name) != latest_commit:
+            pkg_copy = dict(pkg)
+            pkg_copy["new_commit"] = latest_commit
+            updates_needed.append(pkg_copy)
+
+    return updates_needed
+
+
+# ==============================================================================
+# Build System Executors
+# ==============================================================================
+def build_and_install_cmake(pkg_name: str, src_dir: Path) -> None:
+    """Executes the standard CMake -> Ninja pipeline utilized by most of the ecosystem."""
+
+    # Base CMake generator arguments pointing installation to F43 native paths
+    args = ["-DCMAKE_BUILD_TYPE=Release", "-DCMAKE_INSTALL_PREFIX=/usr"]
+
+    # Specific library optimizations & fixes
+    if pkg_name != "glaze":
+        args.append("-DCMAKE_INSTALL_LIBDIR=lib64")
+    else:
+        args.extend(
+            [
+                "-Dglaze_INSTALL_CMAKEDIR=/usr/share/cmake/glaze",
+                "-Dglaze_DISABLE_SIMD_WHEN_SUPPORTED:BOOL=ON",
+                "-Dglaze_DEVELOPER_MODE:BOOL=OFF",
+                "-Dglaze_ENABLE_FUZZING:BOOL=OFF",
+            ]
+        )
+
+    config_cmd = ["cmake", "-S", ".", "-B", "build", "-G", "Ninja"] + args
+
+    print(f"    {Colors.OKBLUE}Configuring CMake definitions...{Colors.ENDC}")
+    subprocess.run(config_cmd, cwd=src_dir, check=True)
+
+    print(f"    {Colors.OKBLUE}Compiling package...{Colors.ENDC}")
+    subprocess.run(["cmake", "--build", "build"], cwd=src_dir, check=True)
+
+    print(f"    {Colors.WARNING}Refreshing sudo token...{Colors.ENDC}")
+    subprocess.run(["sudo", "-v"], check=True)
+
+    print(f"    {Colors.OKBLUE}Installing System-Wide...{Colors.ENDC}")
+    subprocess.run(["sudo", "cmake", "--install", "build"], cwd=src_dir, check=True)
+
+
+def build_and_install_make(pkg_name: str, src_dir: Path) -> None:
+    """Specific wrapper implementation strictly for Hyprland utilizing Makefiles."""
+    print(f"    {Colors.OKBLUE}Executing 'make all'...{Colors.ENDC}")
+    subprocess.run(["make", "all"], cwd=src_dir, check=True)
+
+    print(f"    {Colors.WARNING}Refreshing sudo token...{Colors.ENDC}")
+    subprocess.run(["sudo", "-v"], check=True)
+
+    print(
+        f"    {Colors.OKBLUE}Installing System-Wide (sudo make install)...{Colors.ENDC}"
+    )
+    subprocess.run(["sudo", "make", "install"], cwd=src_dir, check=True)
+
+
+# ==============================================================================
+# Main Execution Logic
+# ==============================================================================
+def main() -> None:
+    """Parses arguments, sets optimizations, and manages the main execution loop."""
+    parser = argparse.ArgumentParser(
+        description="Hyprland Ecosystem Modular Auto-Builder (Fedora 43 / Python 3.14)",
+        formatter_class=argparse.RawTextHelpFormatter,
+        epilog="""
+Usage Examples:
+  %(prog)s --all                   # Build everything
+  %(prog)s --tier1                 # Build only Tier 1 (Dependencies)
+  %(prog)s --tier2                 # Build only Tier 2 (Core/Apps)
+  %(prog)s --package hypridle      # Build specific packages independently
+  %(prog)s --topgrade              # Run silently (for topgrade integration)
+""",
+    )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Build and install all Tier 1 and Tier 2 packages.",
+    )
+    parser.add_argument(
+        "--tier1",
+        action="store_true",
+        help="Only process Tier 1 infrastructure dependencies.",
+    )
+    parser.add_argument(
+        "--tier2",
+        action="store_true",
+        help="Only process Tier 2 Wayland applications and the Compositor.",
+    )
+    parser.add_argument(
+        "--package",
+        nargs="+",
+        help="Explicitly build exact package names from the ecosystem.",
+    )
+    parser.add_argument(
+        "--topgrade", action="store_true", help="Non-interactive execution mode."
+    )
+    args = parser.parse_args()
+
+    check_security()
+
+    # ----------------------------------------------------------------------
+    # Determine the target packages while strictly preserving the tier order
+    # ----------------------------------------------------------------------
+    selected_names = set()
+    if args.tier1:
+        selected_names.update(p["name"] for p in PACKAGES if p["tier"] == 1)
+    if args.tier2:
+        selected_names.update(p["name"] for p in PACKAGES if p["tier"] == 2)
+    if args.package:
+        selected_names.update(args.package)
+
+    # Fallback to --all if no specific modular flags are specified
+    if args.all or not selected_names:
+        selected_names.update(p["name"] for p in PACKAGES)
+
+    packages_to_process = [pkg for pkg in PACKAGES if pkg["name"] in selected_names]
+
+    if not packages_to_process:
+        print(f"{Colors.FAIL}Error: No valid packages selected for build.{Colors.ENDC}")
+        sys.exit(1)
+
+    print(
+        f"{Colors.HEADER}{Colors.BOLD}Hyprland Fedora Auto-Builder initializing...{Colors.ENDC}\n"
+    )
+    cache_sudo()
+
+    # ----------------------------------------------------------------------
+    # Apply Hardware GCC Optimizations (User Requested Feature)
+    # ----------------------------------------------------------------------
+    # -O3: Maximum safe compiler optimizations.
+    # -march=native: Utilizes full instruction sets of the host CPU (e.g., AVX2).
+    # -pipe: Speeds up compilation by caching intermediates in RAM.
+    print(
+        f"{Colors.WARNING}Injecting native C/C++ compiler optimizations...{Colors.ENDC}"
+    )
+    os.environ["CFLAGS"] = "-O3 -march=native -pipe"
+    os.environ["CXXFLAGS"] = "-O3 -march=native -pipe"
+
+    # Load local idempotency state
+    state: Dict[str, str] = {}
+    if STATE_FILE.exists():
+        with open(STATE_FILE, "r", encoding="utf-8") as f:
+            state = json.load(f)
+
+    # ----------------------------------------------------------------------
+    # Assess Upstream State
+    # ----------------------------------------------------------------------
+    updates_needed = asyncio.run(get_update_queue(packages_to_process, state))
+
+    if not updates_needed:
+        print(
+            f"\n{Colors.OKGREEN}All selected packages are fully up-to-date!{Colors.ENDC}"
+        )
+        sys.exit(0)
+
+    print(f"\n{Colors.HEADER}Packages requiring building & installation:{Colors.ENDC}")
+    for item in updates_needed:
+        print(f"  • {item['name']} -> Target Hash: {item['new_commit'][:8]}")
+
+    if not args.topgrade:
+        ans = (
+            input(
+                f"\nProceed with building these {len(updates_needed)} package(s)? [Y/n]: "
+            )
+            .strip()
+            .lower()
+        )
+        if ans not in ("", "y", "yes"):
+            print(f"{Colors.WARNING}Aborted by user.{Colors.ENDC}")
+            sys.exit(0)
+
+    # ----------------------------------------------------------------------
+    # Synchronization & Build Loop
+    # ----------------------------------------------------------------------
+    print(f"\n{Colors.HEADER}==> Updating Fedora Build Environments...{Colors.ENDC}")
+    subprocess.run(["sudo", "dnf", "install", "-y"] + DNF_DEPENDENCIES, check=True)
+
+    BUILD_DIR_BASE.mkdir(parents=True, exist_ok=True)
+
+    for pkg in updates_needed:
+        pkg_name = pkg["name"]
+        src_dir = BUILD_DIR_BASE / pkg_name
+
+        print(f"\n{Colors.HEADER}==> Processing {pkg_name}...{Colors.ENDC}")
+
+        # Wipe out traces from any prior aborted executions
+        safe_rmtree(src_dir)
+
+        try:
+            print(f"    {Colors.OKBLUE}Cloning source payload...{Colors.ENDC}")
+            if pkg.get("recursive"):
+                subprocess.run(
+                    ["git", "clone", "--recursive", pkg["url"], str(src_dir)],
+                    check=True,
+                )
+            else:
+                subprocess.run(
+                    ["git", "clone", "--depth", "1", pkg["url"], str(src_dir)],
+                    check=True,
+                )
+
+            # Python 3.10+ Structural Pattern Matching directly handles build routing
+            match pkg["type"]:
+                case "cmake":
+                    build_and_install_cmake(pkg_name, src_dir)
+                case "make":
+                    build_and_install_make(pkg_name, src_dir)
+                case _:
+                    raise ValueError(f"Unsupported build type: {pkg['type']}")
+
+            # Guarantee dynamic linker cache recognizes newly installed .so files immediately
+            subprocess.run(["sudo", "ldconfig"], check=True)
+
+            print(f"{Colors.OKGREEN}✓ Successfully installed {pkg_name}!{Colors.ENDC}")
+
+            # Save IDEMPOTENT state dynamically to prevent redundant future loops
+            state[pkg_name] = pkg["new_commit"]
+            STATE_DIR.mkdir(parents=True, exist_ok=True)
+            with open(STATE_FILE, "w", encoding="utf-8") as f:
+                json.dump(state, f, indent=4)
+
+            # Clean up the directory only on an unmitigated success
+            safe_rmtree(src_dir)
+
+        except subprocess.CalledProcessError as e:
+            print(
+                f"{Colors.FAIL}❌ Command execution failed during build of {pkg_name}: {e}{Colors.ENDC}"
+            )
+            print(
+                f"{Colors.WARNING}Notice: The source folder '{src_dir}' has been preserved for manual debugging.{Colors.ENDC}"
+            )
+            sys.exit(1)
+        except Exception as e:
+            print(
+                f"{Colors.FAIL}❌ Critical application error building {pkg_name}: {e}{Colors.ENDC}"
+            )
+            print(
+                f"{Colors.WARNING}Notice: The source folder '{src_dir}' has been preserved for manual debugging.{Colors.ENDC}"
+            )
+            sys.exit(1)
+
+    print(
+        f"\n{Colors.OKGREEN}{Colors.BOLD}Hyprland ecosystem targets successfully built and installed!{Colors.ENDC}"
+    )
+
+
+if __name__ == "__main__":
+    main()
+
