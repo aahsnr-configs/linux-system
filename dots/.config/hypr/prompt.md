@@ -1,0 +1,1 @@
+Since Hyprland v0.54.0, Hyprland has integrated the official hyprscrolling plugin into one of its core layouts. This scrolling layout now has the dispatchers in the 3st screenshot. It has also introduced the monocle layout with information pertaining to it in the 1st screenshot. The 2nd screenshot shows the current dispatchers for the dwindle layout.

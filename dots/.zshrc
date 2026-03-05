@@ -211,7 +211,8 @@ export TERMINAL="kitty"
 export BROWSER="brave"
 export EDITOR="emacsclient -t -a 'emacs'"
 export VISUAL="emacsclient -t -a 'emacs'"
-export PAGER="bat --paging=always --style=plain"
+export PAGER="less"
+export BAT_PAGER="less -R -F -K"
 
 # Path Configuration - Use typeset -U to keep unique entries
 typeset -U path PATH

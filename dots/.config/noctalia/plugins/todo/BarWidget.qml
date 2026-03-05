@@ -108,7 +108,7 @@ Item {
       if (mouse.button === Qt.LeftButton) {
         if (pluginApi) {
           Logger.i("Todo", "Opening Todo panel");
-          pluginApi.openPanel(root.screen);
+          pluginApi.openPanel(root.screen, this);
         }
       } else if (mouse.button === Qt.RightButton) {
         PanelService.showContextMenu(contextMenu, root, screen);
