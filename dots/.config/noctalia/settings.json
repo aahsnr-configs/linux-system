@@ -41,7 +41,7 @@
         "autoHideDelay": 500,
         "autoShowDelay": 150,
         "backgroundOpacity": 0.93,
-        "barType": "simple",
+        "barType": "framed",
         "capsuleColorKey": "none",
         "capsuleOpacity": 1,
         "contentPadding": 2,
@@ -449,7 +449,7 @@
         "dimmerOpacity": 0,
         "enableLockScreenCountdown": true,
         "enableLockScreenMediaControls": false,
-        "enableShadows": false,
+        "enableShadows": true,
         "forceBlackScreenCorners": false,
         "iRadiusRatio": 1,
         "keybinds": {
