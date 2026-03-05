@@ -17,6 +17,16 @@ echo "core pkgs"
 sleep 2
 sudo dnf install git-core curl wget pciutils
 
+echo "cachyos kernel"
+sleep 5
+sudo dnf config-manager setopt fedora.excludepkgs=kernel,kernel-core,kernel-modules,kernel-uki-virt,kernel-devel,kernel-modules-extra,kernel-modules-core,kernel-devel-matched
+sudo dnf config-manager setopt updates.excludepkgs=kernel,kernel-core,kernel-modules,kernel-uki-virt,kernel-devel,kernel-modules-extra,kernel-modules-core,kernel-devel-matched
+sudo dnf config-manager setopt updates-testing.excludepkgs=kernel,kernel-core,kernel-modules,kernel-uki-virt,kernel-devel,kernel-modules-extra,kernel-modules-core,kernel-devel-matched
+
+sudo dnf copr enable bieszczaders/kernel-cachyos
+sudo dnf install kernel-cachyos kernel-cachyos-devel-matched --setopt=install_weak_deps=True
+sudo dnf update
+
 echo "nvidia"
 sleep 5
 sudo dnf config-manager addrepo --from-repofile=https://negativo17.org/repos/fedora-multimedia.repo

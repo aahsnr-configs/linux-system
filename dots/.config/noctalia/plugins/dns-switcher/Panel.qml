@@ -7,7 +7,6 @@ import qs.Services.UI
 Item {
     id: root
 
-    // --- API & Sizing ---
     property var pluginApi: null
     readonly property var mainInstance: pluginApi?.mainInstance
 
@@ -21,8 +20,8 @@ Item {
     property string newName: ""
     property string newIp: ""
     property bool isAdding: false
+    property string validationError: ""
 
-    // --- BACKGROUND ---
     Rectangle {
         id: bg
         anchors.fill: parent
@@ -37,7 +36,6 @@ Item {
             anchors.margins: Style.marginL
             spacing: Style.marginM
 
-            // 1. HEADER
             NBox {
                 Layout.fillWidth: true
                 Layout.preferredHeight: headerRow.implicitHeight + Style.marginM
@@ -55,7 +53,6 @@ Item {
                     }
 
                     NText {
-                        // TRANSLATION: Plugin Title
                         text: pluginApi?.tr("plugin.title") || "DNS Switcher"
                         pointSize: Style.fontSizeL
                         font.weight: Style.fontWeightBold
@@ -66,14 +63,32 @@ Item {
                     NText {
                         text: mainInstance?.currentDnsName || "..."
                         pointSize: Style.fontSizeS
-                        color: (mainInstance?.currentDnsName === (pluginApi?.tr("status.switching") || "Switching...")) ?
-                        Color.mPrimary : Color.mSecondary
+                        color: (mainInstance?.isChanging) ? Color.mPrimary : Color.mSecondary
                         font.weight: Font.Medium
                     }
                 }
             }
 
-            // 2. SCROLLABLE LIST
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: errorText.implicitHeight + Style.marginM
+                visible: (mainInstance?.lastError || "") !== ""
+                color: Qt.alpha(Color.mError, 0.1)
+                radius: Style.radiusS
+                border.color: Qt.alpha(Color.mError, 0.3)
+                border.width: 1
+
+                NText {
+                    id: errorText
+                    anchors.fill: parent
+                    anchors.margins: Style.marginS
+                    text: mainInstance?.lastError || ""
+                    color: Color.mError
+                    pointSize: Style.fontSizeS
+                    wrapMode: Text.WordWrap
+                }
+            }
+
             NScrollView {
                 Layout.fillWidth: true
                 Layout.preferredHeight: Math.round(240 * Style.uiScaleRatio)
@@ -83,7 +98,6 @@ Item {
                     width: parent.width
                     spacing: Style.marginS
 
-                    // --- COMPONENT: DNS OPTION (FLICKER-FREE) ---
                     component DnsOption: Rectangle {
                         id: opt
                         Layout.fillWidth: true
@@ -91,20 +105,25 @@ Item {
                         radius: Style.radiusM
 
                         property string label: ""
+                        property string providerId: ""
                         property string providerIp: ""
                         property bool isCustom: false
-                        property bool isActive: (mainInstance?.currentDnsName || "") === label
+                        property int customIndex: -1
+                        property bool isActive: (mainInstance?.activeProviderId || "") === providerId
+                        property bool isDisabled: mainInstance?.isChanging || false
 
-                        // 1. BASE COLOR (Only handles Active/Inactive)
                         color: isActive ? Color.mPrimary : Color.mSurfaceVariant
+                        opacity: isDisabled ? 0.6 : 1.0
                         Behavior on color { ColorAnimation { duration: Style.animationFast } }
+                        Behavior on opacity { NumberAnimation { duration: 150 } }
 
-                        // 2. HOVER OVERLAY (Dedicated invisible layer)
                         Rectangle {
                             anchors.fill: parent
                             radius: opt.radius
-                            color: (hoverArea.containsMouse && !opt.isActive) ? Color.mHover : "transparent"
-                            opacity: (hoverArea.containsMouse && !opt.isActive) ? 0.2 : 0
+                            color: (hoverArea.containsMouse && !opt.isActive && !opt.isDisabled)
+                                   ? Color.mHover : "transparent"
+                            opacity: (hoverArea.containsMouse && !opt.isActive && !opt.isDisabled)
+                                     ? 0.2 : 0
                             Behavior on opacity { NumberAnimation { duration: 150 } }
                         }
 
@@ -128,11 +147,25 @@ Item {
                                 Layout.fillWidth: true
                             }
 
+                            NText {
+                                text: opt.providerIp
+                                pointSize: Style.fontSizeXS
+                                color: opt.isActive
+                                       ? Qt.alpha(Color.mOnPrimary, 0.7)
+                                       : Color.mOnSurfaceVariant
+                                visible: opt.providerIp !== ""
+                            }
+
                             NIconButton {
                                 visible: opt.isCustom
                                 icon: "trash"
                                 colorFg: opt.isActive ? Color.mOnPrimary : Color.mError
-                                onClicked: if (mainInstance) mainInstance.removeCustomServer(index - 5)
+                                enabled: !opt.isDisabled
+                                onClicked: {
+                                    if (mainInstance && opt.customIndex >= 0) {
+                                        mainInstance.removeCustomServer(opt.customIndex);
+                                    }
+                                }
                             }
                         }
 
@@ -140,92 +173,161 @@ Item {
                             id: hoverArea
                             anchors.fill: parent
                             hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
+                            cursorShape: opt.isDisabled ? Qt.ForbiddenCursor : Qt.PointingHandCursor
                             onClicked: {
-                                if (mainInstance) mainInstance.setDns(opt.providerIp)
-                                    if (pluginApi) pluginApi.withCurrentScreen((s) => pluginApi.closePanel(s))
+                                if (opt.isDisabled) return;
+                                if (mainInstance) {
+                                    mainInstance.setDns(opt.isCustom ? opt.providerIp : opt.providerId);
+                                }
+                                if (pluginApi) {
+                                    pluginApi.withCurrentScreen(function(s) {
+                                        pluginApi.closePanel(s);
+                                    });
+                                }
                             }
                         }
                     }
 
-                    // --- LIST ITEMS ---
-                    DnsOption { label: "Google"; providerIp: "google" }
-                    DnsOption { label: "Cloudflare"; providerIp: "cloudflare" }
-                    DnsOption { label: "OpenDNS"; providerIp: "opendns" }
-                    DnsOption { label: "AdGuard"; providerIp: "adguard" }
-                    DnsOption { label: "Quad9"; providerIp: "quad9" }
+                    DnsOption {
+                        label: "Google"
+                        providerId: "google"
+                        providerIp: "8.8.8.8 8.8.4.4"
+                    }
+                    DnsOption {
+                        label: "Cloudflare"
+                        providerId: "cloudflare"
+                        providerIp: "1.1.1.1 1.0.0.1"
+                    }
+                    DnsOption {
+                        label: "OpenDNS"
+                        providerId: "opendns"
+                        providerIp: "208.67.222.222 208.67.220.220"
+                    }
+                    DnsOption {
+                        label: "AdGuard"
+                        providerId: "adguard"
+                        providerIp: "94.140.14.14 94.140.15.15"
+                    }
+                    DnsOption {
+                        label: "Quad9"
+                        providerId: "quad9"
+                        providerIp: "9.9.9.9 149.112.112.112"
+                    }
 
                     Repeater {
                         model: mainInstance ? mainInstance.customProviders : []
                         delegate: DnsOption {
                             label: modelData.label
+                            providerId: "custom_" + index
                             providerIp: modelData.ip
                             isCustom: true
+                            customIndex: index
                         }
                     }
                 }
             }
 
-            // 3. ADD CUSTOM SERVER BUTTON
             NButton {
                 Layout.fillWidth: true
-                // TRANSLATION: Add/Cancel
                 text: root.isAdding
-                ? (pluginApi?.tr("panel.cancel") || "Cancel")
-                : (pluginApi?.tr("panel.add_server") || "Add Custom Server")
+                      ? (pluginApi?.tr("panel.cancel") || "Cancel")
+                      : (pluginApi?.tr("panel.add_server") || "Add Custom Server")
                 icon: root.isAdding ? "x" : "plus"
                 backgroundColor: root.isAdding ? Color.mSurfaceVariant : Qt.alpha(Color.mPrimary, 0.15)
                 textColor: root.isAdding ? Color.mOnSurface : Color.mPrimary
-                onClicked: root.isAdding = !root.isAdding
-            }
-
-            // 4. ADD FORM
-            ColumnLayout {
-                Layout.fillWidth: true;
-                visible: root.isAdding; spacing: Style.marginS
-                RowLayout {
-                    spacing: Style.marginS
-                    NTextInput {
-                        Layout.fillWidth: true;
-                        // TRANSLATION: Name
-                        label: pluginApi?.tr("panel.name_placeholder") || "Name"
-                        placeholderText: pluginApi?.tr("panel.name_placeholder") || "Name"
-                        onTextChanged: root.newName = text
-                    }
-                    NTextInput {
-                        Layout.fillWidth: true;
-                        // TRANSLATION: IP
-                        label: pluginApi?.tr("panel.ip_placeholder") || "IP"
-                        placeholderText: pluginApi?.tr("panel.ip_placeholder") || "IP"
-                        onTextChanged: root.newIp = text
+                enabled: !(mainInstance?.isChanging || false)
+                onClicked: {
+                    root.isAdding = !root.isAdding;
+                    if (!root.isAdding) {
+                        root.newName = "";
+                        root.newIp = "";
+                        root.validationError = "";
                     }
                 }
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                visible: root.isAdding
+                spacing: Style.marginS
+
+                RowLayout {
+                    spacing: Style.marginS
+
+                    NTextInput {
+                        id: nameInput
+                        Layout.fillWidth: true
+                        label: pluginApi?.tr("panel.name_placeholder") || "Name"
+                        placeholderText: pluginApi?.tr("panel.name_placeholder") || "e.g. My DNS"
+                        text: root.newName
+                        onTextChanged: {
+                            root.newName = text;
+                            root.validationError = "";
+                        }
+                    }
+
+                    NTextInput {
+                        id: ipInput
+                        Layout.fillWidth: true
+                        label: pluginApi?.tr("panel.ip_placeholder") || "IP Address"
+                        placeholderText: pluginApi?.tr("panel.ip_placeholder") || "e.g. 1.2.3.4 5.6.7.8"
+                        text: root.newIp
+                        onTextChanged: {
+                            root.newIp = text;
+                            root.validationError = "";
+                        }
+                    }
+                }
+
+                NText {
+                    Layout.fillWidth: true
+                    visible: root.validationError !== ""
+                    text: root.validationError
+                    color: Color.mError
+                    pointSize: Style.fontSizeXS
+                    wrapMode: Text.WordWrap
+                }
+
                 NButton {
-                    Layout.fillWidth: true;
-                    // TRANSLATION: Save
+                    Layout.fillWidth: true
                     text: pluginApi?.tr("panel.save") || "Save"
                     icon: "check"
+                    enabled: root.newName.trim() !== "" && root.newIp.trim() !== ""
                     onClicked: {
                         if (mainInstance) {
-                            mainInstance.addCustomServer(root.newName, root.newIp);
-                            root.newName = ""; root.newIp = ""; root.isAdding = false
+                            var success = mainInstance.addCustomServer(root.newName, root.newIp);
+                            if (success) {
+                                root.newName = "";
+                                root.newIp = "";
+                                root.isAdding = false;
+                                root.validationError = "";
+                            } else {
+                                root.validationError = pluginApi?.tr("error.invalid_ip")
+                                                       || "Invalid IP address format. Use: x.x.x.x or x.x.x.x x.x.x.x";
+                            }
                         }
                     }
                 }
             }
 
-            // 5. RESET BUTTON
             NButton {
                 Layout.fillWidth: true
                 Layout.topMargin: Style.marginS
-                // TRANSLATION: Reset
                 text: pluginApi?.tr("panel.reset") || "Reset to Default (ISP)"
                 icon: "refresh"
                 backgroundColor: Qt.alpha(Color.mError, 0.15)
                 textColor: Color.mError
+                enabled: !(mainInstance?.isChanging || false)
+                         && (mainInstance?.isCustomDns || false)
                 onClicked: {
-                    if (mainInstance) mainInstance.setDns("default")
-                        if (pluginApi) pluginApi.withCurrentScreen((s) => pluginApi.closePanel(s))
+                    if (mainInstance) {
+                        mainInstance.setDns("default");
+                    }
+                    if (pluginApi) {
+                        pluginApi.withCurrentScreen(function(s) {
+                            pluginApi.closePanel(s);
+                        });
+                    }
                 }
             }
         }

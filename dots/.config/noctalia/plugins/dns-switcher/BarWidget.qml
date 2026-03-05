@@ -21,6 +21,14 @@ Item {
     implicitWidth: contentWidth
     implicitHeight: contentHeight
 
+    readonly property var providerIcons: ({
+        "google": "brand-google",
+        "cloudflare": "cloud",
+        "opendns": "world",
+        "adguard": "shield-check",
+        "quad9": "lock"
+    })
+
     Rectangle {
         id: visualCapsule
         x: Style.pixelAlignCenter(parent.width, width)
@@ -32,26 +40,20 @@ Item {
         border.color: Style.capsuleBorderColor
         border.width: Style.capsuleBorderWidth
 
+        Behavior on color { ColorAnimation { duration: 150 } }
+
         RowLayout {
             id: contentRow
             anchors.centerIn: parent
             spacing: Style.marginS
 
             NIcon {
-                icon: {
-                    var name = mainInstance?.currentDnsName || "";
-                    if (name === "Google") return "brand-google";
-                    if (name === "Cloudflare") return "cloud";
-                    if (name === "AdGuard") return "shield-check";
-                    if (name === "Quad9") return "lock";
-                    return "globe";
-                }
+                icon: root.providerIcons[mainInstance?.activeProviderId || ""] || "globe"
                 pointSize: Style.fontSizeS
                 color: Color.mPrimary
             }
 
             NText {
-                // TRANSLATION: Short Title
                 text: mainInstance?.currentDnsName || pluginApi?.tr("plugin.short_title") || "DNS"
                 color: mouseArea.containsMouse ? Color.mOnHover : Color.mOnSurface
                 pointSize: Style.barFontSize
@@ -68,7 +70,7 @@ Item {
 
         onClicked: {
             if (pluginApi) {
-                pluginApi.openPanel(root.screen, root)
+                pluginApi.openPanel(root.screen, root);
             }
         }
     }

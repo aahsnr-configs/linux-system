@@ -193,7 +193,7 @@ zsh_plugin_remove() {
     fi
 }
 
-eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv zsh)"
+#eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv zsh)"
 
 ### ENVIRONMENT VARIABLES
 # XDG Base Directory Specification
@@ -208,7 +208,7 @@ export BACKUP_DIR="${HOME}/backup"
 
 # Default Applications
 export TERMINAL="kitty"
-export BROWSER="brave-browser"
+export BROWSER="brave"
 export EDITOR="emacsclient -t -a 'emacs'"
 export VISUAL="emacsclient -t -a 'emacs'"
 export PAGER="bat --paging=always --style=plain"
@@ -939,8 +939,3 @@ function y() {
 
 export PATH="/home/ahsan/.pixi/bin:$PATH"
 
-# bun completions
-[ -s "/home/ahsan/.bun/_bun" ] && source "/home/ahsan/.bun/_bun"
-
-
-eval "$(~/.local/bin/mise activate zsh)"

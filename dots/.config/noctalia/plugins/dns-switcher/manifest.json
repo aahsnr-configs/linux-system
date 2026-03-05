@@ -1,10 +1,10 @@
 {
   "id": "dns-switcher",
   "name": "DNS Switcher",
-  "version": "1.0.1",
-  "description": "DNS Manager",
+  "version": "1.2.0",
+  "description": "DNS Manager with custom server support for Noctalia.",
   "repository": "https://github.com/noctalia-dev/noctalia-plugins",
-  "tags": [
+    "tags": [
     "Bar",
     "Network"
   ],
