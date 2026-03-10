@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import qs.Services.UI
 import qs.Widgets
 
 NIconButtonHot {
@@ -12,6 +13,12 @@ NIconButtonHot {
     onClicked: {
         if (pluginApi) {
             pluginApi.togglePanel(screen);
+        }
+    }
+
+    onRightClicked: {
+        if (pluginApi && pluginApi.manifest) {
+            BarService.openPluginSettings(screen, pluginApi.manifest);
         }
     }
 }

@@ -6,37 +6,9 @@
     }
   ],
   "current_page_id": 0,
-  "todos": [
-    {
-      "id": 1771824798665,
-      "text": "Finish customizing noctalia shell",
-      "completed": false,
-      "createdAt": "2026-02-23T05:33:18.665Z",
-      "pageId": 0,
-      "priority": "medium",
-      "details": ""
-    },
-    {
-      "id": 1771824701793,
-      "text": "return to claude.ai ahsanur041@gmail at 2pm to add asusclt fan curves without using rog-control-center",
-      "completed": false,
-      "createdAt": "2026-02-23T05:31:41.793Z",
-      "pageId": 0,
-      "priority": "medium",
-      "details": ""
-    },
-    {
-      "id": 1771829086919,
-      "text": "Study mirtazapine and clonidine for my use",
-      "completed": true,
-      "createdAt": "2026-02-23T06:44:46.919Z",
-      "pageId": 0,
-      "priority": "high",
-      "details": ""
-    }
-  ],
-  "count": 3,
-  "completedCount": 1,
+  "todos": [],
+  "count": 0,
+  "completedCount": 0,
   "isExpanded": false,
   "useCustomColors": false,
   "priorityColors": {

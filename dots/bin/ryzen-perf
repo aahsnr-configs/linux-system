@@ -1,0 +1,2 @@
+#!/bin/bash
+sudo ryzenadj --stapm-limit=33000 --fast-limit=45000 --slow-limit=33000 --tctl-temp=90 --max-performance
