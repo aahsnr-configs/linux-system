@@ -8,7 +8,9 @@
         "customLaunchPrefixEnabled": false,
         "density": "comfortable",
         "enableClipPreview": true,
+        "enableClipboardChips": true,
         "enableClipboardHistory": false,
+        "enableClipboardSmartIcons": true,
         "enableSessionSearch": true,
         "enableSettingsSearch": true,
         "enableWindowsSearch": true,
@@ -16,6 +18,7 @@
         "ignoreMouseInput": false,
         "overviewLayer": false,
         "pinnedApps": [
+            "brave-browser"
         ],
         "position": "bottom_left",
         "screenshotAnnotationTool": "",
