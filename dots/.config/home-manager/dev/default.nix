@@ -4,6 +4,9 @@
   home.packages = with pkgs; [
     nixd
     alejandra
+    shellcheck
+    shfmt
+    bash-language-server
     nix-prefetch
     nix-prefetch-github
  ];
