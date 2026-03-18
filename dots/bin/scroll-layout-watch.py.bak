@@ -1,0 +1,284 @@
+#!/usr/bin/env python3
+"""
+scroll-layout-watch.py  —  Hyprland scrolling-layout two-window left-aligner
+──────────────────────────────────────────────────────────────────────────────
+When the 2nd tiled window opens on a workspace the script snaps the scrolling
+layout's viewport flush to the left edge (tape x = 0) so the two 1/3-wide
+columns sit at the left of the screen with empty space on the right.
+
+REQUIREMENTS
+  • Hyprland ≥ 0.54  (built-in scrolling layout)
+  • settings.conf must contain:
+        scrolling {
+            column_width             = 0.333
+            fullscreen_on_one_column = true
+            focus_fit_method         = 1      ← MUST be 1 (fit), not 0 (center)
+        }
+  • Install:
+        mkdir -p ~/.config/hypr/scripts
+        cp scroll-layout-watch.py ~/.config/hypr/scripts/
+        chmod +x ~/.config/hypr/scripts/scroll-layout-watch.py
+  • Add to hyprland.conf (exec-once section):
+        exec-once = ~/.config/hypr/scripts/scroll-layout-watch.py
+
+──────────────────────────────────────────────────────────────────────────────
+WHY THE ORIGINAL SCRIPT HAD TWO BUGS — AND HOW THEY ARE FIXED HERE
+──────────────────────────────────────────────────────────────────────────────
+
+BUG 1 — VISIBLE FLICKER WHEN THE 2ND WINDOW OPENS
+  Cause:
+    The scrolling layout's follow_focus callback fires synchronously as soon
+    as window 2 is created and focused.  With focus_fit_method = 0 (center),
+    follow_focus starts a windowsMove animation to scroll the viewport so that
+    column 2's center (tape x ≈ 0.50) is in the middle of the screen.  The
+    original script's 50 ms timer fires *after* that animation is already
+    running.  Its corrective `move -9999` then kicks off a *second* animation
+    in the opposite direction — the two conflicting animations produce the
+    observable flicker.
+
+  Fix (two-part):
+    1. Keep focus_fit_method = 1 (fit) in settings.conf at all times — do NOT
+       toggle it back to 0 for other window counts.  With fit mode, follow_focus
+       moves the viewport only far enough to make the focused column *visible*.
+       For a fresh single-window workspace leftOffset is 0; column 2 sits at
+       tape x = 0.333 and is already 100 % visible inside [0, 1.0].  So
+       follow_focus produces NO scroll animation at all → nothing to flicker
+       against our correction.
+    2. The corrective `move -100000` is sent via `hyprctl --batch` together
+       with animation-disable/re-enable guards:
+           keyword animations:enabled 0
+           dispatch layoutmsg move -100000
+           keyword animations:enabled 1
+       `--batch` delivers all three commands to Hyprland in a single IPC write.
+       Hyprland processes them synchronously in the same event-loop iteration,
+       before the compositor renders the next frame.  The viewport jump is
+       therefore completely invisible.
+
+BUG 2 — WINDOW 3 (AND LATER) INSERTS IN THE WRONG POSITION
+  Cause:
+    The original script issued `layoutmsg fit tobeg` *before* `move -9999`.
+    `fit tobeg` is not a pure viewport command — it adjusts column widths AND
+    changes the layout's internal active-column pointer to column 1 (the
+    leftmost column, i.e. "beginning of tape").  The scrolling layout inserts
+    every new window *after the currently active column*.  With the active
+    column now pointing at column 1, window 3 inserted between columns 1 and 2.
+    Window 4 inserted after the new column 2 (still left of the original
+    window 2), and so on — all subsequent windows piled up to the left of the
+    original second window.
+
+  Fix:
+    Remove `fit tobeg` entirely.  Use ONLY `layoutmsg move -100000`.
+    `move -N` is a *pure viewport offset* operation: it subtracts N logical
+    pixels from leftOffset and clamps to 0.  It never touches which column the
+    layout considers "active".  After the snap, the active-column pointer still
+    points at column 2 (the most recently opened window).  Window 3 therefore
+    inserts after column 2, window 4 after column 3, etc. — correct order. ✓
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import socket
+import subprocess
+import sys
+import threading
+import time
+from typing import Optional
+
+# ── tunables ─────────────────────────────────────────────────────────────────
+
+# How long (seconds) to wait after the last triggering event before acting.
+# 20 ms is enough for Hyprland to finish registering the new window while
+# being short enough that follow_focus (fit mode) has no leftOffset to correct
+# on a fresh single-window workspace.
+DEBOUNCE_S: float = 0.02
+
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+_timer: Optional[threading.Timer] = None
+_lock = threading.Lock()
+
+
+# ── IPC helpers ───────────────────────────────────────────────────────────────
+
+def _socket2_path() -> str:
+    sig = os.environ.get("HYPRLAND_INSTANCE_SIGNATURE")
+    if not sig:
+        print("[scroll-watch] HYPRLAND_INSTANCE_SIGNATURE not set.",
+              file=sys.stderr)
+        sys.exit(1)
+    xdg = os.environ.get("XDG_RUNTIME_DIR", "")
+    xdg_p = f"{xdg}/hypr/{sig}/.socket2.sock"
+    tmp_p  = f"/tmp/hypr/{sig}/.socket2.sock"
+    return xdg_p if (xdg and os.path.exists(xdg_p)) else tmp_p
+
+
+def _hyprctl(*args: str) -> str:
+    """Run hyprctl and return stdout; empty string on any error."""
+    try:
+        return subprocess.check_output(
+            ["hyprctl", *args], stderr=subprocess.DEVNULL
+        ).decode("utf-8", errors="replace")
+    except Exception:
+        return ""
+
+
+def _batch(*cmds: str) -> None:
+    """
+    Send multiple commands in ONE hyprctl IPC round-trip.
+
+    Hyprland processes --batch commands synchronously in the same event-loop
+    iteration, before the next render frame.  This makes the
+    animations:enabled=0 / move / animations:enabled=1 sequence invisible to
+    the user — the viewport jump never appears on screen.
+    """
+    try:
+        subprocess.run(
+            ["hyprctl", "--batch", " ; ".join(cmds)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+    except Exception as exc:
+        print(f"[scroll-watch] _batch error: {exc}", file=sys.stderr)
+
+
+# ── core logic ────────────────────────────────────────────────────────────────
+
+def _active_workspace_id() -> Optional[int]:
+    raw = _hyprctl("activeworkspace", "-j")
+    if not raw:
+        return None
+    try:
+        return json.loads(raw).get("id")
+    except json.JSONDecodeError:
+        return None
+
+
+def _tiled_count(ws_id: int) -> int:
+    """Count non-floating tiled windows on the given workspace."""
+    raw = _hyprctl("clients", "-j")
+    if not raw:
+        return 0
+    try:
+        clients = json.loads(raw)
+    except json.JSONDecodeError:
+        return 0
+    return sum(
+        1 for c in clients
+        if c.get("workspace", {}).get("id") == ws_id
+        and not c.get("floating", False)
+        # 'mapped' may be absent in very old builds; default True keeps them
+        and c.get("mapped", True)
+    )
+
+
+def _check_and_align() -> None:
+    """
+    Inspect the active workspace.  If it has exactly 2 tiled windows, snap
+    the scrolling layout's viewport to tape-start (x = 0) atomically and
+    without any visible animation.
+    """
+    ws_id = _active_workspace_id()
+    if ws_id is None or ws_id < 0:
+        # Negative IDs are special/scratchpad workspaces — skip.
+        return
+
+    count = _tiled_count(ws_id)
+    print(f"[scroll-watch] ws={ws_id}  tiled_windows={count}")
+
+    if count != 2:
+        # Nothing to do for 1 window (fullscreen_on_one_column handles it)
+        # or for 3+ windows (normal scrolling behaviour).
+        return
+
+    print("[scroll-watch] → 2 windows detected: snapping viewport to left edge")
+
+    _batch(
+        # ① Disable animations so the viewport correction is instant and
+        #   invisible.  No "second animation" competing with follow_focus.
+        "keyword animations:enabled 0",
+
+        # ② Pure viewport shift — subtracts 100 000 logical px from leftOffset.
+        #   The value clamps to 0 regardless of monitor resolution or HiDPI
+        #   scale, so tape-start is always reached.
+        #
+        #   CRITICAL: `move -N` is the ONLY safe command here.
+        #   DO NOT use `fit tobeg` — that command changes the layout's internal
+        #   active-column pointer to column 1, causing every subsequent new
+        #   window to insert between columns 1 and 2 instead of appending to
+        #   the right (Bug 2).
+        "dispatch layoutmsg move -100000",
+
+        # ③ Restore animations immediately — back in the same IPC batch so no
+        #   frame is rendered between ② and ③.
+        "keyword animations:enabled 1",
+    )
+
+
+# ── debounce ──────────────────────────────────────────────────────────────────
+
+def _schedule() -> None:
+    """Cancel any pending check and schedule a fresh one after DEBOUNCE_S."""
+    global _timer
+    with _lock:
+        if _timer is not None:
+            _timer.cancel()
+        t = threading.Timer(DEBOUNCE_S, _check_and_align)
+        t.daemon = True
+        _timer = t
+        t.start()
+
+
+# ── event routing ─────────────────────────────────────────────────────────────
+
+# Events that can change how many tiled windows are on the active workspace.
+_TRIGGERS = (
+    "openwindow>>",
+    "closewindow>>",
+    "movewindow>>",       # window moved to/from the active workspace
+    "workspace>>",        # user switched to a different workspace
+    "focusedmon>>",       # monitor focus changed (active workspace may differ)
+)
+
+
+def _handle(line: str) -> None:
+    if any(line.startswith(t) for t in _TRIGGERS):
+        _schedule()
+
+
+# ── main loop ─────────────────────────────────────────────────────────────────
+
+def main() -> None:
+    sock_path = _socket2_path()
+    print(f"[scroll-watch] Connecting to {sock_path}")
+
+    # Run once at startup so any already-open 2-window workspace is aligned
+    # correctly (e.g. after `hyprctl reload`).
+    _check_and_align()
+
+    while True:
+        try:
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
+                s.connect(sock_path)
+                buf = ""
+                while True:
+                    data = s.recv(4096).decode("utf-8", errors="replace")
+                    if not data:
+                        break
+                    buf += data
+                    while "\n" in buf:
+                        line, buf = buf.split("\n", 1)
+                        _handle(line.strip())
+        except Exception as exc:
+            print(
+                f"[scroll-watch] socket error ({exc}) — reconnecting in 3 s",
+                file=sys.stderr,
+            )
+            time.sleep(3)
+
+
+if __name__ == "__main__":
+    main()

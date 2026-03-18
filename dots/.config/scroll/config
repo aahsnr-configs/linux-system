@@ -2,7 +2,6 @@
 # ~/.config/scroll/config  –  Main entry point
 
 # ── Global variables ──────────────────────────────────────────────────────────
-set $mod       Mod4
 set $left      Left
 set $down      Down
 set $up        Up

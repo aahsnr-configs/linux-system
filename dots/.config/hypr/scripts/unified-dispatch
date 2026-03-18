@@ -110,7 +110,12 @@ LAYOUT=$(get_active_layout)
 #  monocle   │ layoutmsg cyclenext/prev     │ layoutmsg cyclenext/prev
 #            │ (bare `cyclenext` is broken  │
 #            │  in monocle — use layoutmsg) │
-#  resize    │ resizeactive — layout-agnostic across all layouts
+#
+#  Layout    │ RESIZE
+#  ──────────┼──────────────────────────────────────────────────────────────────
+#  scrolling │ layoutmsg colresize ±0.05  (l/r — column width, proportional)
+#            │ resizeactive 0 ±60         (u/d — window height within column)
+#  all other │ resizeactive ±60 0 / 0 ±60 (layout-agnostic)
 # ─────────────────────────────────────────────────────────────────────────────
 
 case "$ACTION" in
@@ -151,11 +156,21 @@ movewin)
     esac ;;
 
 resize)
-    case "$DIRECTION" in
-    l) dispatch resizeactive -60 0 ;;
-    r) dispatch resizeactive  60 0 ;;
-    u) dispatch resizeactive  0 -60 ;;
-    d) dispatch resizeactive  0  60 ;;
+    case "$LAYOUT" in
+    scrolling)
+        case "$DIRECTION" in
+        l) dispatch layoutmsg "colresize -0.05" ;;
+        r) dispatch layoutmsg "colresize +0.05" ;;
+        u) dispatch resizeactive 0 -60 ;;
+        d) dispatch resizeactive 0  60 ;;
+        esac ;;
+    *)
+        case "$DIRECTION" in
+        l) dispatch resizeactive -60 0 ;;
+        r) dispatch resizeactive  60 0 ;;
+        u) dispatch resizeactive  0 -60 ;;
+        d) dispatch resizeactive  0  60 ;;
+        esac ;;
     esac ;;
 
 *)

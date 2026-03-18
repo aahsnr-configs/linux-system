@@ -33,15 +33,15 @@
 # Values : scrolling | dwindle | master | monocle
 # ─────────────────────────────────────────────────────────────────────────────
 declare -A WS_LAYOUT=(
-    [10]=scrolling
-    [11]=scrolling
-    [12]=scrolling
-    [13]=dwindle
-    [14]=dwindle
-    [15]=dwindle
-    [16]=master
-    [17]=master
-    [18]=monocle
+    [1]=scrolling
+    [2]=scrolling
+    [3]=scrolling
+    [4]=dwindle
+    [5]=dwindle
+    [6]=dwindle
+    [7]=master
+    [8]=master
+    [9]=monocle
 )
 
 # ── Validation ────────────────────────────────────────────────────────────────
@@ -80,13 +80,16 @@ get_active_layout() {
     # Tier 1: IPC (only trust validated layout names)
     layout=$(printf '%s' "$ws_json" | jq -r '.layout // empty' 2>/dev/null | tr '[:upper:]' '[:lower:]')
     case "$layout" in
-        scrolling|dwindle|master|monocle)
-            printf '%s' "$layout"; return ;;
+    scrolling | dwindle | master | monocle)
+        printf '%s' "$layout"
+        return
+        ;;
     esac
 
     # Tier 2: static table
     if [[ -n "$ws_id" && "${WS_LAYOUT[$ws_id]+set}" == "set" ]]; then
-        printf '%s' "${WS_LAYOUT[$ws_id]}"; return
+        printf '%s' "${WS_LAYOUT[$ws_id]}"
+        return
     fi
 
     printf 'Error: workspace "%s" not in WS_LAYOUT table in %s\n' \
@@ -123,15 +126,19 @@ case "$ACTION" in
 focus)
     case "$LAYOUT" in
     scrolling)
-        dispatch layoutmsg "focus $DIRECTION" ;;
-    master|monocle)
+        dispatch layoutmsg "focus $DIRECTION"
+        ;;
+    master | monocle)
         case "$DIRECTION" in
-        r|d) dispatch layoutmsg cyclenext ;;
-        l|u) dispatch layoutmsg cycleprev ;;
-        esac ;;
-    dwindle|*)
-        dispatch movefocus "$DIRECTION" ;;
-    esac ;;
+        r | d) dispatch layoutmsg cyclenext ;;
+        l | u) dispatch layoutmsg cycleprev ;;
+        esac
+        ;;
+    dwindle | *)
+        dispatch movefocus "$DIRECTION"
+        ;;
+    esac
+    ;;
 
 movewin)
     case "$LAYOUT" in
@@ -139,21 +146,26 @@ movewin)
         case "$DIRECTION" in
         l) dispatch layoutmsg "swapcol l" ;;
         r) dispatch layoutmsg "swapcol r" ;;
-        u|d) dispatch movewindow "$DIRECTION" ;;
-        esac ;;
+        u | d) dispatch movewindow "$DIRECTION" ;;
+        esac
+        ;;
     master)
         case "$DIRECTION" in
-        r|d) dispatch layoutmsg rollnext ;;
-        l|u) dispatch layoutmsg rollprev ;;
-        esac ;;
+        r | d) dispatch layoutmsg rollnext ;;
+        l | u) dispatch layoutmsg rollprev ;;
+        esac
+        ;;
     monocle)
         case "$DIRECTION" in
-        r|d) dispatch layoutmsg cyclenext ;;
-        l|u) dispatch layoutmsg cycleprev ;;
-        esac ;;
-    dwindle|*)
-        dispatch movewindow "$DIRECTION" ;;
-    esac ;;
+        r | d) dispatch layoutmsg cyclenext ;;
+        l | u) dispatch layoutmsg cycleprev ;;
+        esac
+        ;;
+    dwindle | *)
+        dispatch movewindow "$DIRECTION"
+        ;;
+    esac
+    ;;
 
 resize)
     case "$LAYOUT" in
@@ -162,18 +174,22 @@ resize)
         l) dispatch layoutmsg "colresize -0.05" ;;
         r) dispatch layoutmsg "colresize +0.05" ;;
         u) dispatch resizeactive 0 -60 ;;
-        d) dispatch resizeactive 0  60 ;;
-        esac ;;
+        d) dispatch resizeactive 0 60 ;;
+        esac
+        ;;
     *)
         case "$DIRECTION" in
         l) dispatch resizeactive -60 0 ;;
-        r) dispatch resizeactive  60 0 ;;
-        u) dispatch resizeactive  0 -60 ;;
-        d) dispatch resizeactive  0  60 ;;
-        esac ;;
-    esac ;;
+        r) dispatch resizeactive 60 0 ;;
+        u) dispatch resizeactive 0 -60 ;;
+        d) dispatch resizeactive 0 60 ;;
+        esac
+        ;;
+    esac
+    ;;
 
 *)
     printf 'Error: unknown action "%s". Use: focus | movewin | resize\n' "$ACTION" >&2
-    exit 1 ;;
+    exit 1
+    ;;
 esac
