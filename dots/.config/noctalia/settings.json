@@ -18,7 +18,6 @@
         "ignoreMouseInput": false,
         "overviewLayer": false,
         "pinnedApps": [
-            "brave-browser"
         ],
         "position": "bottom_left",
         "screenshotAnnotationTool": "",
@@ -245,16 +244,6 @@
                     "id": "plugin:timer"
                 },
                 {
-                    "defaultSettings": {
-                        "enableTodoIntegration": false,
-                        "notecardsEnabled": true,
-                        "pincardsEnabled": true,
-                        "position": "Bottom",
-                        "showCloseButton": false
-                    },
-                    "id": "plugin:clipper"
-                },
-                {
                     "id": "plugin:weekly-calendar"
                 },
                 {
@@ -445,7 +434,7 @@
         "enableBlurBehind": true,
         "enableLockScreenCountdown": true,
         "enableLockScreenMediaControls": false,
-        "enableShadows": true,
+        "enableShadows": false,
         "forceBlackScreenCorners": false,
         "iRadiusRatio": 1,
         "keybinds": {

@@ -27,8 +27,8 @@ export XCURSOR_THEME=Bibata-Modern-Ice
 export XCURSOR_SIZE=20
 
 # If you want to use the vulkan renderer instead of the gles2 one (more eatures, experimental, better performance) uncomment this line
-export WLR_RENDERER=vulkan
+#export WLR_RENDERER=vulkan
+export WLR_DRM_DEVICES=/dev/dri/card1:/dev/dri/card2
 
 ## Start
-sleep 0.5
-sway
+scroll
