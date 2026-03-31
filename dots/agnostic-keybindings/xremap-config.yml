@@ -1,0 +1,380 @@
+# =============================================================================
+# ~/.config/xremap/config.yml
+# Role in the 3-daemon split:
+#   swhkd              → app launches, media keys, system, bar, transparency
+#   xremap (this file) → BSPWM window management + chord sequences
+#   kanata             → mouse right-click binding
+#
+# HOW TO BUILD (pick the feature matching your compositor):
+#   cargo install xremap --features hypr      # Hyprland
+#   cargo install xremap --features wlroots   # Sway, Wayfire, River
+#   cargo install xremap --features gnome     # GNOME Wayland
+#   cargo install xremap --features kde       # KDE Plasma Wayland
+#   cargo install xremap --features niri      # Niri
+#
+# HOW TO RUN:
+#   xremap ~/.config/xremap/config.yml
+#
+# AUTO-RELOAD ON SAVE:
+#   xremap --watch=config ~/.config/xremap/config.yml
+#
+# KEY NAME NOTES:
+#   Super-x        → Windows/Super key + x
+#   C-x            → Ctrl + x  (also: Ctrl-x)
+#   Alt-x / M-x    → Alt + x
+#   Shift-x        → Shift + x
+#   Combos:        → Super-Ctrl-x, C-Alt-x, Super-Alt-Shift-x, etc.
+#   Arrow keys:    → Left, Right, Up, Down
+#   equal          → the +/= physical key (no Shift needed)
+#   minus          → the -/_ physical key
+#   comma / dot    → , and . keys
+#   Full key list: https://github.com/emberian/evdev (search scancodes.rs)
+# =============================================================================
+
+keymap:
+  - remap:
+
+      # ────────────────────────────────────────────────────────────
+      # BSPWM — Reload / Config
+      # ────────────────────────────────────────────────────────────
+
+      Super-Alt-r:
+        launch: ["bspc", "wm", "-r"]
+
+      # ────────────────────────────────────────────────────────────
+      # BSPWM — Close / Kill Node
+      # ────────────────────────────────────────────────────────────
+
+      Super-x:
+        launch: ["bspc", "node", "-c"]
+
+      Super-Shift-x:
+        launch: ["bspc", "node", "-k"]
+
+      # ────────────────────────────────────────────────────────────
+      # BSPWM — Node States
+      # ────────────────────────────────────────────────────────────
+
+      # Tiled
+      Alt-t:
+        launch: ["bspc", "node", "-t", "tiled"]
+
+      # Pseudo-tiled
+      Alt-Shift-t:
+        launch: ["bspc", "node", "-t", "pseudo_tiled"]
+
+      # Floating
+      Alt-a:
+        launch: ["bspc", "node", "-t", "floating"]
+
+      # Fullscreen
+      Alt-f:
+        launch: ["bspc", "node", "-t", "fullscreen"]
+
+      # ────────────────────────────────────────────────────────────
+      # BSPWM — Node Flags
+      # ────────────────────────────────────────────────────────────
+
+      Alt-m:
+        launch: ["bspc", "node", "-g", "marked"]
+
+      Alt-x:
+        launch: ["bspc", "node", "-g", "locked"]
+
+      Alt-s:
+        launch: ["bspc", "node", "-g", "sticky"]
+
+      Alt-p:
+        launch: ["bspc", "node", "-g", "private"]
+
+      # ────────────────────────────────────────────────────────────
+      # BSPWM — Hide / Restore Nodes
+      # ────────────────────────────────────────────────────────────
+
+      # Hide focused window
+      Alt-h:
+        launch: ["HideNode", "--hide"]
+
+      # Show rofi menu to restore hidden windows
+      C-Alt-h:
+        launch: ["HideNode", "--menu"]
+
+      # ────────────────────────────────────────────────────────────
+      # BSPWM — Rotate Desktop
+      # ────────────────────────────────────────────────────────────
+
+      C-Tab:
+        launch: ["bspc", "node", "@/", "--rotate", "90"]
+
+      # ────────────────────────────────────────────────────────────
+      # BSPWM — Switch Workspace
+      # ────────────────────────────────────────────────────────────
+
+      Super-Left:
+        launch: ["bspc", "desktop", "-f", "prev"]
+
+      Super-Right:
+        launch: ["bspc", "desktop", "-f", "next"]
+
+      # ────────────────────────────────────────────────────────────
+      # BSPWM — Focus Desktop 1–9 (and 0 → desktop 10)
+      # ────────────────────────────────────────────────────────────
+
+      Super-1:
+        launch: ["bspc", "desktop", "-f", "^1"]
+      Super-2:
+        launch: ["bspc", "desktop", "-f", "^2"]
+      Super-3:
+        launch: ["bspc", "desktop", "-f", "^3"]
+      Super-4:
+        launch: ["bspc", "desktop", "-f", "^4"]
+      Super-5:
+        launch: ["bspc", "desktop", "-f", "^5"]
+      Super-6:
+        launch: ["bspc", "desktop", "-f", "^6"]
+      Super-7:
+        launch: ["bspc", "desktop", "-f", "^7"]
+      Super-8:
+        launch: ["bspc", "desktop", "-f", "^8"]
+      Super-9:
+        launch: ["bspc", "desktop", "-f", "^9"]
+      Super-0:
+        launch: ["bspc", "desktop", "-f", "^10"]
+
+      # ────────────────────────────────────────────────────────────
+      # BSPWM — Send Node to Desktop 1–9 (and 0 → desktop 10)
+      # ────────────────────────────────────────────────────────────
+
+      Super-Ctrl-1:
+        launch: ["bspc", "node", "-d", "^1"]
+      Super-Ctrl-2:
+        launch: ["bspc", "node", "-d", "^2"]
+      Super-Ctrl-3:
+        launch: ["bspc", "node", "-d", "^3"]
+      Super-Ctrl-4:
+        launch: ["bspc", "node", "-d", "^4"]
+      Super-Ctrl-5:
+        launch: ["bspc", "node", "-d", "^5"]
+      Super-Ctrl-6:
+        launch: ["bspc", "node", "-d", "^6"]
+      Super-Ctrl-7:
+        launch: ["bspc", "node", "-d", "^7"]
+      Super-Ctrl-8:
+        launch: ["bspc", "node", "-d", "^8"]
+      Super-Ctrl-9:
+        launch: ["bspc", "node", "-d", "^9"]
+      Super-Ctrl-0:
+        launch: ["bspc", "node", "-d", "^10"]
+
+      # ────────────────────────────────────────────────────────────
+      # BSPWM — Send Node to Adjacent Workspace (follows focus)
+      # ────────────────────────────────────────────────────────────
+
+      Super-Ctrl-Left:
+        launch: ["bspc", "node", "-d", "prev", "--follow"]
+
+      Super-Ctrl-Right:
+        launch: ["bspc", "node", "-d", "next", "--follow"]
+
+      # ────────────────────────────────────────────────────────────
+      # BSPWM — Window Switcher (rofi)
+      # ────────────────────────────────────────────────────────────
+
+      Alt-Tab:
+        launch:
+          - "bash"
+          - "-c"
+          - >-
+            rofi
+            -theme $HOME/.config/bspwm/config/rofi-themes/Windows.rasi
+            -show window
+            -window-thumbnail
+            -window-hide-active-window true
+            -kb-accept-entry '!Alt-Tab,Return'
+            -kb-element-next 'Alt-Tab'
+
+      # ────────────────────────────────────────────────────────────
+      # BSPWM — Focus Node in Direction
+      # West/East have a fallback that wraps to prev/next desktop leaf.
+      # ────────────────────────────────────────────────────────────
+
+      Super-Alt-Left:
+        launch:
+          - "bash"
+          - "-c"
+          - "bspc node -f west.!sticky.!hidden.local || bspc node -f prev.leaf.!sticky.!hidden.local"
+
+      Super-Alt-Down:
+        launch: ["bash", "-c", "bspc node -f south.!sticky.!hidden.local"]
+
+      Super-Alt-Up:
+        launch: ["bash", "-c", "bspc node -f north.!sticky.!hidden.local"]
+
+      Super-Alt-Right:
+        launch:
+          - "bash"
+          - "-c"
+          - "bspc node -f east.!sticky.!hidden.local || bspc node -f next.leaf.!sticky.!hidden.local"
+
+      # ────────────────────────────────────────────────────────────
+      # BSPWM — Swap Nodes
+      # ────────────────────────────────────────────────────────────
+
+      C-Alt-Left:
+        launch: ["bspc", "node", "-s", "west.local"]
+
+      C-Alt-Down:
+        launch: ["bspc", "node", "-s", "south.local"]
+
+      C-Alt-Up:
+        launch: ["bspc", "node", "-s", "north.local"]
+
+      C-Alt-Right:
+        launch: ["bspc", "node", "-s", "east.local"]
+
+      # ────────────────────────────────────────────────────────────
+      # BSPWM — Focus Last Node / Last Desktop
+      # Original: ctrl + shift {comma,period} (note: no + before brace)
+      # ────────────────────────────────────────────────────────────
+
+      C-Shift-comma:
+        launch: ["bspc", "node", "-f", "last"]
+
+      C-Shift-dot:
+        launch: ["bspc", "desktop", "-f", "last"]
+
+      # ────────────────────────────────────────────────────────────
+      # BSPWM — Preselect Split Direction / Cancel
+      # ────────────────────────────────────────────────────────────
+
+      Super-Ctrl-h:
+        launch: ["bspc", "node", "-p", "east"]
+
+      Super-Ctrl-v:
+        launch: ["bspc", "node", "-p", "south"]
+
+      Super-Ctrl-q:
+        launch: ["bspc", "node", "-p", "cancel"]
+
+      # ────────────────────────────────────────────────────────────
+      # BSPWM — Balance Desktop Nodes
+      # ────────────────────────────────────────────────────────────
+
+      Super-Ctrl-b:
+        launch: ["bspc", "node", "@/", "-B"]
+
+      # ────────────────────────────────────────────────────────────
+      # BSPWM — Resize Tiled Node (grow / shrink)
+      # NOTE: The original sxhkd config used the 'plus' keysym (Shift+=).
+      # xremap uses evdev names: 'equal' is the physical +/= key.
+      # If you want Shift required, change to: Super-Alt-Shift-equal
+      # ────────────────────────────────────────────────────────────
+
+      Super-Alt-equal:
+        launch:
+          - "bash"
+          - "-c"
+          - "bspc node -z top_right 20 -20; bspc node -z bottom_left -20 20"
+
+      Super-Alt-minus:
+        launch:
+          - "bash"
+          - "-c"
+          - "bspc node -z top_right -20 20; bspc node -z bottom_left 20 -20"
+
+      # ────────────────────────────────────────────────────────────
+      # BSPWM — Resize Floating Node (zoom in / out)
+      # Same note as above regarding 'equal' vs 'plus'.
+      # ────────────────────────────────────────────────────────────
+
+      Super-Ctrl-equal:
+        launch:
+          - "bash"
+          - "-c"
+          - "xdotool getactivewindow windowmove --relative -- -50 -25; xdo resize -w +100 -h +50"
+
+      Super-Ctrl-minus:
+        launch:
+          - "bash"
+          - "-c"
+          - "xdotool getactivewindow windowmove --relative -- +50 +25; xdo resize -w -100 -h -50"
+
+      # ────────────────────────────────────────────────────────────
+      # BSPWM — Move Floating Node
+      # ────────────────────────────────────────────────────────────
+
+      Super-Shift-Left:
+        launch: ["bspc", "node", "-v", "-20", "0"]
+
+      Super-Shift-Down:
+        launch: ["bspc", "node", "-v", "0", "20"]
+
+      Super-Shift-Up:
+        launch: ["bspc", "node", "-v", "0", "-20"]
+
+      Super-Shift-Right:
+        launch: ["bspc", "node", "-v", "20", "0"]
+
+      # ────────────────────────────────────────────────────────────
+      # BSPWM — Close All Nodes in Current Desktop
+      # ────────────────────────────────────────────────────────────
+
+      Super-Ctrl-x:
+        launch:
+          - "bash"
+          - "-c"
+          - "bspc query -N -d | xargs -I id -n 1 bspc node id -c"
+
+      # ════════════════════════════════════════════════════════════
+      # CHORD SEQUENCES — super + n ; {x, k, m, 1-9}
+      # This is the feature swhkd cannot handle.
+      # After pressing Super+n you have 2 seconds to press the
+      # second key. Any other key or timeout cancels the sequence.
+      # ════════════════════════════════════════════════════════════
+
+      Super-n:
+        remap:
+
+          # super + n ; x  → close all unfocused local windows
+          x:
+            launch:
+              - "bash"
+              - "-c"
+              - "bspc query -N -n '.!focused.!marked.local.window' | xargs -I id -n 1 bspc node id -c"
+
+          # super + n ; k  → kill all unfocused local windows
+          k:
+            launch:
+              - "bash"
+              - "-c"
+              - "bspc query -N -n '.!focused.!marked.local.window' | xargs -I id -n 1 bspc node id -k"
+
+          # super + n ; m  → bring all marked windows to focused desktop
+          m:
+            launch:
+              - "bash"
+              - "-c"
+              - "bspc query -N -n '.marked' | xargs -I id -n 1 bspc node id -d focused --follow"
+
+          # super + n ; 1-9  → bring everything from desktop N here
+          1:
+            launch: ["bash", "-c", "bspc query -N -d 1 -n '.window' | xargs -I id -n 1 bspc node id -d focused"]
+          2:
+            launch: ["bash", "-c", "bspc query -N -d 2 -n '.window' | xargs -I id -n 1 bspc node id -d focused"]
+          3:
+            launch: ["bash", "-c", "bspc query -N -d 3 -n '.window' | xargs -I id -n 1 bspc node id -d focused"]
+          4:
+            launch: ["bash", "-c", "bspc query -N -d 4 -n '.window' | xargs -I id -n 1 bspc node id -d focused"]
+          5:
+            launch: ["bash", "-c", "bspc query -N -d 5 -n '.window' | xargs -I id -n 1 bspc node id -d focused"]
+          6:
+            launch: ["bash", "-c", "bspc query -N -d 6 -n '.window' | xargs -I id -n 1 bspc node id -d focused"]
+          7:
+            launch: ["bash", "-c", "bspc query -N -d 7 -n '.window' | xargs -I id -n 1 bspc node id -d focused"]
+          8:
+            launch: ["bash", "-c", "bspc query -N -d 8 -n '.window' | xargs -I id -n 1 bspc node id -d focused"]
+          9:
+            launch: ["bash", "-c", "bspc query -N -d 9 -n '.window' | xargs -I id -n 1 bspc node id -d focused"]
+
+        # Cancel the sequence after 2 seconds of no second keypress
+        timeout_millis: 2000

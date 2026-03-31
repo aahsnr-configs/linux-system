@@ -1,0 +1,161 @@
+# ── Terminals ─────────────────────────────────────────────────────────────────
+
+# Normal terminal
+super + Return
+    OpenApps --terminal
+
+# Floating terminal
+super + alt + Return
+    OpenApps --floating
+
+
+# ── Launchers — fire on key RELEASE (@ prefix) ────────────────────────────────
+
+# App launcher (rofi/wofi/etc.)
+super + @space
+    OpenApps --menu
+
+# Theme / rice selector
+alt + @space
+    RiceSelector
+
+
+# ── Apps ──────────────────────────────────────────────────────────────────────
+
+# browser, editor, filemanager
+super + {b,e,f}
+    OpenApps --{browser,editor,filemanager}
+
+# Terminal apps: yazi, nvim, ncmpcpp
+super + {y,v,m}
+    OpenApps --{yazi,nvim,music}
+
+# Media apps: Pavucontrol, Telegram, Whatsapp
+super + {p,t,w}
+    OpenApps --{soundcontrol,telegram,whats}
+
+# Rice Editor
+super + r
+    RiceEditor
+
+
+# ── Rofi Applets ──────────────────────────────────────────────────────────────
+
+# Terminal selector
+super + alt + t
+    Term --selecterm
+
+# Wallpaper selector
+super + alt + w
+    WallSelect
+
+# Mount Android phones
+super + alt + a
+    OpenApps --android
+
+# Network Manager
+super + alt + n
+    OpenApps --netmanager
+
+# Bluetooth
+super + alt + b
+    OpenApps --bluetooth
+
+# Clipboard
+super + alt + c
+    OpenApps --clipboard
+
+# Screenshot
+super + alt + s
+    OpenApps --screenshot
+
+# PowerMenu
+super + alt + p
+    OpenApps --powermenu
+
+# Rofi style chooser
+super + alt + l
+    RofiLauncher --choose-style
+
+# Keyboard layout applet
+super + alt + k
+    OpenApps --keyboard
+
+# RofiPass
+super + alt + x
+    OpenApps --pass
+
+# Scratchpad
+super + alt + o
+    OpenApps --scratch
+
+
+# ── Bar ───────────────────────────────────────────────────────────────────────
+
+# Hide bar (Polybar / eww)
+super + alt + h
+    HideBar -h
+
+# Show bar
+super + alt + u
+    HideBar -u
+
+
+# ── System: Power / Session ───────────────────────────────────────────────────
+
+ctrl + super + alt + {p,r,q,l,k,s}
+    {systemctl poweroff,systemctl reboot,bspc quit,ScreenLocker,xkill,SoftReload}
+
+
+# ── Transparency (picom) ──────────────────────────────────────────────────────
+
+# Decrease opacity on focused window
+ctrl + alt + plus
+    picom-trans -c -3
+
+# Increase opacity on focused window
+ctrl + alt + minus
+    picom-trans -c +3
+
+# Reset opacity on focused window
+ctrl + alt + t
+    picom-trans -c -d
+
+
+# ── Hardware / Media Keys ─────────────────────────────────────────────────────
+
+XF86MonBrightnessUp
+    sh Brightness up
+
+XF86MonBrightnessDown
+    sh Brightness down
+
+XF86AudioRaiseVolume
+    Volume --inc
+
+XF86AudioLowerVolume
+    Volume --dec
+
+XF86AudioMute
+    Volume --toggle
+
+XF86AudioNext
+    MediaControl --next
+
+XF86AudioPrev
+    MediaControl --previous
+
+XF86AudioPlay
+    MediaControl --toggle
+
+XF86AudioStop
+    MediaControl --stop
+
+
+# ── Reload swhkd ──────────────────────────────────────────────────────────────
+# NOTE: sxhkd reloads on SIGUSR1; swhkd reloads on SIGHUP.
+# The dunstify notification mimics the original behaviour.
+
+super + Escape
+    pkill -HUP swhkd && dunstify -u low -i ~/.config/bspwm/config/assets/reload.svg \
+        'swhkd' 'Configuration file reloaded successfully!'
