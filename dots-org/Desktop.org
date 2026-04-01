@@ -1,0 +1,106 @@
+#+TITLE: System Configuration Master
+#+AUTHOR: Ahsanur Rahman
+#+PROPERTY: header-args :mkdirp yes
+
+* Script Templates
+These are generic templates for future tools. They are tangled and made executable but are NOT triggered by our sync script.
+
+** Bash Template
+:PROPERTIES:
+:header-args: :tangle ~/.local/bin/template-bash :shebang "#!/usr/bin/env bash"
+:END:
+
+#+begin_src bash
+echo "This is your bash template."
+echo "Arguments received: $@"
+#+end_src
+
+** Python Template
+:PROPERTIES:
+:header-args: :tangle ~/.local/bin/template-python :shebang "#!/usr/bin/env python3"
+:END:
+
+#+begin_src python
+import sys
+print(f"This is your Python template. Args: {sys.argv[1:]}")
+#+end_src
+
+* System Bootstrap (Auto-run)
+This script handles Arch packages and repositories. It is strictly idempotent and executes automatically via our custom tangling engine.
+
+#+begin_src bash :tangle ~/.local/bin/desktop-sync :shebang "#!/usr/bin/env bash"
+# Enable strict error handling
+set -euo pipefail
+
+echo "--- Starting System Sync ---"
+
+# 1. Update/Install Packages (Idempotent)
+PACKAGES=(atuin bat imv hyprland waybar)
+
+# pacman -T returns the list of missing packages. If none are missing, it returns empty.
+MISSING_PKGS=$(pacman -T "${PACKAGES[@]}" || true)
+
+if [ -n "$MISSING_PKGS" ]; then
+    echo "Installing missing packages: $MISSING_PKGS"
+    sudo pacman -S --needed --noconfirm $MISSING_PKGS
+else
+    echo "All core packages are already installed."
+fi
+
+# 2. Clone or Update Repositories (Idempotent)
+sync_repo() {
+    local url=$1
+    local dest=$2
+    if [ ! -d "$dest" ]; then
+        echo "Cloning $url..."
+        git clone "$url" "$dest"
+    else
+        echo "Updating $dest..."
+        # Perform a fast-forward pull; if it fails (e.g., local changes), echo a warning but don't crash
+        git -C "$dest" pull --ff-only || echo "Warning: Could not cleanly update $dest."
+    fi
+}
+
+sync_repo "https://github.com/tmux-plugins/tpm" "$HOME/.tmux/plugins/tpm"
+
+echo "--- Sync Finished Successfully ---"
+#+end_src
+
+* The Tangling Engine (Core Logic)
+This block is evaluated automatically when you open the file. It defines a robust function that expands all includes into a temporary buffer and tangles the unified tree.
+
+#+name: define-tangler
+#+begin_src emacs-lisp :tangle no :results silent
+(defun my/tangle-all-and-sync ()
+  "Expands #+INCLUDEs natively, tangles, and runs the sync script."
+  (interactive)
+  (let ((master-file (buffer-file-name)))
+    (message "Tangling Master Org and all included modules...")
+    (with-temp-buffer
+      (insert-file-contents master-file)
+      (org-mode)
+      ;; Trick Emacs into thinking this temp buffer is the real file to resolve relative paths
+      (setq buffer-file-name master-file)
+      ;; Natively expand all #+INCLUDE directives
+      (org-export-expand-include-keyword)
+      ;; Tangle the unified buffer
+      (org-babel-tangle))
+    (message "Tangling complete. Starting sync script asynchronously...")
+    ;; Run the script and pipe output to a dedicated Emacs buffer
+    (start-process-shell-command "desktop-sync" "*Desktop Sync Output*" "~/.local/bin/desktop-sync")))
+#+end_src
+
+* Configuration Modules
+Place your sub-modules here. Because of the Tangling Engine above, they will all be processed flawlessly.
+
+#+INCLUDE: "atuin.org"
+#+INCLUDE: "bat.org"
+#+INCLUDE: "hyprland.org"
+
+* Local Variables
+Instead of a messy hook, we simply override the default tangling shortcut (`C-c C-v t`) locally for this specific buffer to point to our robust custom engine.
+
+# Local Variables:
+# eval: (save-excursion (org-babel-goto-named-src-block "define-tangler") (org-babel-execute-src-block))
+# eval: (local-set-key (kbd "C-c C-v t") 'my/tangle-all-and-sync)
+# End:

@@ -683,6 +683,7 @@ command_not_found_handler() {
 }
 
 ### ALIASES
+alias gc="git clone"
 alias upgrade="topgrade"
 alias listPkgs='paru -Qq > packages.list'
 #alias listPkgs='dnf repoquery --installed --qf "%{name}\n" | sort -u > packages.list'

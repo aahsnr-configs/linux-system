@@ -1,0 +1,307 @@
+#+TITLE: System Configuration & Bootstrap
+#+PROPERTY: header-args :mkdirp yes
+
+* TODO Global Scripts
+These are generic templates for your future tools. They are made executable on tangle but are *not* triggered by the post-tangle hook.
+
+** fconf
+:PROPERTIES:
+:header-args: :tangle ~/bin/fconf :shebang "#!/usr/bin/env bash"
+:END:
+
+#+begin_src bash
+# Strict Mode:
+# -e: Exit immediately if a command exits with a non-zero status.
+# -u: Treat unset variables as an error.
+# -o pipefail: The return value of a pipeline is the status of the last command to exit with a non-zero status.
+set -euo pipefail
+
+show_help() {
+    cat <<EOF
+Usage: $(basename "$0") [OPTIONS] [PATHS...]
+
+Description:
+  A fuzzy configuration finder and editor. Searches for hidden files and regular
+  files in specified directories (or defaults to current directory and home),
+  previews them with syntax highlighting, and opens your selection in your
+  preferred editor.
+
+Arguments:
+  PATHS...          Optional directories to search. If provided, only these paths
+                    will be searched. If omitted, defaults to current directory (.)
+                    and home directory (\$HOME).
+
+                    Examples:
+                      fconf                    # Search . and \$HOME
+                      fconf /etc               # Search only /etc
+                      fconf /etc ~/.config     # Search /etc and ~/.config
+
+Options:
+  -h, --help        Show this help message and exit
+
+Environment Variables:
+  EDITOR            The editor to use for opening files (default: nvim)
+                    You can override this by setting EDITOR in your shell:
+                      export EDITOR=nano
+                      export EDITOR=emacs
+                      export EDITOR=code
+
+Required Dependencies:
+  The following CLI tools must be installed and available in your PATH:
+
+  1. fd    - A simple, fast and user-friendly alternative to 'find'
+             Install: https://github.com/sharkdp/fd
+
+  2. fzf   - A command-line fuzzy finder
+             Install: https://github.com/junegunn/fzf
+
+  3. bat   - A cat clone with syntax highlighting (used for file previews)
+             Install: https://github.com/sharkdp/bat
+
+  If any of these tools are missing, the script will fail. Please install them
+  using your system's package manager (apt, dnf, brew, pacman, etc.).
+
+Examples:
+  # Search current directory and home with default editor (nvim)
+  fconf
+
+  # Search only /etc directory
+  fconf /etc
+
+  # Search multiple custom directories
+  fconf ~/.config /etc/nginx
+
+  # Use a different editor for this session
+  EDITOR=nano fconf
+
+  # Use a different editor permanently (add to ~/.bashrc or ~/.zshrc)
+  export EDITOR=emacs
+  fconf
+
+How It Works:
+  1. fd finds all files (including hidden ones) in the search paths
+  2. fzf presents an interactive fuzzy finder interface
+  3. bat provides syntax-highlighted previews as you navigate
+  4. Your selected file opens in nvim (or your configured EDITOR)
+
+Tips:
+  - In the fzf interface, just start typing to filter files
+  - Use arrow keys or Ctrl-j/k to navigate
+  - Press Enter to select and open a file
+  - Press Esc or Ctrl-c to cancel without opening anything
+  - The preview window shows file contents with syntax highlighting
+
+EOF
+}
+
+main() {
+    # Parse command-line arguments
+    local search_paths=()
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -h|--help)
+                show_help
+                exit 0
+                ;;
+            -*)
+                echo "Error: Unknown option: $1" >&2
+                echo "Use -h or --help for usage information." >&2
+                exit 1
+                ;;
+            *)
+                # It's a path argument
+                search_paths+=("$1")
+                ;;
+        esac
+        shift
+    done
+
+    # If no paths provided, use defaults
+    if [[ ${#search_paths[@]} -eq 0 ]]; then
+        search_paths=("." "$HOME")
+    fi
+
+    # Run fd to find files and pipe to fzf
+    # fd: --type f (files only), --hidden (include hidden files), . (match all)
+    # fzf: Interactive fuzzy finder with preview using bat
+    # The '|| true' prevents 'set -e' from terminating if user cancels (exit code 130)
+    local selected
+    selected=$(fd --type f --hidden . "${search_paths[@]}" 2>/dev/null | \
+        fzf --height=60% \
+            --layout=reverse \
+            --border=rounded \
+            --prompt="Edit Config > " \
+            --no-multi \
+            --preview 'bat --style=numbers --color=always {}' || true)
+
+    # Check if user cancelled or no file was selected
+    if [[ -z "$selected" ]]; then
+        echo "No file selected. Exiting."
+        exit 0
+    fi
+
+    # Open the selected file with the configured editor (default: nvim)
+    echo "Opening: $selected"
+    "${EDITOR:-nvim}" "$selected"
+}
+
+main "$@"
+#+end_src
+
+
+** TODO fe
+:PROPERTIES:
+:header-args: :tangle ~/bin/fe :shebang "#!/usr/bin/env bash"
+:END:
+#+begin_src bash
+
+#+end_src
+
+** TODO ff
+:PROPERTIES:
+:header-args: :tangle ~/bin/ff :shebang "#!/usr/bin/env bash"
+:END:
+#+begin_src bash
+
+#+end_src
+
+** TODO fkill
+:PROPERTIES:
+:header-args: :tangle ~/bin/fkill :shebang "#!/usr/bin/env bash"
+:END:
+#+begin_src bash
+
+#+end_src
+
+** TODO fp
+:PROPERTIES:
+:header-args: :tangle ~/bin/fp :shebang "#!/usr/bin/env bash"
+:END:
+#+begin_src bash
+
+#+end_src
+
+** TODO fssh
+:PROPERTIES:
+:header-args: :tangle ~/bin/fssh :shebang "#!/usr/bin/env bash"
+:END:
+#+begin_src bash
+
+#+end_src
+
+
+
+
+** Python Template
+:PROPERTIES:
+:header-args: :tangle ~/.local/bin/template-python :shebang "#!/usr/bin/env python3"
+:END:
+
+#+begin_src python
+import sys
+
+def main():
+    print("This is your Python template.")
+    print(f"Arguments: {sys.argv[1:]}")
+
+if __name__ == "__main__":
+    main()
+#+end_src
+
+* Program Configurations
+All files here share the common parent directory `~/.config/`.
+
+** Atuin
+:PROPERTIES:
+:header-args: :tangle ~/.config/atuin/config.toml
+:END:
+
+#+begin_src toml
+sync_address = "https://api.atuin.sh"
+update_check = true
+#+end_src
+
+** Bat
+:PROPERTIES:
+:header-args: :tangle ~/.config/bat/config
+:END:
+
+#+begin_src conf
+--theme="base16"
+#+end_src
+
+** Imv
+:PROPERTIES:
+:header-args: :tangle ~/.config/imv/config
+:END:
+
+#+begin_src conf
+[options]
+overlay = true
+#+end_src
+
+* Hyprland
+Managing the main config and the `conf.d` sub-directory.
+
+** Main Entry
+:PROPERTIES:
+:header-args: :tangle ~/.config/hypr/hyprland.conf
+:END:
+
+#+begin_src conf
+# Sources all files from the modular directory
+source = ~/.config/hypr/conf.d/monitors.conf
+source = ~/.config/hypr/conf.d/keybinds.conf
+
+exec-once = waybar
+#+end_src
+
+** Modular Files (conf.d)
+*** Monitors
+:PROPERTIES:
+:header-args: :tangle ~/.config/hypr/conf.d/monitors.conf
+:END:
+
+#+begin_src conf
+monitor=,preferred,auto,auto
+#+end_src
+
+*** Keybinds
+:PROPERTIES:
+:header-args: :tangle ~/.config/hypr/conf.d/keybinds.conf
+:END:
+
+#+begin_src conf
+bind = SUPER, Q, killactive,
+bind = SUPER, Return, exec, alacritty
+#+end_src
+
+* System Bootstrap (Auto-run)
+This script is the only one that executes automatically after tangling.
+
+#+begin_src bash :tangle ~/.local/bin/desktop-sync :shebang "#!/usr/bin/env bash"
+echo "--- Starting System Sync ---"
+
+# 1. Update/Install Packages
+# Adding 'hyprland-git' or similar if needed
+PACKAGES=(atuin bat imv hyprland waybar)
+sudo pacman -S --needed --noconfirm "${PACKAGES[@]}"
+
+# 2. Clone Repositories
+sync_repo() {
+    if [ ! -d "$2" ]; then
+        echo "Cloning $1..."
+        git clone "$1" "$2"
+    fi
+}
+
+sync_repo "https://github.com/tmux-plugins/tpm" "$HOME/.tmux/plugins/tpm"
+
+echo "--- Sync Finished Successfully ---"
+#+end_src
+
+* Local Variables
+# Local Variables:
+# eval: (add-hook 'org-babel-tangle-finished-hook (lambda () (shell-command "~/.local/bin/desktop-sync &")) nil t)
+# End:
