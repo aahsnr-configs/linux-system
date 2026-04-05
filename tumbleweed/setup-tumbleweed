@@ -1,16 +1,31 @@
 #!/bin/bash
+
+# 1. Add Repos with proper hierarchy
+# 90 is highest priority (sp1rit), 95 is secondary (Wayland)
+sudo zypper ar -f -p 90 https://download.opensuse.org/repositories/home:/sp1rit/openSUSE_Tumbleweed/ sp1rit
+sudo zypper ar -f -p 95 https://download.opensuse.org/repositories/X11:Wayland/openSUSE_Tumbleweed/ X11_Wayland
+
+# 2. Refresh everything
+sudo zypper --gpg-auto-import-keys ref
+
+# 3. THE VENDOR ANCHORS
+# Switch the compositor to sp1rit
+sudo zypper dup --from sp1rit --allow-vendor-change -y
+
+# Switch the portal/tools to X11_Wayland
+# Even if the version is the same today, this 'claims' the package for this repo.
+sudo zypper dup --from X11_Wayland --allow-vendor-change -y
+
+# 5. Install the core Hyprland ecosystem to ensure nothing was missed
+# This includes the latest runtime libraries (aquamarine, hyprlang, etc.)
+sudo zypper install hyprland xdg-desktop-portal-hyprland
+
 echo "init"
 sleep 5
 sudo cp -R "$HOME/Git/configs/linux-system/tumbleweed/preconfig/99-custom-env.sh" "/etc/profile.d/"
 sudo zypper ref
 sudo zypper up
 sudo zypper in curl wget git-core git-lfs gh unzip zip
-
-echo "nvidia"
-sleep 5
-sudo zypper addrepo https://developer.download.nvidia.com/compute/cuda/repos/opensuse15/x86_64/cuda-opensuse15.repo
-sudo zypper refresh
-sudo zypper install nvidia-open
 
 echo "installers"
 sleep 5
@@ -36,7 +51,7 @@ brew install --cask font-symbols-only-nerd-font
 
 echo "main pkgs"
 sleep 5
-sudo zypper in acpid aspell atuin bat bleachbit bluez bluez-firmware bpftune brightnessctl btop cava chafa cliphist cpio cronie ddcutil direnv distrobox dust emacs enchant-devel evolution-data-server eza fail2ban fastfetch fd flatpak fwupd fwupd-efi fzf gnome-keyring gnome-tweaks gnuplot go graphviz grim groff gsettings-desktop-schemas gtk4-layer-shell-devel gzip haveged hunspell hunspell-tools hypridle hyprpolkitagent i2c-tools ImageMagick imv inotify-tools ispell jq kitty kitty-shell-integration kitty-terminfo lazygit libgtk4-layer-shell0 logrotate luajit lynis meson mpv neovim nodejs24 npm24 nwg-look opi papers papirus-icon-theme pciutils pipewire pipewire-alsa pipewire-jack pipewire-pulseaudio pkgconf-pkg-config plantuml podman podman-docker profile-sync-daemon python313-pipx python313-pymol qt5ct qt6ct ryzenadj slurp starship swappy switcheroo-control tealdeer thunar thunar-archive-plugin thunar-media-tags-plugin thunar-volman tmux topgrade transmission-gtk trash-cli ucode-amd udiskie wireplumber wl-clipboard wlsunset xdg-desktop-portal-gnome xdg-desktop-portal-gtk xdg-desktop-portal-hyprland xdg-user-dirs xdg-user-dirs-gtk yazi zathura zathura-plugin-pdf-mupdf zeromq-devel zeromq-tools zoxide zram-generator zsh zstd
+sudo zypper in acpid aspell bleachbit bluez bluez-firmware bpftune brightnessctl btop cliphist cpio cronie ddcutil direnv distrobox dust emacs enchant-devel evolution-data-server fail2ban fastfetch flatpak fwupd fwupd-efi gnome-keyring gnome-tweaks gnuplot graphviz grim gsettings-desktop-schemas gtk4-layer-shell-devel gzip haveged hunspell hunspell-tools i2c-tools ImageMagick imv inotify-tools ispell jq kitty kitty-shell-integration kitty-terminfo lazygit libgtk4-layer-shell0 logrotate luajit lynis meson mpv neovim nodejs24 npm24 nwg-look opi papers papirus-icon-theme pciutils pipewire pipewire-alsa pipewire-pulseaudio pkgconf-pkg-config podman podman-docker profile-sync-daemon python313-pipx python313-pymol qt5ct qt6ct slurp swappy switcheroo-control tealdeer tmux topgrade transmission-gtk trash-cli ucode-amd udiskie wireplumber wl-clipboard xdg-desktop-portal-gnome xdg-desktop-portal-gtk xdg-user-dirs xdg-user-dirs-gtk zathura zathura-plugin-pdf-mupdf zeromq-devel zeromq-tools zoxide zram-generator zsh zstd
 
 echo "rust pkgs"
 sleep 5

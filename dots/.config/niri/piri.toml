@@ -1,0 +1,17 @@
+[piri.plugins]
+scratchpads = true
+
+[scratchpads.term]
+direction = "fromTop"
+command = "kitty --class=float.dropterm"
+app_id = "float.dropterm"
+size = "70% 70%"
+margin = 50
+
+[scratchpads.preview]
+direction = "fromRight"
+command = "imv"
+app_id = "imv"
+size = "60% 80%"
+margin = 50
+swallow_to_focus = true  # Automatically swallow into focused window when shown

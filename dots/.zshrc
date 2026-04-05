@@ -683,6 +683,7 @@ command_not_found_handler() {
 }
 
 ### ALIASES
+alias suse="podman run --rm -it suse-checker"
 alias gc="git clone"
 alias upgrade="topgrade"
 alias listPkgs='paru -Qq > packages.list'

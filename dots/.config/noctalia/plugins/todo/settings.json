@@ -1,19 +1,64 @@
 {
   "todos": [
     {
-      "id": 1775015881179,
-      "text": "Setup gptel in emacs",
+      "id": 1775381961554,
+      "text": "setup email using emacs, making sure to setup a hardened setup and also setup protonmail",
       "completed": false,
-      "createdAt": "2026-04-01T03:58:01.179Z",
+      "createdAt": "2026-04-05T09:39:21.554Z",
       "pageId": 0,
       "priority": "medium",
       "details": ""
     },
     {
-      "id": 1775010966678,
-      "text": "Use the reddit user's kitty config",
+      "id": 1775371767980,
+      "text": "Repeat the new claude prompt with a different claude account",
       "completed": false,
-      "createdAt": "2026-04-01T02:36:06.678Z",
+      "createdAt": "2026-04-05T06:49:27.980Z",
+      "pageId": 0,
+      "priority": "medium",
+      "details": ""
+    },
+    {
+      "id": 1775338564294,
+      "text": "Ask msi if they can send a backplate via their official channels in bangladehs",
+      "completed": false,
+      "createdAt": "2026-04-04T21:36:04.294Z",
+      "pageId": 0,
+      "priority": "medium",
+      "details": ""
+    },
+    {
+      "id": 1775335040566,
+      "text": "Setup my ghost router",
+      "completed": false,
+      "createdAt": "2026-04-04T20:37:20.566Z",
+      "pageId": 0,
+      "priority": "medium",
+      "details": ""
+    },
+    {
+      "id": 1775334628236,
+      "text": "Integrate ticktick into emacs",
+      "completed": false,
+      "createdAt": "2026-04-04T20:30:28.236Z",
+      "pageId": 0,
+      "priority": "medium",
+      "details": ""
+    },
+    {
+      "id": 1775334570229,
+      "text": "Use veracrypt to encrypt all my files before uploading to terabox; can veracrypt use gnome keyring or ssh to unencrypt",
+      "completed": false,
+      "createdAt": "2026-04-04T20:29:30.229Z",
+      "pageId": 0,
+      "priority": "low",
+      "details": ""
+    },
+    {
+      "id": 1775015881179,
+      "text": "Setup gptel in emacs",
+      "completed": false,
+      "createdAt": "2026-04-01T03:58:01.179Z",
       "pageId": 0,
       "priority": "medium",
       "details": ""
@@ -80,6 +125,24 @@
       "pageId": 0,
       "priority": "medium",
       "details": ""
+    },
+    {
+      "id": 1775201287939,
+      "text": "Finish gemini task from https://gemini.google.com/share/46461b874134 using an updated prompt to include the 2 images to indicate the size difference, then describing what caused this issue, and then describing the algorithm for the fix, then finally applying the fix.",
+      "completed": true,
+      "createdAt": "2026-04-03T07:28:07.939Z",
+      "pageId": 0,
+      "priority": "medium",
+      "details": ""
+    },
+    {
+      "id": 1775010966678,
+      "text": "Use the reddit user's kitty config",
+      "completed": true,
+      "createdAt": "2026-04-01T02:36:06.678Z",
+      "pageId": 0,
+      "priority": "medium",
+      "details": ""
     }
   ],
   "pages": [
@@ -89,8 +152,8 @@
     }
   ],
   "current_page_id": 0,
-  "count": 9,
-  "completedCount": 3,
+  "count": 16,
+  "completedCount": 5,
   "showCompleted": true,
   "showBackground": true,
   "isExpanded": false,

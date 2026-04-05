@@ -26,13 +26,12 @@ config-notification {
 // ============================================================================
 
 spawn-at-startup "bash" "-c" "wl-paste --watch cliphist store &"
+spawn-at-startup "qs" "-c" "noctalia-shell"
 spawn-at-startup "udiskie"
 spawn-at-startup "atuin" "daemon"
 spawn-at-startup "emacs" "--daemon"
 spawn-at-startup "rog-control-center"
-spawn-at-startup "kdeconnect"
-// spawn-at-startup "qs" "-c" "noctalia-shell"
-
+spawn-at-startup "bash" "-c" "piri daemon > /dev/null 2>&1 &"
 // ============================================================================
 // OUTPUT CONFIGURATION
 // ============================================================================
@@ -47,13 +46,6 @@ output "eDP-1" {
     off
     transform "normal"
 }
-//
-// Alternative eDP-1 configuration (commented out)
-// output "eDP-1" {
-//     scale 2.25
-//     transform "normal"
-//     mode "1920x1080@60"
-// }
 
 // ============================================================================
 // GESTURES
@@ -125,7 +117,6 @@ layout {
         urgent-color   "#ffb4ab"   // From colors.kdl
     }
     
-    // Focus ring configuration (merged from colors.kdl and layout.kdl)
     focus-ring {
         width 1                    // From layout.kdl
         active-color   "#b7c4ff"   // From colors.kdl
@@ -205,21 +196,19 @@ prefer-no-csd
 
 animations {
     workspace-switch {
-        spring damping-ratio=0.80 stiffness=523 epsilon=0.0001
+        spring damping-ratio=0.82 stiffness=160 epsilon=0.0001
     }
     
     window-open {
-        duration-ms 300
-        curve "ease-out-expo"
+        spring damping-ratio=0.72 stiffness=200 epsilon=0.0001
     }
     
     window-close {
-        duration-ms 300
-        curve "ease-out-quad"
+        spring damping-ratio=0.72 stiffness=200 epsilon=0.0001
     }
     
     horizontal-view-movement {
-        spring damping-ratio=0.85 stiffness=423 epsilon=0.0001
+        spring damping-ratio=0.82 stiffness=200 epsilon=0.0001
     }
     
     window-movement {
@@ -229,18 +218,13 @@ animations {
     window-resize {
         spring damping-ratio=0.85 stiffness=423 epsilon=0.0001
     }
-    
-    config-notification-open-close {
-        spring damping-ratio=0.65 stiffness=923 epsilon=0.001
-    }
-    
-    screenshot-ui-open {
-        duration-ms 200
-        curve "ease-out-quad"
-    }
-    
+      
     overview-open-close {
         spring damping-ratio=0.85 stiffness=800 epsilon=0.0001
+    }
+
+    recent-windows-close {
+        spring damping-ratio=1.0 stiffness=800 epsilon=0.001
     }
 }
 
@@ -366,77 +350,39 @@ recent-windows {
 // ============================================================================
 
 binds {
+
+    Mod+Shift+R { spawn-sh "niri msg action reload-config"; }
+
     // ========================================================================
     // DMS (Desktop Management System) Integration
-    // ========================================================================
+    // ========================================================================   
+
+    Super+D  repeat=false { spawn-sh "qs -c noctalia-shell ipc call launcher toggle"; }
+    Super+X       repeat=false { spawn-sh "qs -c noctalia-shell ipc call sessionMenu toggle"; }
+    Super+V       repeat=false { spawn-sh "qs -c noctalia-shell ipc call launcher clipboard"; }
+    Super+B       repeat=false { spawn "brave"; }
+
     
-    Mod+D hotkey-overlay-title="Application Launcher" {
-        spawn "dms" "ipc" "call" "spotlight" "toggle";
-    }
-    
-    Mod+V hotkey-overlay-title="Clipboard Manager" {
-        spawn "dms" "ipc" "call" "clipboard" "toggle";
-    }
-    
-    Mod+M hotkey-overlay-title="Task Manager" {
-        spawn "dms" "ipc" "call" "processlist" "toggle";
-    }
-    
-    Mod+Comma hotkey-overlay-title="Settings" {
-        spawn "dms" "ipc" "call" "settings" "toggle";
-    }
-    
-    Mod+N hotkey-overlay-title="Notification Center" {
-        spawn "dms" "ipc" "call" "notifications" "toggle";
-    }
-    
-    Mod+Shift+N hotkey-overlay-title="Notepad" {
-        spawn "dms" "ipc" "call" "notepad" "toggle";
-    }
-    
-    Mod+Alt+L hotkey-overlay-title="Lock Screen" {
-        spawn "dms" "ipc" "call" "lock" "lock";
-    }
-    
-    Mod+X hotkey-overlay-title="Power Menu" {
-        spawn "dms" "ipc" "call" "powermenu" "toggle";
-    }
-    
-    Ctrl+Alt+Delete hotkey-overlay-title="Task Manager" {
-        spawn "dms" "ipc" "call" "processlist" "toggle";
-    }
-    
-    // ========================================================================
-    // Media Controls (Audio)
-    // ========================================================================
-    
-    XF86AudioRaiseVolume allow-when-locked=true {
-        spawn "dms" "ipc" "call" "audio" "increment" "3";
-    }
-    
-    XF86AudioLowerVolume allow-when-locked=true {
-        spawn "dms" "ipc" "call" "audio" "decrement" "3";
-    }
-    
-    XF86AudioMute allow-when-locked=true {
-        spawn "dms" "ipc" "call" "audio" "mute";
-    }
-    
-    XF86AudioMicMute allow-when-locked=true {
-        spawn "dms" "ipc" "call" "audio" "micmute";
-    }
-    
-    // ========================================================================
-    // Brightness Controls
-    // ========================================================================
-    
-    XF86MonBrightnessUp allow-when-locked=true {
-        spawn "dms" "ipc" "call" "brightness" "increment" "5" "";
-    }
-    
-    XF86MonBrightnessDown allow-when-locked=true {
-        spawn "dms" "ipc" "call" "brightness" "decrement" "5" "";
-    }
+   // ─── AUDIO VOLUME ───────────────────────────────────────────────────────
+    XF86AudioRaiseVolume allow-when-locked=true { spawn-sh "qs -c noctalia-shell ipc call volume increase"; }
+    XF86AudioLowerVolume allow-when-locked=true { spawn-sh "qs -c noctalia-shell ipc call volume decrease"; }
+    XF86AudioMute        allow-when-locked=true { spawn-sh "qs -c noctalia-shell ipc call volume muteOutput"; }
+    XF86AudioMicMute     allow-when-locked=true { spawn-sh "qs -c noctalia-shell ipc call volume muteInput"; }
+
+    // ─── MEDIA PLAYBACK ─────────────────────────────────────────────────────
+    XF86AudioPlay allow-when-locked=true { spawn-sh "qs -c noctalia-shell ipc call media playPause"; }
+    XF86AudioNext allow-when-locked=true { spawn-sh "qs -c noctalia-shell ipc call media next"; }
+    XF86AudioPrev allow-when-locked=true { spawn-sh "qs -c noctalia-shell ipc call media previous"; }
+
+    Shift+XF86AudioNext allow-when-locked=true { spawn-sh "qs -c noctalia-shell ipc call media seekRelative 10"; }
+    Shift+XF86AudioPrev allow-when-locked=true { spawn-sh "qs -c noctalia-shell ipc call media seekRelative -10"; }
+    Shift+XF86AudioPlay allow-when-locked=true { spawn-sh "qs -c noctalia-shell ipc call media seekByRatio 0.0"; }
+
+    Super+M repeat=false { spawn-sh "qs -c noctalia-shell ipc call media toggle"; }
+
+    // ─── BRIGHTNESS ─────────────────────────────────────────────────────────
+    XF86MonBrightnessUp   allow-when-locked=true { spawn-sh "qs -c noctalia-shell ipc call brightness increase"; }
+    XF86MonBrightnessDown allow-when-locked=true { spawn-sh "qs -c noctalia-shell ipc call brightness decrease"; }
     
     // ========================================================================
     // System & Overview
@@ -456,7 +402,11 @@ binds {
     Mod+Return hotkey-overlay-title="Open Terminal" {
         spawn "kitty";
     }
-    
+
+    Mod+Shift+Return {
+        spawn-sh "piri scratchpads term toggle";
+    } 
+
     Mod+Shift+F hotkey-overlay-title="File Manager: Nautilus" {
         spawn "nautilus";
     }
@@ -622,16 +572,6 @@ binds {
     Mod+BracketRight { consume-or-expel-window-right; }
     Mod+Period { expel-window-from-column; }
     
-    // ========================================================================
-    // Sizing & Layout
-    // ========================================================================
-    
-    Mod+R { switch-preset-column-width; }
-    Mod+Shift+R { switch-preset-window-height; }
-    Mod+Ctrl+R { reset-window-height; }
-    Mod+Ctrl+F { expand-column-to-available-width; }
-    Mod+C { center-column; }
-    Mod+Ctrl+C { center-visible-columns; }
     
     // ========================================================================
     // Manual Sizing
@@ -646,9 +586,9 @@ binds {
     // Screenshots
     // ========================================================================
     
-    Alt+Print { spawn "niri-screenshot" "--region"; }
-    Ctrl+Print { spawn "niri-screenshot" "--fullscreen"; }
-    Mod+Shift+S { spawn "niri-screenshot" "--region"; }
+    Alt+Print { spawn "screenshot" "--region"; }
+    Ctrl+Print { spawn "screenshot" "--fullscreen"; }
+    Mod+Shift+S { spawn "screenshot" "--region"; }
     
     // ========================================================================
     // System Controls
@@ -661,6 +601,5 @@ binds {
 // END OF CONFIGURATION
 // ============================================================================
 
-include "dms/cursor.kdl"
+include "./noctalia.kdl"
 
-include "dms/outputs.kdl"

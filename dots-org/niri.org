@@ -1,0 +1,1188 @@
+#+TITLE: Niri Configuration
+#+PROPERTY: header-args :mkdirp yes
+
+* Niri
+** Main Entry
+:PROPERTIES:
+:header-args: :tangle ~/.config/niri/config.kdl
+:END:
+
+#+begin_src kdl
+// ~/.config/niri/config.kdl
+// Top-level misc options
+prefer-no-csd
+
+// ─── Module includes (since niri 25.11) ─────────────────────────────────────
+include "conf.d/environment.kdl"
+include "conf.d/outputs.kdl"
+include "conf.d/inputs.kdl"
+include "conf.d/workspaces.kdl"
+include "conf.d/layout.kdl"
+include "conf.d/animations.kdl"
+include "conf.d/rules.kdl"
+include "conf.d/autostart.kdl"
+include "conf.d/binds.kdl"
+#+end_src
+
+** Modular Files (conf.d)
+*** Environment
+:PROPERTIES:
+:header-args: :tangle ~/.config/niri/conf.d/environment.kdl
+:END:
+
+#+begin_src kdl
+// ~/.config/niri/conf.d/environment.kdl
+environment {
+
+    XDG_SESSION_TYPE        "wayland"
+    XDG_SESSION_DESKTOP     "niri"
+    XDG_CURRENT_DESKTOP     "niri"
+
+    GDK_BACKEND             "wayland,x11,*"
+    QT_QPA_PLATFORM         "wayland;xcb"
+    SDL_VIDEODRIVER         "wayland"
+    CLUTTER_BACKEND         "wayland"
+
+    QT_AUTO_SCREEN_SCALE_FACTOR     "1"
+    QT_WAYLAND_DISABLE_WINDOWDECORATION "1"
+    QT_QPA_PLATFORMTHEME            "qt6ct"
+
+    GBM_BACKEND                     "nvidia-drm"
+    __GLX_VENDOR_LIBRARY_NAME       "nvidia"
+    __GL_VRR_ALLOWED                "1"
+    LIBVA_DRIVER_NAME               "nvidia"
+
+    ELECTRON_OZONE_PLATFORM_HINT    "auto"
+
+
+    XCURSOR_THEME   "Bibata-Modern-Ice"
+    XCURSOR_SIZE    "20"
+
+    EMACS_SOCKET_NAME "default"
+}
+#+end_src
+
+*** Outputs
+:PROPERTIES:
+:header-args: :tangle ~/.config/niri/conf.d/outputs.kdl
+:END:
+
+#+begin_src kdl
+// ~/.config/niri/conf.d/outputs.kdl
+output "HDMI-A-1" {
+    mode "2560x1440@60"
+    scale 2.0
+    transform "normal"
+    position  x=0 y=0
+    focus-at-startup
+    variable-refresh-rate on-demand=true
+}
+
+output "eDP-1" {
+    off
+    transform "normal"
+}
+#+end_src
+
+*** Inputs
+:PROPERTIES:
+:header-args: :tangle ~/.config/niri/conf.d/inputs.kdl
+:END:
+
+#+begin_src kdl
+// ~/.config/niri/conf.d/inputs.kdl
+input {
+    keyboard {
+        xkb {
+            layout "us"
+            options "ctrl:nocaps"
+        }
+        repeat-delay 600
+        repeat-rate 25
+        track-layout "global"
+        numlock
+
+    }
+
+    mouse {
+        accel-profile "flat"
+        natural-scroll  // uncomment to enable natural/reverse scrolling
+    }
+
+    touchpad {
+        tap
+        natural-scroll
+        scroll-factor 0.5
+    }
+    workspace-auto-back-and-forth
+    warp-mouse-to-focus
+    focus-follows-mouse
+}
+
+gestures {
+    hot-corners {
+        off
+    }
+}
+#+end_src
+
+*** Workspaces
+:PROPERTIES:
+:header-args: :tangle ~/.config/niri/conf.d/workspaces.kdl
+:END:
+
+#+begin_src kdl
+// ~/.config/niri/conf.d/workspaces.kdl
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Named Workspaces — Persistent, workflow-oriented (since niri 0.1.6)
+//
+// Workspace       Purpose
+// ──────────────────────────────────────────────────────────────────
+// browser         Brave / Firefox web browsing
+// dev             Emacs / Neovim primary development
+// term            Floating terminals & REPL sessions
+// research        PDF reading (Sioyek/Zotero) + reference
+// tex             LaTeX/Typst authoring + preview
+// comms           Email (mu4e/Thunderbird), messaging
+// media           Music (Spotify), video
+// scratch         Temporary / experimental space
+// stage           nsticky staging area (hidden windows land here)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+workspace "browser"
+workspace "dev"
+workspace "term"
+workspace "research"
+workspace "tex"
+workspace "comms"
+workspace "media"
+workspace "scratch"
+
+// "stage" remains assigned to the main monitor for nsticky logic
+workspace "stage" {
+    open-on-output "HDMI-A-1"
+}
+#+end_src
+
+*** Layout
+:PROPERTIES:
+:header-args: :tangle ~/.config/niri/conf.d/layout.kdl
+:END:
+
+#+begin_src kdl
+// ~/.config/niri/conf.d/layout.kdl
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+layout {
+    background-color "transparent"
+    gaps 10
+
+    center-focused-column "never"
+
+    preset-column-widths {
+        proportion 0.25
+        proportion 0.33333
+        proportion 0.5
+        proportion 0.66667
+        proportion 0.75
+    }
+
+    preset-window-heights {
+        proportion 0.33333
+        proportion 0.5
+        proportion 0.66667
+    }
+
+    default-column-width { }
+
+    tab-indicator {
+        hide-when-single-tab
+        width 4
+        gap  4
+        active-color   "#b7c4ff"
+        inactive-color "#90909a"
+        urgent-color   "#ffb4ab"
+    }
+
+    focus-ring {
+        width 1
+        active-color "#b7c4ff"
+        inactive-color "#90909a"
+        urgent-color "#ffb4ab"
+    }
+
+    border {
+        on
+        width 2
+        active-color   "#b7c4ff"
+        inactive-color "#90909a"
+        urgent-color   "#ffb4ab"
+    }
+
+    shadow {
+        on
+        softness 30
+        spread 4
+        offset x=0 y=4
+        color "#00000070"
+    }
+
+    insert-hint {
+        color "#b7c4ff80"
+    }
+
+    struts {
+        left 0
+        right 0
+        top 0
+        bottom 0
+    }
+}
+#+end_src
+
+*** Animations
+:PROPERTIES:
+:header-args: :tangle ~/.config/niri/conf.d/animations.kdl
+:END:
+
+#+begin_src kdl
+// ~/.config/niri/conf.d/animations.kdl
+animations {
+    // Window open/close — snappy spring (damping 0.7, stiffness 200)
+    window-open-anim {
+        spring damping-ratio=0.72 stiffness=200 epsilon=0.0001
+    }
+    window-close-anim {
+        spring damping-ratio=0.72 stiffness=200 epsilon=0.0001
+    }
+
+    // Column movement — smooth spring
+    horizontal-view-movement {
+        spring damping-ratio=0.82 stiffness=160 epsilon=0.0001
+    }
+
+    // Workspace switch — vertical slide with a spring (matches Hyprland slidevert)
+    workspace-switch {
+        spring damping-ratio=0.82 stiffness=160 epsilon=0.0001
+    }
+
+    // Config reload screen transition
+    config-notification-open-close {
+        spring damping-ratio=0.6 stiffness=1000 epsilon=0.001
+    }
+
+    // Overview open/close
+    overview-open-close {
+        spring damping-ratio=0.7 stiffness=150 epsilon=0.0001
+    }
+}
+#+end_src
+
+*** Rules
+:PROPERTIES:
+:header-args: :tangle ~/.config/niri/conf.d/rules.kdl
+:END:
+
+#+begin_src kdl
+// ~/.config/niri/conf.d/rules.kdl
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// ─── GLOBAL RULE ─────────────────────────────────────────────────────
+window-rule {
+    geometry-corner-radius 7
+    clip-to-geometry true
+    tiled-state true
+    draw-border-with-background true
+}
+
+// ─── WORKSPACE ASSIGNMENTS ─────────────────────────────────────────────────-
+// piri's window_rule plugin also handles these; the niri native rules below
+// serve as a reliable fallback that works even without piri.
+
+window-rule {
+    match app-id=r#"^(brave-browser|firefox|chromium-browser)$"#
+    open-on-workspace "browser"
+    default-column-width { proportion 0.75; }
+}
+
+window-rule {
+    match app-id=r#"^(emacs|Emacs)$"#
+    open-on-workspace "dev"
+    default-column-width { proportion 0.5; }
+}
+
+window-rule {
+    match app-id=r#"^(neovide|nvim)$"#
+    open-on-workspace "dev"
+    default-column-width { proportion 0.45; }
+}
+
+window-rule {
+    match app-id=r#"^(org\.pwmt\.zathura|sioyek|org\.gnome\.Evince|okular)$"#
+    open-on-workspace "research"
+    default-column-width { proportion 0.5; }
+}
+
+window-rule {
+    match app-id=r#"^(zotero)$"#
+    open-on-workspace "research"
+    default-column-width { proportion 0.55; }
+}
+
+window-rule {
+    match app-id=r#"^(org\.inkscape\.Inkscape|krita|gimp|gimp-\d+\.\d+)$"#
+    default-column-width { fixed 1400; }
+}
+
+window-rule {
+    match app-id=r#"^(thunderbird|org\.gnome\.Evolution)$"#
+    open-on-workspace "comms"
+}
+
+window-rule {
+    match app-id=r#"^(Spotify|spotify|ncspot)$"#
+    open-on-workspace "media"
+}
+
+// ─── TERMINAL OPACITY ───────────────────────────────────────────────────────
+// Ghostty: slight transparency (matches Hyprland ghostty_opacity rule).
+window-rule {
+    match app-id=r#"^com\.mitchellh\.ghostty$"#
+    opacity 0.95
+}
+
+window-rule {
+    match app-id=r#"^(kitty|Alacritty|foot|footclient)$"#
+    opacity 0.95
+}
+
+// ─── SCRATCHPAD / PIRI FLOATING CLASSES ─────────────────────────────────────
+// Piri scratchpads spawn with these app-ids; pre-size them as floating.
+window-rule {
+    match app-id=r#"^float\.dropterm$"#
+    open-floating true
+    default-column-width { proportion 0.65; }
+    default-window-height { proportion 0.65; }
+}
+
+window-rule {
+    match app-id=r#"^(explorer|float\.explorer)$"#
+    open-floating true
+    default-column-width { proportion 0.85; }
+    default-window-height { proportion 0.85; }
+}
+
+window-rule {
+    match app-id=r#"^(float\.calculator|galculator|qalculate-gtk)$"#
+    open-floating true
+    default-column-width { fixed 480; }
+    default-window-height { fixed 640; }
+}
+
+// ─── NIRI-SIDEBAR MINIMUM SIZE (prevents overlap on small windows) ──────────
+window-rule {
+    match is-floating=true
+    min-width  100
+    min-height 100
+}
+
+// ─── THUNAR ─────────────────────────────────────────────────────────────────
+window-rule {
+    match app-id=r#"^thunar$"#
+    open-floating true
+    default-column-width { fixed 800; }
+    default-window-height { fixed 600; }
+}
+
+// ─── FILE DIALOGS ────────────────────────────────────────────────────────────
+window-rule {
+    match app-id=r#"^xdg-desktop-portal-gtk$"#
+    open-floating true
+    default-column-width { fixed 800; }
+    default-window-height { fixed 600; }
+}
+
+// Match generic file-chooser dialogs by title (best-effort regex).
+window-rule {
+    match title=r#"^(Select|Open)( a)? (File|Folder|Directory)(s)?"#
+    open-floating true
+}
+window-rule {
+    match title=r#"^(Save As|Export (Image|File)|File (Upload|Operation))"#
+    open-floating true
+}
+window-rule {
+    match title=r#"\.(Properties|Settings)$"#
+    open-floating true
+}
+
+// ─── MISCELLANEOUS UTILITIES ─────────────────────────────────────────────────
+window-rule {
+    match app-id=r#"^(pavucontrol|org\.pulseaudio\.pavucontrol)$"#
+    open-floating true
+    default-column-width { proportion 0.55; }
+    default-window-height { proportion 0.65; }
+}
+
+window-rule {
+    match app-id=r#"^(qt5ct|qt6ct|nwg-look)$"#
+    open-floating true
+    default-column-width { fixed 800; }
+    default-window-height { fixed 600; }
+}
+
+window-rule {
+    match app-id=r#"^(org\.gnome\.FileRoller|file-roller|imv|eog)$"#
+    open-floating true
+}
+
+window-rule {
+    match app-id=r#"^(blueman-manager|nm-connection-editor)$"#
+    open-floating true
+    default-column-width { fixed 600; }
+    default-window-height { fixed 500; }
+}
+
+// ─── PICTURE-IN-PICTURE ─────────────────────────────────────────────────────
+// Float, pin to top-right corner, keep aspect ratio.
+window-rule {
+    match app-id=r#"firefox$"# title=r#"^Picture-in-Picture$"#
+    open-floating true
+    default-column-width { fixed 640; }
+    default-window-height { fixed 360; }
+    // Pin requires niri 25.05+
+    default-floating-position x=-10 y=10 relative-to="top-right"
+}
+
+// Brave PiP (similar title pattern)
+window-rule {
+    match app-id=r#"^brave-browser$"# title=r#"^Picture in picture$"#
+    open-floating true
+    default-column-width { fixed 640; }
+    default-window-height { fixed 360; }
+    default-floating-position x=-10 y=10 relative-to="top-right"
+}
+
+// ─── BRAVE POPUPS ────────────────────────────────────────────────────────────
+window-rule {
+    match app-id=r#"^brave-browser$"# title=r#"^Untitled - Brave$"#
+    open-floating true
+    default-column-width { fixed 450; }
+    default-window-height { fixed 600; }
+}
+
+// Bitwarden extension popup
+window-rule {
+    match app-id=r#"^brave-nngceckbapebfimnlniiiahkandclblb-Default$"#
+    open-floating true
+    default-column-width { fixed 450; }
+    default-window-height { fixed 600; }
+}
+
+// ─── RESEARCH WORKSPACE OVERRIDES ───────────────────────────────────────────
+// On the "research" workspace enforce a side-by-side 50/50 preset.
+// piri's workspace_rule plugin handles this dynamically; the rule below is
+// for the initial window open.
+window-rule {
+    match app-id=r#"^(sioyek|org\.pwmt\.zathura)$"# at-startup=true
+    open-on-workspace "research"
+    default-column-width { proportion 0.5; }
+}
+
+// ─── XWAYLAND POPUP TWEAKS ──────────────────────────────────────────────────
+// Prevent xwayland popups from casting or capturing (matches Hyprland no_dim).
+window-rule {
+    match is-floating=true title=r#"^win[0-9]+$"#
+    // Niri does not have no_dim; just skip screencasting them.
+    block-out-from "screencast"
+}
+
+// ─── LAYER RULES ─────────────────────────────────────────────────────────────
+// Noctalia Shell: allow blur on its background layers.
+// Niri does not currently implement blur for layer-shell surfaces;
+// this rule future-proofs the config for when it does.
+layer-rule {
+    match namespace=r#"^noctalia-background"#
+    // blur  // uncomment when niri gains layer blur support
+    place-within-backdrop true
+}
+
+layer-rule {
+    match namespace=r#"^wallpaper$"#
+    place-within-backdrop true
+}
+
+layer-rule {
+    match namespace=r#"^gtk4-layer-shell$"#
+    // Suppress animations for GTK4 layer-shell apps (e.g. some notifications).
+}
+#+end_src
+
+*** Autostart
+:PROPERTIES:
+:header-args: :tangle ~/.config/niri/conf.d/autostart.kdl
+:END:
+
+#+begin_src kdl
+// ~/.config/niri/conf.d/autostart.kdl
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+spawn-sh-at-startup "wl-paste --type text --watch cliphist store"
+spawn-sh-at-startup "wl-paste --type image --watch cliphist store"
+spawn-sh-at-startup "qs -c noctalia-shell --no-duplicate"
+spawn-at-startup "swhks"
+spawn-at-startup "swhkd"
+spawn-sh-at-startup "xremap --features niri ${HOME}/.config/xremap/config.yml"
+spawn-at-startup "udiskie"
+spawn-sh-at-startup "thunar --daemon"
+spawn-sh-at-startup "emacs --daemon"
+spawn-at-startup "niriusd"
+spawn-sh-at-startup "piri daemon > /dev/null 2>&1 &"
+spawn-at-startup "nsticky"
+spawn-sh-at-startup "niri-sidebar listen"
+spawn-sh-at-startup "python3 ~/.config/niri/scripts/niri-tweaks/niri_tile_to_n.py"
+spawn-sh-at-startup "bash -c ~/.config/niri/scripts/niri-scripts/support-sticky-floating"
+spawn-sh-at-startup "niri-workspaces daemon"
+#+end_src
+
+*** Binds
+:PROPERTIES:
+:header-args: :tangle ~/.config/niri/conf.d/binds.kdl
+:END:
+
+#+begin_src kdl
+// ~/.config/niri/conf.d/binds.kdl
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Niri-Native Keybindings
+// Only actions that call niri compositor actions live here.
+// Application spawns → ~/.config/swhkd/swhkdrc
+// Keychord submaps   → ~/.config/xremap/config.yml
+// Mouse/complex      → ~/.config/kanata/kanata.kbd
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+binds {
+
+    // ─── COMPOSITOR CONTROL ─────────────────────────────────────────────────
+    Super+Shift+E { quit; }                          // Exit niri (with dialog)
+    Super+Shift+R { spawn-sh "niri msg action reload-config"; }   // Live-reload
+    // Lock screen is handled by Noctalia Shell via swhkd (Super+Alt+L)
+
+    // ─── WINDOW MANAGEMENT ──────────────────────────────────────────────────
+    Super+Q         { close-window; }
+    Super+Space     { toggle-window-floating; }
+    Super+Shift+Space { fullscreen-window; }
+    // True edge-to-edge maximise (niri 25.11+)
+    Super+Shift+M   { maximize-window-to-edges; }
+    // Center the focused floating window / column
+    Super+C         { center-column; }
+
+    // ─── FOCUS (Arrow keys + hjkl) ──────────────────────────────────────────
+    Super+Left      { focus-column-left; }
+    Super+Right     { focus-column-right; }
+    Super+Up        { focus-window-up; }
+    Super+Down      { focus-window-down; }
+
+    Super+H         { focus-column-left; }
+    Super+L         { focus-column-right; }
+    Super+K         { focus-window-up; }
+    Super+J         { focus-window-down; }
+
+    // Focus first/last column on the workspace
+    Super+Home      { focus-column-first; }
+    Super+End       { focus-column-last; }
+
+    // ─── MOVE WINDOW / COLUMN ───────────────────────────────────────────────
+    Super+Shift+Left   { move-column-left; }
+    Super+Shift+Right  { move-column-right; }
+    Super+Shift+Up     { move-window-up; }
+    Super+Shift+Down   { move-window-down; }
+
+    Super+Shift+H      { move-column-left; }
+    Super+Shift+L      { move-column-right; }
+    Super+Shift+K      { move-window-up; }
+    Super+Shift+J      { move-window-down; }
+
+    Super+Shift+Home   { move-column-to-first; }
+    Super+Shift+End    { move-column-to-last; }
+
+    // ─── RESIZE ─────────────────────────────────────────────────────────────
+    Super+Ctrl+Left    { set-column-width "-5%"; }
+    Super+Ctrl+Right   { set-column-width "+5%"; }
+    Super+Ctrl+Up      { set-window-height "-5%"; }
+    Super+Ctrl+Down    { set-window-height "+5%"; }
+
+    // Cycle preset widths (Mod+R) / heights (Mod+Shift+W)
+    Super+R            { switch-preset-column-width; }
+    Super+Shift+W      { switch-preset-window-height; }
+    // Expand to fill remaining width
+    Super+F            { maximize-column; }
+
+    // ─── COLUMN STACKING ────────────────────────────────────────────────────
+    Super+BracketLeft  { consume-or-expel-window-left; }
+    Super+BracketRight { consume-or-expel-window-right; }
+    Super+Comma        { consume-window-into-column; }
+    Super+Period       { expel-window-from-column; }
+
+    // ─── TABBED COLUMNS (niri 25.11+) ────────────────────────────────────────
+    Super+T            { toggle-column-tabbed-display; }
+
+    // ─── OVERVIEW (Bird's eye) ───────────────────────────────────────────────
+    Super+Grave        { toggle-overview; }
+
+    // ─── ALT-TAB ─────────────────────────────────────────────────────────────
+    Alt+Tab repeat=false { switch-focus-between-floating-and-tiled; }
+
+    // ─── SCROLL ACROSS COLUMNS (mouse wheel / touchpad) ──────────────────────
+    Super+WheelScrollDown cooldown-ms=150 { focus-workspace-down; }
+    Super+WheelScrollUp   cooldown-ms=150 { focus-workspace-up; }
+    Super+WheelScrollRight               { focus-column-right; }
+    Super+WheelScrollLeft                { focus-column-left; }
+
+    Ctrl+Super+WheelScrollDown cooldown-ms=150 { move-column-to-workspace-down; }
+    Ctrl+Super+WheelScrollUp   cooldown-ms=150 { move-column-to-workspace-up; }
+
+    // ─── FOCUS WORKSPACE ─────────────────────────────────────────────────────
+    Super+1 { focus-workspace "browser"; }
+    Super+2 { focus-workspace "dev"; }
+    Super+3 { focus-workspace "term"; }
+    Super+4 { focus-workspace "research"; }
+    Super+5 { focus-workspace "tex"; }
+    Super+6 { focus-workspace "comms"; }
+    Super+7 { focus-workspace "media"; }
+    Super+8 { focus-workspace "scratch"; }
+    Super+9 { focus-workspace "stage"; }
+
+    // Relative workspace navigation (raw fallback; smart cycling is in swhkdrc)
+    Ctrl+Alt+Down { focus-workspace-down; }
+    Ctrl+Alt+Up   { focus-workspace-up; }
+
+    // ─── MOVE COLUMN TO WORKSPACE ────────────────────────────────────────────
+    Super+Shift+1 { move-column-to-workspace "browser"; }
+    Super+Shift+2 { move-column-to-workspace "dev"; }
+    Super+Shift+3 { move-column-to-workspace "term"; }
+    Super+Shift+4 { move-column-to-workspace "research"; }
+    Super+Shift+5 { move-column-to-workspace "tex"; }
+    Super+Shift+6 { move-column-to-workspace "comms"; }
+    Super+Shift+7 { move-column-to-workspace "media"; }
+    Super+Shift+8 { move-column-to-workspace "scratch"; }
+    Super+Shift+9 { move-column-to-workspace "stage"; }
+
+    // ─── MOVE WORKSPACE ITSELF ───────────────────────────────────────────────
+    Super+Ctrl+Down { move-workspace-down; }
+    Super+Ctrl+Up   { move-workspace-up; }
+
+
+    // ─── HOTKEY OVERLAY ──────────────────────────────────────────────────────
+    Super+Slash { show-hotkey-overlay; }
+
+
+    // // ─── APPLICATION LAUNCHER FALLBACK ───────────────────────────────────────
+    // Super+D repeat=false {
+    //     spawn-sh "qs -c noctalia-shell ipc call launcher toggle";
+    // }
+}
+#+end_src
+
+* Niri Sidebar
+:PROPERTIES:
+:header-args: :tangle ~/.config/niri-sidebar/config.toml
+:END:
+
+#+begin_src toml
+# ~/.config/niri-sidebar/config.toml
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Optimized for 1440p @ 2.0 Scale (Logical 1280x720)
+# Matches rules.kdl logic for floating utilities
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[geometry]
+width  = 320   # 25% of your 1280px logical width
+height = 300   # Allows two stacked windows in your 720px height
+gap    = 8
+
+[margins]
+top    = 10
+right  = 10
+left   = 10
+bottom = 44    # Accommodates Noctalia Shell bar
+
+[interaction]
+position   = "right"
+peek       = 6
+focus_peek = 330
+sticky     = true  # Keeps utilities visible across browser/dev/research workspaces
+
+# ─── Window-specific rules ────────────────────────────────────────────────────
+
+# 1. System Monitors (from your kitty @ btop rule)
+[[window_rule]]
+app_id = "kitty"
+title  = ".*btop.*"
+width  = 320
+height = 320   # Slightly taller for better graph visibility
+autosnap = true
+
+# 2. Media & PiP (from your browser rules)
+[[window_rule]]
+app_id      = "firefox"
+title       = ".*Picture-in-Picture.*"
+width       = 320
+height      = 180
+autosnap    = true
+
+[[window_rule]]
+app_id      = "brave-browser"
+title       = ".*Picture-in-Picture.*"
+width       = 320
+height      = 180
+autosnap    = true
+
+# 3. YouTube Music (Migrated from rules.kdl floating rule)
+# Overrides your 450px fixed width for a cleaner sidebar fit
+[[window_rule]]
+app_id      = "com.github.th_ch.youtube_music"
+width       = 320
+height      = 400
+autosnap    = true
+
+# 4. Calculator (Migrated from rules.kdl floating rule)
+[[window_rule]]
+app_id      = "org.gnome.Calculator"
+width       = 320
+height      = 300
+autosnap    = true
+
+# 5. Audio Control (pavucontrol from rules.kdl)
+[[window_rule]]
+app_id      = "org.pulseaudio.pavucontrol"
+width       = 320
+height      = 350
+autosnap    = true
+
+# 6. Bluetooth & Network (blueman/nm-connection-editor from rules.kdl)
+[[window_rule]]
+app_id      = "blueman-manager"
+width       = 320
+height      = 300
+autosnap    = true
+
+[[window_rule]]
+app_id      = "nm-connection-editor"
+width       = 320
+height      = 300
+autosnap    = true
+#+end_src
+
+* Nsticky
+:PROPERTIES:
+:header-args: :tangle ~/.config/nsticky/config.toml
+:END:
+
+#+begin_src toml
+# ~/.config/nsticky/config.toml
+# nsticky — Sticky and Staged Window Management
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# ─── Picture-in-Picture ─────────────────────────────────────────
+# These rules ensure that even if you drag PiP out of the sidebar,
+# it remains visible across all workspaces.
+[sticky.pip_firefox]
+app_id = "firefox"
+title  = ".*Picture-in-Picture.*"
+
+[sticky.pip_brave]
+app_id = "brave-browser"
+title  = ".*Picture in picture.*"
+
+# ─── File Operations (New: Derived from rules.kdl) ───────────────────────────
+# Keep file transfer progress visible regardless of which workspace you are on.
+[sticky.thunar_progress]
+app_id = "thunar"
+title  = ".*File Operation Progress.*"
+
+[sticky.thunar_confirm]
+app_id = "thunar"
+title  = ".*Confirm to replace files.*"
+
+# ─── System Dialogs ──────────────────────────────────────────────────────────
+# Authentication and Polkit agents should follow you so you don't miss them.
+[sticky.polkit]
+app_id = "org.kde.polkit-kde-authentication-agent-1"
+
+[sticky.lxqt_auth]
+app_id = "lxqt-policykit-agent"
+
+# ─── Usage Notes ─────────────────────────────────────────────────────────────
+# Keybindings (from your swhkdrc):
+#   Super+Ctrl+Space  → Make window sticky (appears everywhere)
+#   Super+Alt+Space   → Send window to "stage" (hidden workspace)
+#
+# NOTE: Ensure your Niri config includes:
+#   workspace "stage" {}
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#+end_src
+
+* Niri Companion
+:PROPERTIES:
+:header-args: ~/.config/niri/niri-workspaces.toml
+:END:
+
+#+begin_src toml
+# ~/.config/niri/niri-workspaces.toml
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# niri-workspaces Session Configuration (niri-companion)
+#
+# niri-workspaces creates named "sessions" — snapshots of which apps live on
+# which workspaces. You can save the current layout and restore it later.
+#
+# CLI usage:
+#   niri-workspaces save   <session-name>   # snapshot current layout
+#   niri-workspaces load   <session-name>   # restore a saved layout
+#   niri-workspaces list                    # show available sessions
+#   niri-workspaces daemon                  # background watcher (in autostart)
+#
+# NOTE: The exact configuration file schema for niri-workspaces is defined in
+# the niri-companion wiki at:
+#   https://github.com/dybdeskarphet/niri-companion/wiki
+#
+# The TOML keys below follow the project's documented format as of the
+# PyPI release. Verify against the wiki if the schema has changed.
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# ─── Global behaviour ─────────────────────────────────────────────────────────
+[workspaces]
+# Automatically save the session when niri exits (requires the daemon).
+autosave     = true
+autosave_on  = "exit"       # "exit" | "interval"
+# autosave_interval = 300   # seconds, if autosave_on = "interval"
+
+# ─── Named sessions ───────────────────────────────────────────────────────────
+# Each session defines which app (by app_id) should open on which workspace
+# when that session is loaded.
+#
+# "research" session: PDF viewer + Zotero + notes on left, right workspaces
+# ─── Named sessions ───────────────────────────────────────────────────────────
+
+# "dev" session: Emacs + terminal on dev workspace
+[[session]]
+name = "dev"
+
+[[session.window]]
+workspace = "dev"
+app_id    = "emacs"
+command   = "emacsclient -c -a 'emacs'"
+
+[[session.window]]
+workspace = "dev"
+app_id    = "kitty"
+command   = "kitty"
+
+[[session.window]]
+workspace = "browser"
+app_id    = "brave-browser"
+command   = "brave"
+
+# "research" session: PDF viewer + Zotero + notes
+[[session]]
+name = "research"
+
+[[session.window]]
+workspace = "research"
+app_id    = "sioyek"
+command   = "sioyek"
+
+[[session.window]]
+workspace = "research"
+app_id    = "zotero"
+command   = "zotero"
+
+[[session.window]]
+workspace = "tex"
+app_id    = "emacs"
+command   = "emacsclient -c -a 'emacs'"
+
+# "writing" session: LaTeX authoring workspace layout
+[[session]]
+name = "writing"
+
+[[session.window]]
+workspace = "tex"
+app_id    = "emacs"
+command   = "emacsclient -c -a 'emacs'"
+
+[[session.window]]
+workspace = "tex"
+app_id    = "sioyek"
+command   = "sioyek"
+
+[[session.window]]
+workspace = "research"
+app_id    = "zotero"
+command   = "zotero"
+#+end_src
+
+* Xremap
+:PROPERTIES:
+:header-args: :tangle ~/.config/xremap/config.yml
+:END:
+
+#+begin_src yaml
+# ~/.config/xremap/config.yml
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+keymap:
+  - name: "Niri Keychords (Leader-based)"
+    remap:
+
+      # ── SCRATCHPADS (Super+P) ───────────────────────────────────────────────
+      # Mirrors Hyprland's 'scratchpads' submap using piri for Niri.
+      Super-p:
+        timeout_millis: 1000
+        remap:
+          t: { launch: ["piri", "scratchpads", "term", "toggle"] }
+          c: { launch: ["piri", "scratchpads", "calc", "toggle"] }
+          m: { launch: ["piri", "scratchpads", "spotify", "toggle"] }
+          y: { launch: ["piri", "scratchpads", "ytm", "toggle"] }
+          l: { launch: ["piri", "scratchpads", "lofi", "toggle"] }
+          f: { launch: ["piri", "scratchpads", "fm", "toggle"] }
+
+      # ── QUICK APPS (Super+G) ────────────────────────────────────────────────
+      # Mirrors Hyprland's 'apps' submap using nirius focus-or-spawn.
+      Super-g:
+        timeout_millis: 1000
+        remap:
+          b: { launch: ["nirius", "focus-or-spawn", "--app-id", "brave-browser", "brave"] }
+          e: { launch: ["nirius", "focus-or-spawn", "--app-id", "emacs", "emacsclient -c -a 'emacs'"] }
+          f: { launch: ["nirius", "focus-or-spawn", "--app-id", "thunar", "thunar"] }
+          z: { launch: ["nirius", "focus-or-spawn", "--app-id", "zotero", "zotero"] }
+          s: { launch: ["nirius", "focus-or-spawn", "--app-id", "sioyek", "sioyek"] }
+
+      # ── TERMINAL TOOLS (Super+T) ────────────────────────────────────────────
+      # Mirrors Hyprland's 'terminals' submap.
+      Super-t:
+        timeout_millis: 1000
+        remap:
+          y: { launch: ["kitty", "-e", "yazi"] }
+          b: { launch: ["kitty", "-e", "btop"] }
+          e: { launch: ["kitty", "-e", "nvim"] }
+
+      # ── NOCTALIA CORE (Super+N) ─────────────────────────────────────────────
+      # System-level Noctalia UI controls.
+      Super-n:
+        timeout_millis: 1000
+        remap:
+          c: { launch: ["qs", "-c", "noctalia-shell", "ipc", "call", "controlCenter", "toggle"] }
+          comma: { launch: ["qs", "-c", "noctalia-shell", "ipc", "call", "settings", "toggle"] }
+          a: { launch: ["qs", "-c", "noctalia-shell", "ipc", "call", "calendar", "toggle"] }
+          i: { launch: ["qs", "-c", "noctalia-shell", "ipc", "call", "systemMonitor", "toggle"] }
+          p: { launch: ["piri", "scratchpads", "notes", "toggle"] }
+          # Mirrors the 'Shift + .' (>) interface panel bind
+          Shift-period: { launch: ["qs", "-c", "noctalia-shell", "ipc", "call", "interface", "togglePanel"] }
+
+      # ── NOCTALIA MISC (Super+M) ─────────────────────────────────────────────
+      # Hardware and Session controls.
+      Super-m:
+        timeout_millis: 1000
+        remap:
+          i: { launch: ["qs", "-c", "noctalia-shell", "ipc", "call", "idleInhibitor", "toggle"] }
+          w: { launch: ["qs", "-c", "noctalia-shell", "ipc", "call", "wifi", "toggle"] }
+          b: { launch: ["qs", "-c", "noctalia-shell", "ipc", "call", "bluetooth", "toggle"] }
+          n: { launch: ["qs", "-c", "noctalia-shell", "ipc", "call", "nightLight", "toggle"] }
+          p: { launch: ["qs", "-c", "noctalia-shell", "ipc", "call", "powerProfile", "cycle"] }
+          k: { launch: ["qs", "-c", "noctalia-shell", "ipc", "call", "lockScreen", "lock"] }
+          x: { launch: ["bash", "-c", "qs -c noctalia-shell ipc call lockScreen lock && systemctl suspend"] }
+
+      # ── NOCTALIA LAUNCHERS (Super+Shift+L) ──────────────────────────────────
+      # Mirrors Hyprland's 'noctalia_launchers' submap.
+      Super-Shift-l:
+        timeout_millis: 1000
+        remap:
+          v: { launch: ["qs", "-c", "noctalia-shell", "ipc", "call", "launcher", "clipboard"] }
+          w: { launch: ["qs", "-c", "noctalia-shell", "ipc", "call", "launcher", "windows"] }
+          period: { launch: ["qs", "-c", "noctalia-shell", "ipc", "call", "launcher", "toggle"] }
+          Shift-period: { launch: ["qs", "-c", "noctalia-shell", "ipc", "call", "launcher", "emoji"] }
+
+#+end_src
+
+* Kanata
+:PROPERTIES:
+:header-args: :tangle ~/.config/kanata/kanata.kbd
+:END:
+
+#+begin_src kbd
+;; ~/.config/kanata/kanata.kbd
+;; ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+;; Kanata Configuration
+;;
+;; Purpose: Handle input remapping that neither niri nor swhkd can do natively.
+;; Specifically:
+;;   1. Super key tap → open launcher (when tapped alone, not as a modifier).
+;;      niri and swhkd have no tap-hold concept for modifier keys.
+;;   2. Caps Lock dual-role: held = Ctrl, tapped = Escape.
+;;      Complements the XKB ctrl:nocaps option; this goes further by making
+;;      a solo-tap of Caps emit Escape (extremely useful in Vim / Neovim).
+;;
+;; IMPORTANT: Mouse drag-to-move (Super+LMB) and drag-to-resize (Super+RMB)
+;; are handled NATIVELY by niri for floating windows — no kanata needed.
+;; Wheel-scroll-workspace bindings live in conf.d/binds.kdl.
+;; ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+(defcfg
+  ;; Leave this disabled since we are using the secure key-chord method
+  ;; to trigger the launcher via swhkdrc.
+  ;; danger-enable-cmd yes
+)
+
+;; ── Source keys to intercept ────────────────────────────────────────────────
+;; Only intercept Caps Lock and Left Meta (Super).
+;; Everything else passes through untouched.
+(defsrc
+  caps lmet
+)
+
+;; ── Aliases ──────────────────────────────────────────────────────────────────
+(defalias
+  ;; Caps Lock:
+  ;;   held  → Left Ctrl
+  ;;   tapped alone → Escape
+  caps-dual (tap-hold-release 200 200 esc lctl)
+
+  ;; Left Meta (Super):
+  ;;   held  → Left Meta (normal modifier behaviour)
+  ;;   tapped alone → Emits M-d (Left Meta + D)
+  ;;   Your swhkdrc catches Super+D and runs: qs -c noctalia-shell ipc call launcher toggle
+  super-dual (tap-hold-release 200 200 M-d lmet)
+)
+
+;; ── Default Layer ────────────────────────────────────────────────────────────
+;; Map the source keys to our dual-function aliases.
+(deflayer default
+  @caps-dual @super-dual
+)
+#+end_src
+
+* Piri
+:PROPERTIES:
+:header-args: :tangle ~/.config/niri/piri.toml
+:END:
+
+#+begin_src toml
+# ~/.config/niri/piri.toml
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Piri Configuration — Compositor Plugin Manager for Niri
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# ─── Enabled Plugins ────────────────────────────────────────────────────────
+[piri.plugins]
+scratchpads    = true
+empty          = true
+window_rule    = true
+workspace_rule = true
+singleton      = true
+window_order   = true
+swallow        = true
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# SCRATCHPADS
+# Integrated with xremap (Super+P) and swhkd (Super+Shift+Return)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[piri.scratchpad]
+default_size      = "65% 65%"
+default_margin    = 50
+# Matches the "scratch" workspace from workspaces.kdl
+move_to_workspace = "scratch"
+
+# ── Terminal (t) ──
+[[scratchpads]]
+name    = "term"
+command = "kitty --class piri-scratchpad-term"
+app_id  = "piri-scratchpad-term"
+size    = "70% 70%"
+
+# ── Calculator (c) ──
+[[scratchpads]]
+name    = "calc"
+command = "qalculate-gtk"
+app_id  = "qalculate-gtk"
+
+# ── Music/Spotify (m) ──
+[[scratchpads]]
+name    = "spotify"
+command = "spotify"
+app_id  = "spotify"
+
+# ── YouTube Music (y) ──
+[[scratchpads]]
+name    = "ytm"
+command = "youtube-music"
+app_id  = "youtube-music"
+
+# ── Lo-Fi Player (l) ──
+[[scratchpads]]
+name    = "lofi"
+command = "kitty --class piri-scratchpad-lofi -e mpv --no-video 'https://www.youtube.com/watch?v=jfKfPfyJRdk'"
+app_id  = "piri-scratchpad-lofi"
+
+# ── File Manager (f) ──
+[[scratchpads]]
+name    = "fm"
+command = "kitty --class piri-scratchpad-yazi -e yazi"
+app_id  = "piri-scratchpad-yazi"
+
+# ── Notes (p) ──
+# Added to match xremap's "notes" toggle
+[[scratchpads]]
+name    = "notes"
+command = "obsidian"
+app_id  = "obsidian"
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# SINGLETONS — Ensure only one instance exists
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[singleton.emacs]
+command = "emacsclient -c -a 'emacs'"
+app_id  = "emacs"
+on_created_command = "notify-send -t 1500 'Emacs' 'New frame opened'"
+
+[singleton.sioyek]
+command = "sioyek"
+app_id  = "sioyek"
+
+[singleton.zotero]
+command = "zotero"
+app_id  = "zotero"
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# WINDOW ORDER — Priority ordering within a workspace
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[piri.window_order]
+enable_event_listener = true
+default_weight        = 0
+workspaces            = ["dev", "research", "tex"]
+
+[window_order]
+# Development Workspace
+emacs         = 100
+neovide       = 100
+kitty         = 80
+# Research & Writing Workspaces
+sioyek        = 95
+zathura       = 95
+zotero        = 70
+# General
+brave-browser = 50
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# SWALLOW — Terminal swallows child processes
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[piri.swallow]
+use_pid_matching = true
+
+[piri.swallow.exclude]
+app_id = [".*dialog.*", ".*error.*", ".*popup.*"]
+
+[[swallow]]
+parent_app_id = [".*kitty.*", ".*foot.*"]
+child_app_id  = [".*"]
+#+end_src

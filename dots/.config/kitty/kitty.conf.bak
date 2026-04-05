@@ -1,0 +1,124 @@
+# ============================================================================
+# PERFORMANCE & SHELL INTEGRATION
+# ============================================================================
+shell_integration   enabled
+shell               zsh
+editor              nvim
+repaint_delay       10
+input_delay         3
+sync_to_monitor     yes
+allow_remote_control yes
+listen_on           unix:/tmp/kitty
+
+# ============================================================================
+# FONTS
+# ============================================================================
+font_family      JetBrainsMono Nerd Font
+bold_font        auto
+italic_font      auto
+bold_italic_font auto
+font_size        13.0
+disable_ligatures never
+
+# ============================================================================
+# WINDOW LAYOUT & APPEARANCE (SCREENSHOT SPECS)
+# ============================================================================
+enabled_layouts             splits,stack,tall,fat,grid,horizontal,vertical
+window_resize_step_cells    2
+window_resize_step_lines    2
+window_border_width         1pt
+window_margin_width         2.5 
+single_window_margin_width  -1
+window_padding_width        1 
+adjust_column_width         1
+adjust_line_height          1
+
+# Appearance tweaks
+draw_minimal_borders        yes
+hide_window_decorations     yes
+confirm_os_window_close     0
+inactive_text_alpha         0.7
+
+# ============================================================================
+# COLORS & THEME (NOCTALIA INTEGRATION)
+# ============================================================================
+include themes/noctalia.conf
+
+# Explicitly setting border colors from noctalia.conf for visibility
+active_border_color   #bec2ff
+inactive_border_color #46464f
+background_opacity    0.90
+background_blur       1
+
+# Cursor & Trail
+cursor                #e5e1e6
+cursor_trail          3
+cursor_trail_decay    0.1 0.4
+cursor_trail_color    #c7c5d0
+
+# ============================================================================
+# TAB BAR (V2 STYLE)
+# ============================================================================
+tab_bar_edge                top
+tab_bar_style               powerline
+tab_powerline_style         slanted
+tab_bar_align               left
+tab_activity_symbol         " ● "
+
+# Mnemonic Tab Titles
+tab_title_template          "{fmt.fg.red}{bell_symbol}{activity_symbol}{fmt.fg.tab}{title[:30]}{title[30:] and '…'} [{index}]"
+active_tab_title_template   "{fmt.fg.red}{bell_symbol}{activity_symbol}{fmt.fg.tab}{title[:30]}{title[30:] and '…'} [{index}]"
+
+# ============================================================================
+# MNEMONIC MULTIPLEXER KEYBINDINGS (ARROW NAVIGATION)
+# ============================================================================
+# Use 'Alt' as the primary multiplexer modifier
+
+# --- Window/Pane Management ---
+map alt+enter       new_window_with_cwd
+map alt+w           close_window
+map alt+v           launch --cwd=current --location=vsplit
+map alt+s           launch --cwd=current --location=hsplit
+map alt+z           toggle_layout stack
+
+# --- Navigation (Arrow Keys) ---
+map alt+left        neighboring_window left
+map alt+right       neighboring_window right
+map alt+up          neighboring_window up
+map alt+down        neighboring_window down
+
+# --- Moving Windows ---
+map ctrl+shift+alt+left  move_window left
+map ctrl+shift+alt+right move_window right
+map ctrl+shift+alt+up    move_window up
+map ctrl+shift+alt+down  move_window down
+
+# --- Resizing (Shift + Arrows) ---
+map alt+shift+left  resize_window wider 2
+map alt+shift+right resize_window narrower 2
+map alt+shift+up    resize_window taller 2
+map alt+shift+down  resize_window shorter 2
+
+# --- Tab Management ---
+map alt+t           new_tab_with_cwd
+map alt+n           set_tab_title
+map alt+.           next_tab
+map alt+,           previous_tab
+map alt+1           goto_tab 1
+map alt+2           goto_tab 2
+map alt+3           goto_tab 3
+map alt+q           close_tab
+
+# ============================================================================
+# UTILITIES
+# ============================================================================
+action_alias kitty_scrollback_nvim kitten $HOME/.local/share/nvim/lazy/kitty-scrollback.nvim/python/kitty_scrollback_nvim.py
+map ctrl+shift+h    kitty_scrollback_nvim
+map ctrl+shift+g    kitty_scrollback_nvim --config ksb_builtin_last_cmd_output
+
+# Custom Launchers
+map ctrl+shift+u    launch --type=background --cwd=current sh -c 'vscodium $(pwd)'
+map ctrl+shift+y    launch --type=overlay-main --cwd=current yazi
+
+# Reload config
+map ctrl+alt+r      load_config_file

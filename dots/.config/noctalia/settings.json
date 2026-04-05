@@ -314,20 +314,6 @@
                     "defaultSettings": {
                     },
                     "id": "plugin:workspace-overview"
-                },
-                {
-                    "defaultSettings": {
-                        "colorHistory": [
-                        ],
-                        "installedLangs": [
-                            "eng"
-                        ],
-                        "paletteColors": [
-                        ],
-                        "selectedOcrLang": "eng",
-                        "transAvailable": false
-                    },
-                    "id": "plugin:screen-toolkit"
                 }
             ]
         }
@@ -571,7 +557,8 @@
         "use12hourFormat": false,
         "useFahrenheit": false,
         "weatherEnabled": true,
-        "weatherShowEffects": true
+        "weatherShowEffects": true,
+        "weatherTaliaMascotAlways": false
     },
     "network": {
         "bluetoothAutoConnect": false,
@@ -587,7 +574,7 @@
         "autoSchedule": true,
         "dayTemp": "4500",
         "enabled": true,
-        "forced": true,
+        "forced": false,
         "manualSunrise": "06:30",
         "manualSunset": "18:30",
         "nightTemp": "4000"
@@ -799,6 +786,14 @@
             {
                 "enabled": true,
                 "id": "kitty"
+            },
+            {
+                "enabled": true,
+                "id": "niri"
+            },
+            {
+                "enabled": true,
+                "id": "spicetify"
             }
         ],
         "enableUserTheming": true

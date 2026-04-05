@@ -93,6 +93,7 @@ This block is evaluated automatically when you open the file. It defines a robus
 * Configuration Modules
 Place your sub-modules here. Because of the Tangling Engine above, they will all be processed flawlessly.
 
+#+INCLUDE: "niri.org"
 #+INCLUDE: "atuin.org"
 #+INCLUDE: "bat.org"
 #+INCLUDE: "hyprland.org"

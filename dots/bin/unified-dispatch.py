@@ -25,9 +25,6 @@ def get_socket_path():
         sys.exit(1)
 
     xdg_runtime = os.environ.get("XDG_RUNTIME_DIR", "")
-    # BUG FIX 1: Hyprland's IPC control socket is ".socket.sock", NOT ".socket1.sock".
-    # ".socket1.sock" does not exist; connecting to it raises FileNotFoundError,
-    # which is silently caught and returns None, causing every IPC call to fail.
     path_xdg = f"{xdg_runtime}/hypr/{signature}/.socket.sock"
     path_tmp = f"/tmp/hypr/{signature}/.socket.sock"
 
@@ -45,17 +42,9 @@ def hypr_request(command, is_json=False):
     """Sends a raw command to Hyprland's IPC socket for zero-overhead execution."""
     try:
         with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
-            # BUG FIX 3 (defensive): Set a timeout so we never hang forever
-            # if Hyprland is busy or the connection doesn't close cleanly.
             client.settimeout(5.0)
             client.connect(SOCKET1_PATH)
 
-            # BUG FIX 2: Hyprland's IPC recognises two prefixes:
-            #   "j/" → JSON output   "i/" → plain-text output (also the default)
-            # The old code used "/" as the plain-text prefix, which is NOT a
-            # recognised prefix — Hyprland would interpret the entire string
-            # "/dispatch ..." as the command name, matching no handler and
-            # returning an error response or silently doing nothing.
             prefix = "j/" if is_json else "i/"
             client.sendall(f"{prefix}{command}".encode("utf-8"))
 
