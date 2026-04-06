@@ -30,28 +30,103 @@ sudo zypper in curl wget git-core git-lfs gh unzip zip
 echo "installers"
 sleep 5
 curl -fsS https://dl.brave.com/install.sh | sh
-curl -LsSf https://astral.sh/uv/install.sh | sh
-curl -fsSL https://pixi.sh/install.sh | sh
-curl -fsSL https://bun.com/install | bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-echo "brew setup and pkgs"
-sleep 5
 cd
 echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv bash)"' >>/home/ahsan/.bashrc
 source ~/.bashrc
 cd
-brew install pandoc
+brew install pandoc uv pixi mise
 brew install --cask font-jetbrains-mono
 brew install --cask font-jetbrains-mono-nerd-font
 brew install --cask font-noto-color-emoji
 brew install --cask font-google-sans-code
 brew install --cask font-symbols-only-nerd-font
 
+adw-gtk-theme
+ananicy-cpp
+apparmor
+aquamarine
+aspell
+atuin
+bat
+brightnessctl
+btop
+cava
+chafa
+cliphist
+cronie
+curl
+ddcutil
+direnv
+distrobox
+dust
+enchant
+evolution-data-server
+eza
+fd
+file-roller
+git
+git-lfs
+github-cli
+gnome-keyring
+grim
+hunspell
+hunspell-en_gb
+hunspell-en_us
+i2c-tools
+imv
+inotify-tools
+inxi
+jq
+json-c
+kitty
+kitty-shell-integration
+kitty-terminfo
+lazygit
+lcms2
+leancrypto
+leptonica
+less
+ly
+lynis
+mpv
+nautilus
+neovide
+neovim
+noto-fonts
+noto-fonts-cjk
+noto-fonts-emoji
+nwg-look
+papers
+papirus-icon-theme
+paru
+power-profiles-daemon
+profile-sync-daemon
+pymol
+qrencode
+riff-client
+ripgrep
+rog-control-center
+slang
+slurp
+socat
+starship
+swappy
+tmux
+topgrade
+transmission-gtk
+wget
+wireplumber
+wl-clipboard
+wlr-randr
+yazi
+zen-browser-bin
+
 echo "main pkgs"
 sleep 5
-sudo zypper in acpid aspell bleachbit bluez bluez-firmware bpftune brightnessctl btop cliphist cpio cronie ddcutil direnv distrobox dust emacs enchant-devel evolution-data-server fail2ban fastfetch flatpak fwupd fwupd-efi gnome-keyring gnome-tweaks gnuplot graphviz grim gsettings-desktop-schemas gtk4-layer-shell-devel gzip haveged hunspell hunspell-tools i2c-tools ImageMagick imv inotify-tools ispell jq kitty kitty-shell-integration kitty-terminfo lazygit libgtk4-layer-shell0 logrotate luajit lynis meson mpv neovim nodejs24 npm24 nwg-look opi papers papirus-icon-theme pciutils pipewire pipewire-alsa pipewire-pulseaudio pkgconf-pkg-config podman podman-docker profile-sync-daemon python313-pipx python313-pymol qt5ct qt6ct slurp swappy switcheroo-control tealdeer tmux topgrade transmission-gtk trash-cli ucode-amd udiskie wireplumber wl-clipboard xdg-desktop-portal-gnome xdg-desktop-portal-gtk xdg-user-dirs xdg-user-dirs-gtk zathura zathura-plugin-pdf-mupdf zeromq-devel zeromq-tools zoxide zram-generator zsh zstd
+sudo zypper in acpid aspell bleachbit bluez bluez-firmware bpftune brightnessctl btop cliphist cpio cronie ddcutil direnv distrobox dust emacs enchant-devel evolution-data-server fail2ban fastfetch flatpak fwupd fwupd-efi gnome-keyring gnome-tweaks gnuplot graphviz grim gsettings-desktop-schemas gtk4-layer-shell-devel gzip haveged hunspell hunspell-tools i2c-tools ImageMagick imv inotify-tools ispell jq kitty kitty-shell-integration kitty-terminfo lazygit libgtk4-layer-shell0 logrotate luajit lynis meson mpv neovim nodejs24 npm24 nwg-look opi papers papirus-icon-theme pciutils pipewire pipewire-alsa pipewire-pulseaudio pkgconf-pkg-config podman podman-docker profile-sync-daemon python313-pipx python313-pymol qt5ct qt6ct slurp swappy switcheroo-control tealdeer tmux topgrade transmission-gtk trash-cli ucode-amd udiskie wireplumber wl-clipboard xdg-desktop-portal-gnome xdg-desktop-portal-gtk xdg-user-dirs xdg-user-dirs-gtk zathura zathura-plugin-pdf-mupdf zeromq-tools zoxide zram-generator zsh zstd wl-sunset zotero
 
 echo "rust pkgs"
 sleep 5
@@ -69,13 +144,9 @@ bash "$PIA_INSTALLER"
 echo "Opi pkgs"
 sleep 5
 opi codecs
-opi texlive-dummy
 opi adw-gtk3
 opi hyprland
-opi hyprland-devel
-opi hyprland-guiutils
 opi ly
-opi noctalia-shell
 opi zotero
 opi zen-browser
 
