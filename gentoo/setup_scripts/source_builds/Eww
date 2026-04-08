@@ -1,0 +1,8 @@
+#!/bin/bash
+echo "Installing eww"
+rustup default nightly
+cd && git clone https://github.com/elkowar/eww && cd eww
+cargo build --release --no-default-features --features=wayland
+chmod +x target/release/eww
+sudo install -Dm755 target/release/eww "/usr/local/bin/eww"
+sudo rm -rf eww && cd && sudo rm -rf $HOME/eww

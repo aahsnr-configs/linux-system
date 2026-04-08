@@ -1,0 +1,4 @@
+#!/bin/bash
+killall ags
+GDK_DPI_SCALE=1.2 ags &
+

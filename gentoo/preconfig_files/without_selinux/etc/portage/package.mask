@@ -1,0 +1,22 @@
+### /etc/portage/package.mask
+#dev-lang/python-3.13.2::gentoo
+sys-kernel/cachyos-sources::gentoo-zh
+#>=app-editors/neovim-0.11
+#>=dev-libs/glib-2.84
+#>=sys-kernel/cachyos-sources-6.14
+#app-emacs/po-mode::melpa
+#>=llvm-core/llvmgold-20
+#>=llvm-core/clang-20
+#>=llvm-core/clang-common-20
+#>=llvm-core/clang-runtime-20
+#>=llvm-core/clang-toolchain-symlinks-20
+#>=llvm-core/lld-20
+#>=llvm-core/lld-toolchain-symlinks-20
+#>=llvm-core/llvm-20
+#>=llvm-core/llvm-common-20
+#>=llvm-core/llvm-toolchain-symlinks-20
+#>=llvm-runtimes/compiler-rt-20
+#>=llvm-runtimes/compiler-rt-sanitizers-20
+#>=llvm-runtimes/libunwind-20
+#>=dev-util/spirv-llvm-translator-20
+

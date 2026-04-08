@@ -1,0 +1,7 @@
+#!/bin/bash
+echo "Install materialyoucolor"
+cd && git clone https://github.com/T-Dynamos/materialyoucolor-python.git
+cd materialyoucolor-python
+python3 -m build --wheel --no-isolation
+sudo python3 -m installer dist/*.whl
+cd && sudo rm -rf materialyoucolor-python

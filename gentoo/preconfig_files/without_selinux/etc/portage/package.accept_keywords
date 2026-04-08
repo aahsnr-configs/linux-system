@@ -1,0 +1,224 @@
+##/etc/portage/package.accept_keywords
+=app-misc/czkawka-9999 ** ~amd64
+=gui-wm/hyprland-9999 ** ~amd64
+=dev-libs/hyprlang-9999 ** ~amd64
+=dev-libs/hyprgraphics-9999 ** ~amd64
+=gui-libs/aquamarine-9999 ** ~amd64
+=gui-libs/hyprcursor-9999 ** ~amd64
+=gui-libs/hyprutils-9999 ** ~amd64
+=dev-libs/hyprland-protocols-9999 ** ~amd64
+=dev-util/hyprwayland-scanner-9999 ** ~amd64
+=gui-libs/xdg-desktop-portal-hyprland-9999 ** ~amd64
+=gui-apps/hyprpaper-9999 ** ~amd64
+=gui-apps/hyprpicker-9999 ** ~amd64
+=gui-apps/hypridle-9999 ** ~amd64
+=gui-apps/hyprlock-9999 ** ~amd64
+=gui-wm/hyprland-contrib-9999 ** ~amd64
+=gui-apps/hyprsunset-9999 ** ~amd64
+=gui-apps/uwsm-9999 ** ~amd64
+=app-backup/grub-btrfs-9999 ** ~amd64
+=app-shells/zsh-autosuggestions-9999 ** ~amd64
+=app-shells/zsh-completions-9999 ** ~amd64
+=app-shells/zsh-history-substring-search-9999 ** ~amd64
+=app-shells/zsh-syntax-highlighting-9999 ** ~amd64
+=app-shells/fzf-tab-9999 ** ~amd64
+#--install from testing
+app-admin/bitwarden-desktop-bin ~amd64
+app-admin/sysstat ~amd64
+app-arch/7zip ~amd64
+app-arch/unzip ~amd64
+app-arch/unrar ~amd64
+app-arch/zip ~amd64
+app-backup/btrfs-assistant ~amd64
+app-backup/snapper ~amd64
+app-backup/snapper-gui ~amd64
+app-containers/* ~amd64
+app-containers/distrobox ~amd64
+app-containers/docker ~amd64
+app-containers/docker-cli ~amd64
+app-containers/docker-compose ~amd64
+app-containers/docker-credential-helpers ~amd64
+app-containers/lxc ~amd64
+app-containers/lxd ~amd64
+app-containers/podman ~amd64
+app-containers/podman-compose ~amd64
+app-containers/podman-tui ~amd64
+app-containers/pods ~amd64
+dev-cpp/sdbus-c++ ~amd64
+app-crypt/johntheripper ~amd64
+app-editors/emacs ~amd64
+app-editors/neovim ~amd64
+app-emacs/* ~amd64
+app-emacs/all-the-icons ~amd64
+app-emacs/emacs-common ~amd64
+app-emacs/nerd-icons ~amd64
+app-emacs/nerd-icons-corfu ~amd64
+app-emacs/org-mode ~amd64
+app-eselect/eselect-repository ~amd64
+app-forensics/aide ~amd64
+app-forensics/lynis ~amd64
+app-misc/brightnessctl ~amd64
+app-misc/yazi ~amd64
+app-office/obsidian ~amd64
+app-portage/gemato ~amd64
+app-portage/gentoolkit ~amd64
+app-portage/smart-live-rebuild ~amd64
+app-shells/fzf ~amd64
+app-shells/fzf-tab ~amd64
+app-shells/gentoo-zsh-completions ~amd64
+app-shells/gitstatus ~amd64
+app-shells/zoxide ~amd64
+app-shells/zsh ~amd64
+app-text/fzy ~amd64
+app-text/texlab ~amd64
+app-text/xournalpp ~amd64
+app-text/zathura ~amd64
+app-text/zathura-meta ~amd64
+app-text/zotero-bin ~amd64
+dev-build/meson ~amd64
+dev-lang/sassc ~amd64
+dev-lang/typescript ~amd64
+dev-libs/girara ~amd64
+dev-libs/libutf8proc ~amd64
+dev-libs/mmtf-cpp ~amd64
+dev-libs/nss ~amd64
+dev-libs/tree-sitter ~amd64
+dev-libs/tree-sitter-lua ~amd64
+dev-libs/tree-sitter-markdown ~amd64
+dev-libs/tree-sitter-query ~amd64
+dev-libs/tree-sitter-vim ~amd64
+dev-libs/unibilium ~amd64
+dev-libs/wayland-protocols ~amd64
+dev-lua/luv ~amd64
+dev-python/* ~amd64
+dev-python/black ~amd64
+dev-python/gpep517 ~amd64
+dev-python/isort ~amd64
+dev-python/matplotlib ~amd64
+dev-python/pandas ~amd64
+dev-python/pipx ~amd64
+dev-python/python-pam ~amd64
+dev-python/pynvim ~amd64
+dev-python/scipy ~amd64
+dev-python/userpath ~amd64
+dev-util/dart-sass ~amd64
+dev-util/git-delta ~amd64
+dev-util/lua-language-server ~amd64
+dev-util/pkgdev ~amd64
+dev-util/glslang ~amd64
+dev-util/tree-sitter-cli ~amd64
+dev-util/spirv-headers ~amd64
+dev-util/spirv-tools ~amd64
+dev-util/vulkan-headers ~amd64
+dev-util/vulkan-tools ~amd64
+dev-util/vulkan-utility-libraries ~amd64
+dev-vcs/git ~amd64
+dev-vcs/lazygit ~amd64
+dev-vcs/git-lfs ~amd64
+dev-tex/texlab ~amd64
+gui-apps/anyrun ~amd64
+gui-apps/alacritty-graphics ~amd64
+gui-apps/foot ~amd64
+gui-apps/foot-terminfo ~amd64
+gui-apps/grim ~amd64
+gui-apps/qt6ct ~amd64
+gui-apps/rofi-wayland ~amd64
+gui-apps/slurp ~amd64
+gui-apps/tuigreet ~amd64
+gui-apps/wf-recorder ~amd64
+gui-apps/wl-clipboard ~amd64
+gui-libs/egl-gbm
+gui-libs/egl-x11
+gui-libs/egl-wayland ~amd64
+gui-libs/greetd ~amd64
+gui-libs/gtk ~amd64
+gui-libs/libadwaita ~amd64
+gui-libs/wlroots ~amd64
+media-fonts/jetbrains-mono ~amd64
+media-fonts/ubuntu-font-family ~amd64
+media-fonts/nerdfonts ~amd64
+media-gfx/maim ~amd64
+media-libs/fcft ~amd64
+media-libs/gst-plugins-bad ~amd64
+media-libs/gst-plugins-base ~amd64
+media-libs/gst-plugins-good ~amd64
+media-libs/gst-plugins-ugly ~amd64
+media-libs/mesa ~amd64
+media-libs/nvidia-vaapi-driver ~amd64
+media-libs/libpulse ~amd64
+media-libs/vulkan-layers ~amd64
+media-libs/vulkan-loader ~amd64
+media-plugins/gst-plugins-meta  ~amd64
+media-plugins/gst-plugins-oss ~amd64
+media-sound/spotify ~amd64
+media-video/ffmpeg ~amd64
+media-video/mpv ~amd64
+media-video/pipewire ~amd64
+media-video/wireplumber ~amd64
+net-analyzer/nmap ~amd64
+net-analyzer/wireshark ~amd64
+net-firewall/firewalld ~amd64
+net-im/discord ~amd64
+net-im/zoom ~amd64
+net-misc/curl ~amd64
+net-misc/dhcpcd ~amd64
+net-misc/dhcpcd-ui ~amd64
+net-misc/dropbox ~amd64
+net-misc/wget ~amd64
+net-wireless/aircrack-ng ~amd64
+net-wireless/wpa_supplicant ~amd64
+sci-biology/biopython ~amd64
+sci-chemistry/pymol ~amd64
+sec-keys/* ~amd64
+sec-policy/apparmor-profiles ~amd64
+sys-apps/apparmor ~amd64
+sys-apps/apparmor-utils ~amd64
+sys-apps/bat ~amd64
+sys-apps/eza ~amd64
+sys-apps/fd ~amd64
+sys-apps/fwupd ~amd64
+sys-apps/grep ~amd64
+sys-apps/haveged ~amd64
+sys-apps/mlocate ~amd64
+sys-apps/ripgrep ~amd64
+sys-apps/rng-tools ~amd64
+sys-apps/portage ~amd64
+sys-apps/systemd ~amd64
+sys-apps/zram-generator ~amd64
+sys-auth/seatd ~amd64
+sys-firmware/sof-firmware ~amd64
+sys-fs/btrfs-progs ~amd64
+sys-fs/dosfstools ~amd64
+sys-kernel/cachyos-sources ~amd64
+sys-kernel/dracut ~amd64
+sys-kernel/installkernel ~amd64
+sys-kernel/linux-firmware ~amd64
+sys-kernel/linux-headers ~amd64
+sys-kernel/modprobed-db ~amd64
+sys-libs/libapparmor ~amd64
+sys-power/upower ~amd64
+sys-process/acct ~amd64
+sys-process/audit ~amd64
+sys-process/bottom ~amd64
+sys-process/btop ~amd64
+sys-process/nvtop ~amd64
+x11-base/xwayland ~amd64
+x11-drivers/nvidia-drivers ~amd64
+x11-drivers/xf86-video-amdgpu ~amd64
+x11-libs/libnotify ~amd64
+x11-misc/qt5ct ~amd64
+x11-themes/kvantum ~amd64
+xfce-base/thunar ~amd64
+xfce-base/thunar-volman ~amd64
+xfce-base/tumbler ~amd64
+xfce-extra/thunar-archive-plugin ~amd64
+xfce-extra/thunar-media-tags-plugin ~amd64
+www-apps/element ~amd64
+www-apps/beef ~amd64
+www-client/zen-browser ~amd64
+www-client/firefox ~amd64
+#gnome-base/gvfs ~amd64
+#sys-fs/genfstab ~amd64
+#sys-fs/cryptsetup ~amd64
+#sys-apps/file ~amd64
+#net-misc/networkmanager ~amd64

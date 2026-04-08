@@ -1,0 +1,10 @@
+#!/bin/bash
+umount /.snapshots
+rm -rf /.snapshots
+snapper -c root create-config /
+nvim /etc/snapper/configs/root
+snapper -c home create-config /home
+nvim /etc/snapper/configs/home
+systemctl disable snapper-boot.timer
+btrfs su del /.snapshots
+mkdir /.snapshots

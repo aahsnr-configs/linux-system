@@ -1,0 +1,18 @@
+#!/bin/bash
+cd && git clone https://gitlab.com/ananicy-cpp/ananicy-cpp.git
+cd ananicy-cpp
+cmake -S . -Bbuild \
+  -GNinja \
+  -DCMAKE_BUILD_TYPE=None \
+  -DCMAKE_INSTALL_PREFIX=/usr \
+  -DUSE_EXTERNAL_SPDLOG=ON \
+  -DUSE_EXTERNAL_JSON=ON \
+  -DUSE_EXTERNAL_FMTLIB=ON \
+  -DENABLE_SYSTEMD=ON \
+  -DUSE_BPF_PROC_IMPL=ON \
+  -DBPF_BUILD_LIBBPF=OFF
+
+cmake --build build --target ananicy-cpp
+sudo cmake --install build --component Runtime
+sudo install -m755 -d /etc/ananicy.d
+cd && sudo rm -rf ananicy-cpp

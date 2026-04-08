@@ -1,0 +1,3076 @@
+#+title: Home Configuration
+#+PROPERTY: mkdirp: yes
+* TODO Atuin
+
+** Systemd Units
+
+#+begin_src shell :tangle $HOME/.config/systemd/user/atuin.service
+[Unit]
+Description=Atuin Shell History
+Documentation=https://atuin.sh/docs
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/atuin daemon
+ExecStop=/bin/kill -TERM $MAINPID
+Restart=always
+RestartSec=30
+Environment=ATUIN_CONFIG_DIR=%h/.config/atuin
+
+# Sandboxing
+ProtectSystem=strict
+PrivateTmp=true
+PrivateDevices=true
+ProtectHome=tmpfs
+ProtectControlGroups=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+RestrictRealtime=true
+MemoryDenyWriteExecute=true
+LockPersonality=true
+RestrictSUIDSGID=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target
+#+end_src
+
+#+begin_src shell :tangle $HOME/.config/systemd/user/atuin-maintenance.timer
+[Unit]
+Description=Daily Atuin Database Maintenance
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+#+end_src
+
+#+begin_src shell :tangle $HOME/.config/systemd/user/atuin-maintenance.service
+[Unit]
+Description=Atuin Database Maintenance
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/atuin db compact
+ExecStart=/usr/bin/atuin db optimize
+#+end_src
+
+** TODO Zsh
+#+begin_src sh :tangle $HOME/.config/zsh/atuin.zsh
+# Atuin initialization
+eval "$(atuin init zsh --disable-up-arrow)"
+
+# Vim keybindings for Atuin
+export ATUIN_KEYBINDING="vim"
+bindkey -v  # Set vim mode for Zsh
+
+# Custom vim-style bindings for Atuin
+atuin-search-vim() {
+  local selected=$(atuin search -i --cmd-only --height 20 --layout reverse | tac)
+  if [[ -n $selected ]]; then
+    BUFFER=$selected
+    zle end-of-line
+  fi
+  zle redisplay
+}
+zle -N atuin-search-vim
+bindkey '^r' atuin-search-vim
+
+# Improved history navigation
+bindkey '^p' up-line-or-search
+bindkey '^n' down-line-or-search
+
+# Performance optimizations for Gentoo
+export ATUIN_NOBIND="true"
+export ATUIN_QUERY="command,exit,cwd,hostname,time,shell"
+export ATUIN_SESSION_FILTER="0.1"  # Filter out very short sessions
+
+# Optimize Atuin for Gentoo
+export ATUIN_DB_WAL_ENABLED=1
+export ATUIN_DB_CACHE_SIZE=-2000  # 2MB cache
+export ATUIN_DB_JOURNAL_MODE=WAL
+export ATUIN_DB_SYNC=1
+export ATUIN_RUST_LOG="warn"  # Reduce logging verbosity
+#+end_src
+
+** Configuration
+#+begin_src toml :tangle $HOME/.config/atuin/config.toml
+[server]
+host = "0.0.0.0"
+port = 8888
+open_browser = false
+
+[client]
+keyring = true
+sync_frequency = "5m"
+search_mode = "fuzzy"
+search_limit = 10000
+filter_mode = "global"
+inline_height = 20
+style = "compact"
+time_format = "%Y-%m-%d %H:%M:%S"
+sync_address = "https://api.atuin.sh"
+
+[database]
+max_db_size = "2GB"  # Adjust based on your storage
+auto_compact = true
+journal_mode = "WAL"  # Better performance
+synchronous = "NORMAL"
+
+[history]
+filter_duplicates = true
+filter_exit_codes = "0-1"  # Only store successful commands
+filter_session_seconds = 1  # Filter very short sessions
+timezone = "local"
+
+[keys]
+vim = true
+search = "ctrl-r"
+up = "ctrl-p"
+down = "ctrl-n"
+
+[shell]
+integration = "zsh"
+prompt_indicator = "❯"
+vim_mode = true
+#+end_src
+
+
+* TODO Bat
+** Configuration
+#+begin_src sh :tangle $HOME/.config/bat/config
+# ~/.config/bat/config
+
+# Theme configuration (Catppuccin Mocha)
+--theme="Catppuccin-mocha"
+
+# Always show line numbers
+--style="numbers,changes,header"
+
+# Show non-printable characters
+--show-all
+
+# Use italic text where supported
+--italic-text=always
+
+# Use custom pager (delta is a great alternative)
+--pager="less -FRX"
+
+# Always use colored output
+--color=always
+
+# Custom header with git info
+--header="[${GIT_MODIFIED:-?}] [${GIT_STAGED:-?}] [${GIT_BRANCH:-none}]"
+
+# Syntax highlighting for unknown extensions
+--map-syntax "*.conf:INI"
+--map-syntax "*.service:Systemd unit file"
+--map-syntax "*.timer:Systemd timer file"
+--map-syntax "Dockerfile*:Dockerfile"
+--map-syntax "PKGBUILD:Bash"
+--map-syntax "*.ebuild:Bash"
+--map-syntax "*.eclass:Bash"
+--map-syntax "*.gradle:Kotlin"
+
+# Custom syntax mappings for Gentoo-specific files
+--map-syntax "/etc/portage/*.conf:INI"
+--map-syntax "/etc/portage/package.*:INI"
+--map-syntax "/var/db/repos/*/*.ebuild:Bash"
+--map-syntax "/var/db/repos/*/*.eclass:Bash"
+--map-syntax "/etc/conf.d/*:Bash"
+--map-syntax "/etc/init.d/*:Bash"
+
+# Performance optimizations
+--terminal-width=$(tput cols)
+--wrap=character
+#+end_src
+
+
+** TODO Zsh
+#+begin_src sh :tangle $HOME/.config/zsh/bat.zsh
+# BAT configuration
+export BAT_THEME="Catppuccin-mocha"
+export BAT_STYLE="numbers,changes,header"
+export BAT_PAGER="less -FRX"
+export MANPAGER="sh -c 'col -bx | bat -l man -p'"
+
+# Use bat as the pager for various commands
+alias cat='bat --paging=never'
+alias less='bat --paging=always'
+alias more='bat --paging=always'
+#+end_src
+
+* Btop
+
+* Catpsule
+
+* Cliphist
+
+** configuration
+#+begin_src sh :tangle $HOME/.config/cliphist/config
+[General]
+# Store clipboard history in memory for faster access (RAM disk)
+persistence=memory
+# Limit history size to balance performance and utility
+max_entries=500
+# Use zstd compression for history file (when persisted to disk)
+compression=zstd
+# Enable secure clipboard clearing after 30 minutes of inactivity
+secure_clear_timeout=1800
+# Ignore passwords copied from password managers
+ignore_pattern=^.*password.*$|^.*passphrase.*$|^.*secret.*$
+
+[Performance]
+# Use direct memory access for faster operations (requires kernel support)
+memory_access_mode=direct
+# Preload frequent items into cache
+cache_size=20
+# Use asynchronous file operations when persisting to disk
+async_io=true
+
+[Integration]
+# Integrate with Gentoo's default X11 clipboard (primary and clipboard)
+x11_selections=primary,clipboard
+# Enable Wayland support if available
+wayland_support=auto
+# Use dmenu as default selector (optimized for Gentoo)
+# selector_command=dmenu -l 15 -fn 'JetBrain-10' -nb '#222222' -nf '#bbbbbb' -sb '#005577' -sf '#eeeeee'
+# Alternative rofi command (comment out dmenu above if using rofi)
+selector_command=rofi -dmenu -p "clipboard" -font "hack 10" -theme-str 'window {width: 60%;} listview {lines: 15;}'
+
+[Security]
+# Automatically exclude URLs with authentication tokens
+filter_urls_with_auth=true
+# Scramble sensitive data in memory
+memory_scrambling=true
+# Set strict permissions on history file
+file_permissions=600
+# Enable secure memory locking (mlock)
+lock_memory=true
+
+[Gentoo-Specific]
+# Use Portage query to detect package names in clipboard
+detect_gentoo_packages=true
+# Enable emerge command suggestion when package name is detected
+suggest_emerge_command=true
+# Integrate with Gentoo's news system
+check_gentoo_news=true
+#+end_src
+
+** systemd
+#+begin_src sh :tangle $HOME/.config/systemd/user/cliphist.service
+[Unit]
+Description=Clipboard History Daemon
+After=graphical-session.target
+
+[Service]
+ExecStart=/usr/bin/cliphist daemon
+Restart=always
+RestartSec=5
+Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin"
+# Enable memory protection
+NoNewPrivileges=true
+ProtectSystem=strict
+PrivateTmp=true
+ProtectHome=read-only
+MemoryDenyWriteExecute=true
+LockPersonality=true
+
+[Install]
+WantedBy=default.target
+#+end_src
+
+#+RESULTS:
+
+
+** security hardening
+
+#+begin_example :tangle /etc/udev/rules.d/99-clipboard.rules
+KERNEL=="event*", SUBSYSTEM=="input", GROUP="clipboard", MODE="0640"
+#+end_example
+
+** gentoo
+
+#+begin_src sh :tangle /etc/portage/bashrc.d/cliphist-security.sh
+post_pkg_postinst() {
+    case "\${CATEGORY}/\${PN}" in
+        app-admin/pass|net-misc/keepassx|*password*|*secret*)
+            pids=\$(pgrep -u \$USER cliphist)
+            [ -n "\$pids" ] && kill \$pids && cliphist clear
+            ;;
+    esac
+}
+#+end_src
+
+
+* Cliphist Rofi
+
+** File Structure
+:PROPERTIES:
+:CUSTOM_ID: file-structure
+:END:
+#+begin_example
+~/.config/rofi/
+├── cliphist/
+│   ├── config.rasi
+│   ├── theme.rasi
+│   └── script.sh
+└── launchers/
+    └── cliphist.sh
+#+end_example
+
+** 1. Main Rofi Configuration (~/.config/rofi/cliphist/config.rasi)
+#+begin_src css
+configuration {
+    modi:                       "cliphist:~/.config/rofi/cliphist/script.sh";
+    show-icons:                 true;
+    icon-theme:                 "Papirus";
+    display-cliphist:           "󰅌 Clipboard";
+    combi-modi:                 "cliphist,drun";
+    sidebar-mode:               true;
+    kb-mode-next:               "Shift+Right";
+    kb-mode-previous:           "Shift+Left";
+    kb-remove-to-clipboard:     "Shift+Delete";
+    kb-custom-1:                "Alt+1";
+    kb-custom-2:                "Alt+2";
+    kb-custom-3:                "Alt+3";
+    kb-custom-4:                "Alt+4";
+}
+
+@theme "~/.config/rofi/cliphist/theme.rasi"
+#+end_src
+
+#+begin_example
+configuration {
+    modi:                       "cliphist:~/.config/rofi/cliphist/script.sh";
+    show-icons:                 true;
+    icon-theme:                 "Papirus";
+    display-cliphist:           "󰅌 Clipboard";
+    combi-modi:                 "cliphist,drun";
+    sidebar-mode:               true;
+    kb-mode-next:               "Shift+Right";
+    kb-mode-previous:           "Shift+Left";
+    kb-remove-to-clipboard:     "Shift+Delete";
+    kb-custom-1:                "Alt+1";
+    kb-custom-2:                "Alt+2";
+    kb-custom-3:                "Alt+3";
+    kb-custom-4:                "Alt+4";
+}
+
+@theme "~/.config/rofi/cliphist/theme.rasi"
+#+end_example
+
+** 2. Catppuccin Mocha Theme (~/.config/rofi/cliphist/theme.rasi)
+#+begin_src css
+* {
+    /* Catppuccin Mocha Color Scheme */
+    background:     #1e1e2e;
+    background-alt: #181825;
+    foreground:     #cdd6f4;
+    selected:       #f5e0dc;
+    active:         #a6e3a1;
+    urgent:         #f38ba8;
+    transparent:    #00000000;
+
+    /* Text and Font */
+    font: "JetBrains Mono 12";
+    text-color: @foreground;
+
+    /* Window */
+    width: 45%;
+    padding: 20px;
+    border-radius: 12px;
+    lines: 10;
+    columns: 1;
+
+    /* Elements */
+    element {
+        padding: 6px 12px;
+        border-radius: 6px;
+    }
+
+    listview {
+        fixed-height: false;
+        dynamic: true;
+        scrollbar: false;
+    }
+
+    /* Input bar */
+    entry {
+        background: @background-alt;
+        padding: 8px 12px;
+        border-radius: 6px;
+        margin: 0 0 8px 0;
+    }
+
+    /* Selection */
+    element selected {
+        background-color: @selected;
+        text-color: @background;
+    }
+
+    /* Active row */
+    element active {
+        background-color: @active;
+        text-color: @background;
+    }
+
+    /* Icons */
+    element-icon {
+        size: 1.2em;
+    }
+
+    /* Message area */
+    message {
+        background-color: @background-alt;
+        padding: 8px;
+        border-radius: 6px;
+        margin: 8px 0 0 0;
+    }
+
+    /* Mode switcher */
+    mode-switcher {
+        background-color: @background-alt;
+        padding: 8px;
+        border-radius: 6px;
+        margin: 8px 0 0 0;
+    }
+}
+#+end_src
+
+** 3. Main Script (~/.config/rofi/cliphist/script.sh)
+#+begin_src sh
+#!/usr/bin/env bash
+
+# Ensure cliphist is available
+if ! command -v cliphist &> /dev/null; then
+    echo "cliphist not found. Please install it first."
+    exit 1
+fi
+
+# Cache directory for images
+CACHE_DIR="$HOME/.cache/rofi-cliphist"
+mkdir -p "$CACHE_DIR"
+
+# Function to handle different actions
+handle_selection() {
+    local selection="$1"
+    local id="${selection%% *}"
+
+    case "$ROFI_RETV" in
+        # Enter key
+        0)
+            # Copy to clipboard
+            cliphist decode "$id" | wl-copy
+            ;;
+        # Custom key 1 (Alt+1) - Delete entry
+        1)
+            cliphist delete "$id"
+            ;;
+        # Custom key 2 (Alt+2) - Pin entry
+        2)
+            cliphist pin "$id"
+            ;;
+        # Custom key 3 (Alt+3) - Unpin entry
+        3)
+            cliphist unpin "$id"
+            ;;
+        # Custom key 4 (Alt+4) - Edit entry
+        4)
+            edit_entry "$id"
+            ;;
+    esac
+}
+
+# Function to edit an entry
+edit_entry() {
+    local id="$1"
+    local temp_file=$(mktemp)
+
+    cliphist decode "$id" > "$temp_file"
+    ${EDITOR:-nano} "$temp_file"
+
+    if [ -s "$temp_file" ]; then
+        local new_content=$(cat "$temp_file")
+        echo "$new_content" | cliphist encode
+        cliphist delete "$id"
+    fi
+
+    rm -f "$temp_file"
+}
+
+# Function to generate preview for images
+generate_image_preview() {
+    local id="$1"
+    local preview_file="$CACHE_DIR/${id}.png"
+
+    if [ ! -f "$preview_file" ]; then
+        cliphist decode "$id" | convert - -resize 200x200 "$preview_file"
+    fi
+
+    echo -en "\0img\x1f$preview_file\n"
+}
+
+# Main function to generate the list
+generate_list() {
+    # Get pinned items first
+    cliphist list-pinned | while read -r line; do
+        local id=$(echo "$line" | cut -d$'\t' -f1)
+        local content=$(echo "$line" | cut -d$'\t' -f2- | head -c 100)
+
+        # Check if it's an image
+        if echo "$content" | grep -q "^::IMAGE::"; then
+            generate_image_preview "$id"
+            echo -en "📌 󰉏 Image [Pinned] \0\n"
+        else
+            echo -en "📌 ${content//$'\n'/ } \0\n"
+        fi
+    done
+
+    # Get regular items
+    cliphist list | while read -r line; do
+        local id=$(echo "$line" | cut -d$'\t' -f1)
+        local content=$(echo "$line" | cut -d$'\t' -f2- | head -c 100)
+
+        # Check if it's an image
+        if echo "$content" | grep -q "^::IMAGE::"; then
+            generate_image_preview "$id"
+            echo -en "󰉏 Image \0\n"
+        else
+            echo -en "${content//$'\n'/ } \0\n"
+        fi
+    done
+}
+
+# Handle initial call or selection
+if [ -z "$ROFI_INFO" ]; then
+    generate_list
+else
+    handle_selection "$ROFI_INFO"
+fi
+#+end_src
+
+** 4. Launcher Script (~/.config/rofi/launchers/cliphist.sh)
+#+begin_src sh
+#!/usr/bin/env bash
+
+# Clear cache older than 1 day
+find ~/.cache/rofi-cliphist -type f -mtime +1 -delete
+
+# Launch Rofi with our configuration
+rofi -no-lazy-grab \
+    -show cliphist \
+    -modi cliphist \
+    -theme ~/.config/rofi/cliphist/config.rasi
+#+end_src
+
+** Installation and Setup
+   #+begin_src sh
+   # Required packages
+   sudo apt install rofi wl-clipboard cliphist papirus-icon-theme imagemagick
+   #+end_src
+
+   #+begin_src sh
+   chmod +x ~/.config/rofi/cliphist/script.sh
+   chmod +x ~/.config/rofi/launchers/cliphist.sh
+   #+end_src
+
+3. *Add to your window manager/keybinding*:
+
+     #+begin_example
+     bindsym $mod+v exec ~/.config/rofi/launchers/cliphist.sh
+     #+end_example
+
+** Customization
+You can adjust the following variables in the theme file: - =width=:
+Change the width of the Rofi window - =lines=: Number of visible lines -
+=font=: Change the font family and size - Colors: Adjust any of the
+Catppuccin Mocha colors to your preference
+
+For more fzf-like behavior, you can adjust Rofi's matching algorithm by
+adding these to the config.rasi:
+
+#+begin_src rasi
+matching:                       "fuzzy";
+fuzzy-match:                    true;
+sort:                           true;
+sorting-method:                  "fzf";
+#+end_src
+
+
+* TODO Eza
+** Configuration
+
+#+begin_src yaml
+# ~/.config/eza/eza.yaml
+# Optimized Catppuccin Mocha Configuration
+
+### Core Optimization Flags ###
+general:
+  color: auto
+  color-scale: true
+  icons: auto-fallback
+  group-directories-first: true
+  hyperlink: auto
+  time-style: relative
+  total-size: when-multicolumn
+  header: when-multicolumn
+  git: when-possible
+  modified: true
+  created: false
+  accessed: false
+  classify: false
+  dereference: smart
+  ignore-glob: ["*.pyc", "*.o", "*.class", "*.obj", "*.min.js", "*.bundle.js"]
+
+### Catppuccin Mocha Color Mapping ###
+colors:
+  # Base Colors
+  text: "#cdd6f4"
+  background: "#1e1e2e"
+  highlight: "#585b70"
+
+  # Semantic Colors
+  palette:
+    critical: "#f38ba8"
+    warning: "#fab387"
+    success: "#a6e3a1"
+    info: "#89b4fa"
+    accent: "#b4befe"
+    teal: "#94e2d5"
+    rosewater: "#f5e0dc"
+    mauve: "#cba6f7"
+    sky: "#89dceb"
+    yellow: "#f9e2af"
+    pink: "#f5c2e7"
+
+  # File Type Colors
+  file: text
+  directory: info
+  executable: warning
+  symlink: teal
+  special: rosewater
+
+  # Permission Colors
+  permissions:
+    user:
+      read: success
+      write: warning
+      execute: accent
+    group:
+      read: success
+      write: warning
+      execute: mauve
+    other:
+      read: success
+      write: critical
+      execute: critical
+
+  # Git Status Colors
+  git-status:
+    added: success
+    modified: warning
+    renamed: info
+    deleted: critical
+    untracked: warning
+    ignored: "#6c7086"
+    conflicted: "#eba0ac"
+
+  # Smart Extension Colors
+  extension:
+    # Archives
+    .*\.(zip|tar|gz|xz|bz2|rar|7z|deb|rpm)(\..+)?$: warning
+
+    # Media
+    .*\.(png|jpe?g|gif|webp|svg)$: success
+    .*\.(mp4|mkv|mov|avi|webm)$: sky
+    .*\.(mp3|flac|ogg|wav|aac)$: teal
+
+    # Documents
+    .*\.(pdf|docx?|xlsx?|pptx?|od[ft]|epub)$: critical
+
+    # Code
+    .*\.(rs|go|cpp|c|h|hpp)$: accent
+    .*\.(py|rb|pl|sh|bash|zsh|fish)$: warning
+    .*\.(js|ts|jsx|tsx)$: yellow
+    .*\.(json|toml|yml|yaml|xml)$: pink
+
+    # Configs
+    .*rc$: rosewater
+    .*\.(conf|config|ini)$: rosewater
+
+### Performance-Optimized Views ###
+views:
+  default:
+    style: grid
+    grid:
+      columns: auto
+      width: auto
+      spacing: 2
+    sort: name
+
+  detailed:
+    style: long
+    long:
+      header: true
+      modified: true
+      git: when-possible
+      links: true
+    sort: modified
+    reverse: true
+
+  dev:
+    filter: "*.{rs,go,py,rb,js,ts,sh}"
+    style: detailed
+
+  quick:
+    style: grid
+    grid:
+      columns: 1
+      width: 20
+    sort: name
+
+### Smart Column Rules ###
+columns:
+  name:
+    width: auto
+    truncate: true
+    ellipsis: "…"
+  size:
+    unit: smart
+    precision: 1
+  modified:
+    relative-threshold: 604800
+    style: relative-or-date
+  git:
+    show-status: true
+
+### Optimized Git Integration ###
+git:
+  max-index-entries: 1000
+  recurse: false
+  ignore: true
+#+end_src
+** TODO Zsh
+#+begin_src sh :tangle $HOME/.config/zsh/eza.zsh
+# Optimized eza aliases
+alias ls='eza --view=default --icons=auto-fallback --color=auto'
+alias ll='eza --view=detailed --color=auto'
+alias la='eza --view=default --all --color=auto'
+alias lt='eza --tree --level=2 --color=auto --icons=auto-fallback'
+alias ldev='eza --view=dev --color=auto'
+alias lquick='eza --view=quick --color=auto'
+
+# Pipe-friendly version with forced colors
+alias lsp='eza --color=always --icons=never --no-header'
+
+# Set environment variables for better git detection
+export EZA_GIT_DIR_CACHE="$HOME/.cache/eza/git_cache"
+mkdir -p "$(dirname "$EZA_GIT_DIR_CACHE")"
+#+end_src
+
+* Fabric
+
+* Fastfetch
+
+* TODO Fzf
+** TODO zsh
+
+#+begin_src shell
+# FZF configuration for Gentoo with Catppuccin Mocha
+export FZF_DEFAULT_OPTS="
+--height 40% --layout=reverse --border
+--color=bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38ba8
+--color=fg:#cdd6f4,header:#f38ba8,info:#cba6f7,pointer:#f5e0dc
+--color=marker:#f5e0dc,fg+:#cdd6f4,prompt:#cba6f7,hl+:#f38ba8
+--color=gutter:#1e1e2e
+--preview-window=right:60%:wrap
+--bind='ctrl-d:preview-page-down,ctrl-u:preview-page-up'
+--bind='ctrl-y:execute-silent(echo {} | xclip -selection clipboard)'
+--bind='ctrl-e:execute($EDITOR {})'
+--ansi"
+
+# Use fd (faster and respects .gitignore)
+if (( $+commands[fd] )); then
+    export FZF_DEFAULT_COMMAND='fd --type f --hidden --follow --exclude .git --exclude node_modules'
+    export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+    export FZF_ALT_C_COMMAND='fd --type d --hidden --follow --exclude .git'
+fi
+
+# Gentoo-specific optimizations
+export FZF_COMPLETION_DIR_COMMANDS="emerge equery ebuild"
+
+# Enhanced file preview with syntax highlighting
+export FZF_PREVIEW_COMMAND="[[ \$(file --mime {}) =~ binary ]] &&
+    echo '{} is a binary file' ||
+    (bat --style=numbers --color=always {} ||
+    cat {}) 2>/dev/null | head -500"
+
+# Gentoo package search integration
+function fzf_gentoo_packages() {
+    local selected
+    selected=$(qlist -IC | fzf --multi --preview 'equery m {}' --preview-window=right:50%:wrap)
+    [[ -n "$selected" ]] && echo "$selected"
+}
+
+# Portage search integration
+function fzf_portage_search() {
+    local query selected
+    query="$1"
+    selected=$(emerge --search "$query" | fzf --multi \
+        --preview 'emerge -pvc {2}' \
+        --preview-window=right:50%:wrap | awk '{print $2}')
+    [[ -n "$selected" ]] && echo "$selected"
+}
+
+# Zsh widgets for key bindings
+function fzf_gentoo_packages_widget() {
+    local result=$(fzf_gentoo_packages)
+    if [[ -n "$result" ]]; then
+        LBUFFER+="$result "
+        zle redisplay
+    fi
+}
+zle -N fzf_gentoo_packages_widget
+bindkey '^p' fzf_gentoo_packages_widget
+
+source ~/.config/fzf/fzf.gentoo
+#+end_src
+
+** ~/.config/fzf/fzf.gentoo
+#+begin_src zsh
+#!/usr/bin/env zsh
+
+# Gentoo-specific FZF functions
+
+# Search installed Gentoo packages
+function fzf-gentoo-packages() {
+    qlist -IC | fzf --multi \
+        --preview 'equery m {}' \
+        --preview-window=right:50%:wrap \
+        --header 'Installed Gentoo Packages' \
+        --bind 'enter:execute(equery m {})'
+}
+
+# Search Portage with proper preview
+function fzf-portage-search() {
+    local query
+    query="${1:-}"
+    emerge --search "$query" | fzf --multi \
+        --preview 'emerge -pvc {2}' \
+        --preview-window=right:50%:wrap \
+        --header 'Portage Search Results' \
+        --bind 'enter:execute(emerge -pvc {2})'
+}
+
+# View USE flags for a package
+function fzf-gentoo-useflags() {
+    local pkg
+    pkg=$(qlist -IC | fzf --preview 'equery m {}')
+    [[ -z "$pkg" ]] && return
+    equery uses "$pkg" | fzf --multi \
+        --preview "equery uses '$pkg' | grep {1}" \
+        --header "USE flags for $pkg"
+}
+
+# View package dependencies
+function fzf-gentoo-depends() {
+    local pkg
+    pkg=$(qlist -IC | fzf --preview 'equery m {}')
+    [[ -z "$pkg" ]] && return
+    equery depends "$pkg" | fzf --multi \
+        --preview 'equery m {}' \
+        --header "Dependencies for $pkg"
+}
+#+end_src
+
+
+* Hypridle
+
+#+begin_src shell
+general {
+  after_sleep_cmd=/usr/bin/hyprctl dispatch dpms on
+  before_sleep_cmd=/usr/bin/loginctl lock-session
+  lock_cmd=/usr/bin/hyprlock
+}
+
+listener {
+  on-resume=/usr/bin/brightnessctl -r
+  on-timeout=/usr/bin/brightnessctl -s set 10
+  timeout=150
+}
+
+listener {
+  on-timeout=/usr/bin/loginctl lock-session
+  timeout=3000
+}
+
+listener {
+  on-resume=/usr/bin/hyprctl dispatch dpms on
+  on-timeout=/usr/bin/hyprctl dispatch dpms off
+  timeout=3300
+}
+
+listener {
+  on-timeout=/usr/bin/systemctl hibernate
+  timeout=10000
+}
+#+end_src
+
+* Hyprland
+=integrate with nisfere and fabric shell=
+** hyprland.conf
+#+begin_src shell :tangle $HOME/.config/hypr/hyprland.conf
+source=$HOME/.config/hypr/hyprland/autostart.conf
+source=$HOME/.config/hypr/hyprland/env.conf
+source=$HOME/.config/hypr/hyprland/settings.conf
+source=$HOME/.config/hypr/hyprland/keybindings.conf
+source=$HOME/.config/hypr/hyprland/rules.conf
+source=$HOME/.config/hypr/hyprland/plugins.conf
+#+end_src
+** hyprland/env.conf
+#+begin_src shell :tangle $HOME/.config/hypr/hyprland/env.conf
+#monitor=eDP-1,2560x1440@60,0x0,1.6
+monitor = HDMI-A-1,3840x2160,0x0,1.33
+
+env = __GLX_VENDOR_LIBRARY_NAME,nvidia
+env = _JAVA_OPTIONS, -Dawt.useSystemAAFontSettings=on
+env = BEMENU_BACKEND,wayland
+env = CLUTTER_BACKEND,wayland
+env = ECORE_EVAS_ENGINE,wayland_egl
+env = EGL_PLATFORM,wayland
+env = ELM_ACCEL,opengl
+env = ELM_DISPLAY,wl
+env = ELM_ENGINE,wayland_egl
+env = ELM_SCALE,1.5
+env = GBM_BACKEND,nvidia-drm
+env = GBM_BACKENDS_PATH=/usr/lib/gbm
+env = GDK_BACKEND,wayland
+#env = GDK_SCALE,1.7
+env = GDK_DPI_SCALE,1.1
+#env = GTK_A11Y,none
+env = GTK_THEME,Colloid-Purple-Dark-Catppuccin
+env = HYPRCURSOR_THEME,Bibata-Modern-Ice
+env = HYPRCURSOR_SIZE,32
+env = LIBVA_DRIVER_NAME,nvidia
+env = LIBVA_DRIVERS_PATH,/usr/lib/dri
+env = LIBGL_DRIVERS_PATH,/usr/lib/dri
+env = LIBSEAT_BACKEND,logind
+env = MOZ_DISABLE_RDD_SANDBOX,1
+env = MOZ_ENABLE_WAYLAND,1
+env = NO_AT_BRIDGE,1
+env = NVD_BACKEND,direct
+env = QT_QPA_PLATFORM,wayland
+env = QT_QPA_PLATFORMTHEME,qt5ct
+env = QT_QPA_PLATFORMTHEME,qt6ct
+env = QT_QUICK_CONTROLS_STYLE,org.hyprland.style
+env = QT_SCALE_FACTOR,1.4
+env = QT_WAYLAND_DISABLE_WINDOWDECORATION,1
+env = QT_WAYLAND_FORCE_DPI,physical
+env = SAL_USE_VCLPLUGIN,gtk4
+env = SDL_VIDEODRIVER,wayland
+env = TDESKTOP_DISABLE_GTK_INTEGRATION,1
+env = VDPAU_DRIVER,nvidia
+env = WINIT_UNIX_BACKEND,wayland
+env = WLR_DRM_DEVICES,/dev/dri/card1
+env = WLR_NO_HARDWARE_CURSORS,1
+env = WLR_RENDERER_ALLOW_SOFTWARE,1
+env = XCURSOR_SIZE,32
+env = XCURSOR_THEME, Bibata-Modern-Ice
+env = XDG_SESSION_DESKTOP,Hyprland
+env = XDG_SESSION_TYPE,wayland
+env = XDG_CURRENT_DESKTOP,Hyprland
+env = XDG_CURRENT_SESSION,Hyprland
+#+end_src
+** hyprland/keybindings.conf
+#+begin_src shell :tangle $HOME/.config/hypr/hyprland/keybindings.conf
+#--- Terminal --
+bind = SUPER, Return, exec, alacritty
+
+#--- Scratchpads --
+bind = SUPERSHIFT, RETURN, exec, pypr toggle term
+bind = SUPERSHIFT, Y, exec, pypr toggle yazi
+
+#--- Rofi --
+bind = SUPER, D, exec, hyprlauncher
+bind = SUPER, L, exec, pkill anyrun || anyrun
+bind = SUPERSHIFT, D, exec, hyprrunner
+bind = SUPER, H, exec, cliphist-rofi
+#bind = SUPERSHIFT, B, rofi-bluetooth
+
+#--- Window Management --
+bind = SUPER, Q, killactive,
+bind = ,F11, fullscreen, 0
+bind = SUPER, Space, togglefloating,
+bind = SUPER, S, togglesplit,
+
+# Change Focus
+bind = SUPER, left,  movefocus, l
+bind = SUPER, right, movefocus, r
+bind = SUPER, up,    movefocus, u
+bind = SUPER, down,  movefocus, d
+
+# Move Focused Window
+bind = SUPERSHIFT, left,  movewindow, l
+bind = SUPERSHIFT, right, movewindow, r
+bind = SUPERSHIFT, up,    movewindow, u
+bind = SUPERSHIFT, down,  movewindow, d
+
+# Resize Focused Window
+bind = SUPERCTRL, left,  resizeactive, -45 0
+bind = SUPERCTRL, right, resizeactive, 45 0
+bind = SUPERCTRL, up,    resizeactive, 0 -45
+bind = SUPERCTRL, down,  resizeactive, 0 45
+
+# Switch between windows
+bind = SUPERSHIFT, Tab, cyclenext,
+bind = SUPERSHIFT, Tab, bringactivetotop,
+
+#-- GUI Apps --
+bind = SUPER, E, exec, emacsclient -c -a 'emacs'
+bind = SUPER, B, exec, zen-browser
+bind = SUPER, Y, exec, alacritty -e yazi
+bind = SUPER, Z, exec, flatpak run org.zotero.Zotero
+bind = SUPER, F, exec, thunar
+bind = SUPER, M, exec, flatpak run md.obsidian.Obsidian
+bind = SUPERSHIFT, R, exec, jabref
+
+#-- Workspaces --
+bind = CTRL_ALT, left, exec, hyprnome --previous
+bind = CTRL_ALT, right, exec, hyprnome
+bind = SUPER_CTRL_ALT, left, exec, hyprnome --previous --move
+bind = SUPER_CTRL_ALT, right, exec, hyprnome --move
+
+#-- Misc --
+bind = CTRL SHIFT, R, exec, reload_ags
+bind = SUPER, X, exec, ags -t powermenu
+bind = SUPER, F1, exec, gamemode
+bind = SUPER, C, movetoworkspace, special
+
+#--- Screenshot --
+bindle = ,XF86Launch4, exec, ags -r 'recorder.start()'
+bindle = ,Print, exec, ags -r 'recorder.screenshot()'
+bindle = SHIFT,Print, exec, ags -r 'recorder.screenshot(true)'
+
+#--- Volume --
+bindle = ,XF86AudioLowerVolume, exec, pactl set-sink-volume @DEFAULT_SINK@ -5%
+bindle = ,XF86AudioRaiseVolume, exec, pactl set-sink-volume @DEFAULT_SINK@ +5%
+bindle = ,XF86AudioMute, exec, wpctl set-mute @DEFAULT_SINK@ toggle
+
+#--- Brightness --
+bindle = ,XF86MonBrightnessUp, exec, lightctl up 5
+bindle = ,XF86MonBrightnessDown, exec, lightctl down 5
+
+#--- Mouse Actions --
+bindm = SUPER, mouse:272, movewindow
+bindm = SUPER, mouse:273, resizewindow
+bindm = SUPER ALT, mouse:272, resizewindow
+#+end_src
+** hyprland/plugins.conf
+#+begin_src shell :tangle $HOME/.config/hypr/hyprland/plugins.conf
+plugin {
+  hy3 {
+    tabs {
+      height = 2
+      padding = 6
+      render_text = false
+    }
+    autotile {
+      enable = true
+      trigger_width = 800
+      trigger_height = 500
+    }
+  }
+  overview {
+    autoDrag = true
+    autoScroll = true
+    exitOnClick = true
+    switchOnDrop = true
+  }
+}
+#+end_src
+** hyprland/rules.conf
+#+begin_src shell
+#--- Layerrules
+layerrule = blur,class:^(com.github.Aylur.ags)$
+layerrule = blur,class:^(eww_powermenu)$
+layerrule = blur,class:^(gtk-layer-shell)$
+layerrule = blur,class:^(nwg-drawer)$
+layerrule = blur,class:^(Alacritty)$
+layerrule = blur,class:^(alacritty-dropterm)$
+layerrule = blur,class:^(emacsclient)$
+
+layerrule = animation slide bottom, rofi
+layerrule = animation slide right, swaync-control-center
+layerrule = animation slide, swaync-notification-window
+layerrule = animation fade, hyprpaper
+layerrule = animation fade, swayosd
+layerrule = animation fade, selection
+layerrule = animation slide right, notificationsmenu
+layerrule = animation slide left, dashboardmenu
+
+#--- Animation Rules
+windowrulev2 = animation slide up, class:^(alacritty-dropterm)$
+windowrulev2 = animation slide down, class:^(explorer)$
+windowrulev2 = animation fade, class:^(nwg-drawer)$
+
+#--- Floating Rules
+windowrulev2 = float,class:^(deluge-gtk)$
+windowrulev2 = float,class:^(alacritty-dropterm)$
+windowrulev2 = float,class:^(explorer)$
+windowrulev2 = float,class:^(org.mate.polkit-mate-authentication-agent-1)$
+windowrulev2 = float,class:^(qt5ct)$
+windowrulev2 = float,class:^(qt6ct)$
+windowrulev2 = float,class:^(file_progress)$
+windowrulev2 = float,class:^(confirm)$
+windowrulev2 = float,class:^(dialog)$
+windowrulev2 = float,class:^(download)$
+windowrulev2 = float,class:^(notification)$
+windowrulev2 = float,class:^(error)$
+windowrulev2 = float,class:^(confirmreset)$
+windowrulev2 = float,title:^(Open File)$
+windowrulev2 = float,title:^(branchdialog)$
+windowrulev2 = float,title:^(Confirm to replace files)
+windowrulev2 = float,title:^(File Operation Progress)
+windowrulev2 = float,class:^(com.github.Aylur.ags)$
+windowrulev2 = float,class:^(xdg-desktop-portal)$
+windowrulev2 = float,class:^(xdg-desktop-portal-gtk)$
+windowrulev2 = float,class:^(xdg-desktop-portal-hyprland)$
+windowrulev2 = float, class:(blueman-manager), title:(blueman-manager)
+
+#--- IdleInhibit Rules
+windowrulev2 = idleinhibit focus, class:^(mpv)$
+windowrulev2 = idleinhibit focus, class:^(brave)$, title:^(.*YouTube.*)$
+windowrulev2 = idleinhibit fullscreen, class:^(brave)$
+
+#--- DimAround Rules
+windowrulev2 = dimaround, class:^(gcr-prompter)$
+windowrulev2 = dimaround, class:^(xdg-desktop-portal-gtk)$
+windowrulev2 = dimaround, class:^(xdg-desktop-portal-hyprland)$
+windowrulev2 = dimaround, class:^(org.mate.polkit-mate-authentication-agent-1)$
+
+#--- Opacity Rules
+windowrulev2 = opacity 0.80 0.90,class:^(alacritty-dropterm)$
+windowrulev2 = opacity 0.90 0.90,class:^(explorer)$
+windowrulev2 = opacity 0.80 0.80,class:^(emacsclient)$
+windowrulev2 = opacity 0.80 0.80,class:^(Alacritty)$
+windowrulev2 = opacity 0.95 0.95,class:^(foot)$
+windowrulev2 = opacity 0.90 0.90,class:^(footclient)$
+windowrulev2 = opacity 0.90 0.80,class:^(steamwebhelper)$
+windowrulev2 = opacity 0.90 0.80,class:^(Spotify)$
+windowrulev2 = opacity 0.95 0.95,class:^(Code)$
+windowrulev2 = opacity 0.90 0.90,class:^(Thunar)$
+windowrulev2 = opacity 0.90 0.80,class:^(file-roller)$
+windowrulev2 = opacity 0.80 0.80,class:^(ags)$
+windowrulev2 = opacity 0.90 0.80,class:^(qt5ct)$
+windowrulev2 = opacity 0.90 0.80,class:^(discord)$
+windowrulev2 = opacity 0.90 0.80,class:^(WebCord)$
+windowrulev2 = opacity 0.90 0.70,class:^(pavucontrol)$
+windowrulev2 = opacity 0.90 0.70,class:^(org.mate.polkit-mate-authentication-agent-1)$
+
+#--- Size Rules
+windowrulev2 = size 40% 40%,class:^(deluge-gtk)$
+windowrulev2 = size 40% 20%,class:^(org.mate.polkit-mate-authentication-agent-1)$
+windowrulev2 = size 70% 70%,class:^(foot-dropterm)$
+windowrulev2 = size 90% 90%,class:^(explorer)$
+windowrulev2 = size 40% 40%,class:^(download)$
+windowrulev2 = size 40% 40%,title:^(Open File)$
+windowrulev2 = size 40% 40%,title:^(Save File)$
+windowrulev2 = size 40% 30%,title:^(Volume Control)$
+
+#--- Workspace Rules
+windowrulev2 = workspace special silent,class:^(foot-dropterm)$
+windowrulev2 = workspace special silent,class:^(explorer)$
+
+#--- XwaylandVideoBridge Specific Rules
+windowrulev2 = opacity 0.0 override 0.0 override,class:^(xwaylandvideobridge)$
+windowrulev2 = noanim,class:^(xwaylandvideobridge)$
+windowrulev2 = nofocus,class:^(xwaylandvideobridge)$
+windowrulev2 = noinitialfocus,class:^(xwaylandvideobridge)$
+windowrulev2 = stayfocused, title:^()$,class:^(steam)$
+windowrulev2 = minsize 1 1, title:^()$,class:^(steam)$
+windowrulev2 = stayfocused, title:^()$,class:^(keepassxc)$
+windowrulev2 = minsize 1 1, title:^()$,class:^(keepassxc)$
+
+#--- Misc. Rules
+windowrulev2 = noblur,class:^()$,title:^()$
+#+end_src
+** hyprland/settings.conf
+#+begin_src shell
+general {
+  gaps_in = 7
+  gaps_out = 14
+  border_size = 4
+  col.active_border = rgb(c0caf5)
+  col.inactive_border = rgb(1a1b26)
+  layout = dwindle
+  resize_on_border=true
+  hover_icon_on_border = true
+}
+
+cursor {
+  no_hardware_cursors = true
+}
+
+opengl {
+  nvidia_anti_flicker = false
+}
+
+decoration {
+  rounding = 0
+
+    blur {
+        enabled = true
+        xray = true
+        special = false
+        new_optimizations = true
+        size = 14
+        passes = 4
+        brightness = 1
+        noise = 0.01
+        contrast = 1
+        popups = true
+        popups_ignorealpha = 0.6
+    }
+
+    # Shadow
+    shadow {
+        enabled = true
+        ignore_window = true
+        range = 20
+        offset = 0 2
+        render_power = 4
+        color = rgba(0000002A)
+    }
+
+    # Window Opacities
+    # active_opacity = 1
+    # inactive_opacity = 1
+    # fullscreen_opacity = 1
+
+    # Shader
+    # screen_shader = ~/.config/hypr/shaders/nothing.frag
+    # screen_shader = ~/.config/hypr/shaders/vibrance.frag
+
+    # Dim
+    dim_inactive = false
+    dim_strength = 0.1
+    dim_special = 000000
+}
+
+# decoration {
+#   rounding = 14
+#   active_opacity = 1.0
+#   inactive_opacity = 1.0
+#   fullscreen_opacity = 1.0
+#   blur {
+#     enabled = true
+#     passes = 4
+#     new_optimizations = true
+#     size = 12
+#   }
+#   shadow {
+#     enabled = true
+#     range = 30
+#     render_power = 4
+#     color = rgb(000000)
+#   }
+# }
+
+animations {
+  enabled = yes
+  bezier = quart, 0.25, 1, 0.5, 1
+  animation = windows, 1, 5, quart, slide
+  animation = border, 1, 5, quart
+  animation = borderangle, 1, 5, quart
+  animation = fade, 1, 5, quart
+  animation = workspaces, 1, 5, quart
+}
+
+
+input {
+  kb_layout = us
+  kb_options = ctrl:nocaps
+  follow_mouse = 1
+  touchpad {
+    natural_scroll = 1
+    disable_while_typing = true
+    drag_lock = true
+  }
+  force_no_accel = 0
+  sensitivity = 0
+  natural_scroll = 0
+  float_switch_override_focus = 2
+  numlock_by_default = true
+  accel_profile = flat
+}
+
+gestures {
+  workspace_swipe = true
+  workspace_swipe_fingers = 3
+  workspace_swipe_distance = 300
+  workspace_swipe_invert = true
+  workspace_swipe_min_speed_to_force = 30
+  workspace_swipe_cancel_ratio = 0.5
+  workspace_swipe_create_new = true
+  workspace_swipe_forever = true
+}
+
+dwindle {
+  pseudotile = false
+  force_split = 0
+  preserve_split = true
+  special_scale_factor = 0.97
+  split_width_multiplier = 1.0
+  use_active_for_splits = true
+  default_split_ratio = 1
+}
+
+master {
+  allow_small_split = false
+  special_scale_factor = 0.97
+  mfact = 0.55
+  inherit_fullscreen = true
+}
+
+misc {
+  disable_hyprland_logo = true
+  disable_splash_rendering = false
+  mouse_move_enables_dpms = false
+  always_follow_on_dnd = true
+  layers_hog_keyboard_focus = true
+  animate_manual_resizes = true
+  animate_mouse_windowdragging = true
+  disable_autoreload = false
+  focus_on_activate = true
+  enable_swallow = true
+  swallow_regex = ^(Alacritty|kitty|footclient)$
+  vfr = true
+  vrr = true
+}
+
+render {
+  explicit_sync = true
+}
+#+end_src
+
+* Hyprlock
+#+begin_src shell
+# ~/.config/hypr/hyprlock.conf
+
+# Tokyo Night Night Color Scheme
+$base = rgba(1a1b26ff)
+$mantle = rgba(16161eff)
+$crust = rgba(11111bff)
+
+$text = rgba(c0caf5ff)
+$subtext1 = rgba(a9b1d6ff)
+$subtext0 = rgba(9aa5ceff)
+
+$surface2 = rgba(565f89ff)
+$surface1 = rgba(414868ff)
+$surface0 = rgba(24283bff)
+
+$blue = rgba(7aa2f7ff)
+$lavender = rgba(bb9af7ff)
+$sapphire = rgba(7dcfffff)
+$sky = rgba(7aa2f7ff)
+$teal = rgba(73dacaff)
+$green = rgba(9ece6aff)
+$yellow = rgba(e0af68ff)
+$peach = rgba(f7768eff)
+$red = rgba(f7768eff)
+$mauve = rgba(bb9af7ff)
+
+# General Configuration
+general {
+    disable_loading_bar = true
+    hide_cursor = true
+    grace = 5
+    no_fade_in = false
+}
+
+# Background Configuration with Enhanced Blur
+background {
+    monitor =
+    path = ~/.config/hypr/background.png
+    color = $base
+
+    # Enhanced blur settings
+    blur_passes = 4
+    blur_size = 10
+    blur_new_optimizations = true
+
+    # Additional effects
+    noise = 0.0117
+    contrast = 1.3000
+    brightness = 0.8000
+    vibrancy = 0.2100
+    vibrancy_darkness = 0.0
+
+    # Blur layer behind lockscreen elements
+    blur_xray = true
+}
+
+# Input Field Configuration
+input-field {
+    monitor =
+    size = 250, 50
+    outline_thickness = 3
+    dots_size = 0.33
+    dots_spacing = 0.33
+    dots_center = true
+    outer_color = $surface0
+    inner_color = $mantle
+    font_color = $text
+    fade_on_empty = true
+    placeholder_text = <i>Password...</i>
+    hide_input = false
+    check_color = $green
+    fail_color = $red
+    fail_text = <i>$FAIL ($ATTEMPTS)</i>
+    position = 0, -50
+    halign = center
+    valign = center
+
+    # Add subtle shadow/blur to input field
+    shadow_passes = 2
+    shadow_size = 4
+    shadow_color = rgba(00000088)
+}
+
+# Time Configuration
+label {
+    monitor =
+    text = cmd[update:1000] echo "$(date +"%H:%M")"
+    color = $text
+    font_size = 90
+    font_family = JetBrainsMono Nerd Font
+    position = 0, 200
+    halign = center
+    valign = center
+
+    # Add text shadow for better visibility
+    shadow_passes = 1
+    shadow_size = 3
+    shadow_color = rgba(1a1b2666)
+}
+
+# Date Configuration
+label {
+    monitor =
+    text = cmd[update:10000] echo "$(date +"%A, %d %B %Y")"
+    color = $subtext1
+    font_size = 24
+    font_family = JetBrainsMono Nerd Font
+    position = 0, 140
+    halign = center
+    valign = center
+}
+
+# Greeting Configuration
+label {
+    monitor =
+    text = Hi there, <span foreground="$lavender">$USER</span>!
+    color = $subtext0
+    font_size = 20
+    font_family = JetBrainsMono Nerd Font
+    position = 0, 40
+    halign = center
+    valign = center
+}
+
+# Battery Status (if applicable)
+label {
+    monitor =
+    text = cmd[update:30000] echo "$(acpi -b | awk '{print $4}' | tr -d ',')"
+    color = $peach
+    font_size = 16
+    font_family = JetBrainsMono Nerd Font
+    position = -50, -50
+    halign = right
+    valign = bottom
+}
+
+# Caps Lock Indicator
+label {
+    monitor =
+    text = 
+    color = $red
+    font_size = 24
+    font_family = JetBrainsMono Nerd Font
+    position = 50, -50
+    halign = left
+    valign = bottom
+}
+#+end_src
+
+* Hyprlux
+
+#+begin_src conf
+# ~/.config/hypr/hyprlux.toml
+night_light = { enabled = true, start_time = "20:00", end_time = "20:30", temperature = 3500 }
+
+vibrance_configs = [
+  { window_class = "firefox", window_title = "", strength = 100 },
+  { window_class = "mplayer2", window_title = "Video Player", strength = 100 },
+]
+
+hot_reload = true
+#+end_src
+
+* Hyprpaper
+
+#+begin_src conf
+# ~/.config/hypr/hyprpaper.conf
+splash = off
+ipc = on
+preload = $HOME/.config/hypr/background.png
+wallpaper = HDMI-A-1, $HOME/.config/hypr/background.png
+#+end_src
+
+* Imv
+
+#+begin_src shell :tangle $HOME/.config/imv/config
+# ~/.config/imv/config
+
+# ======================
+# Catppuccin Mocha Theme
+# ======================
+[options]
+background = 1E1E2EFF
+fullscreen_background = 1E1E2EFF
+overlay_text_color = CDD6F4FF
+overlay_background = 1E1E2E80
+overlay_border_color = 585B70FF
+
+# ======================
+# Vim-like Keybindings
+# ======================
+[binds]
+# Navigation
+h = prev
+l = next
+j = scroll down
+k = scroll up
+H = pan left
+L = pan right
+J = pan down
+K = pan up
+gg = goto first
+G = goto last
+^ = pan leftmost
+$ = pan rightmost
+
+# Zooming
++ = zoom in
+- = zoom out
+= = zoom actual
+w = zoom fill
+e = zoom fill
+i = zoom in
+o = zoom out
+
+# Image manipulation
+r = rotate clockwise
+R = rotate anticlockwise
+f = flip horizontal
+F = flip vertical
+
+# View modes
+<Ctrl>f = fullscreen
+<Ctrl>v = overlay
+v = overlay
+<Space> = toggle overlay
+
+# File operations
+:q = quit
+ZZ = quit
+:qa = quit
+:q! = quit
+:w = next
+:wq = next
+:x = next
+n = next
+N = prev
+p = prev
+
+# Slideshow
+<Ctrl>s = slideshow
+s = slideshow
+
+# Window management
+<Ctrl>w = close
+<Ctrl>n = new_window
+
+# ======================
+# Performance Optimizations
+# ======================
+[options]
+# Use hardware acceleration (adjust based on your GPU)
+backend = gl
+# Increase cache size for better performance with many images
+cache_size = 512
+# Use threaded loading for better responsiveness
+threads = 4
+# Disable EXIF rotation by default (can be toggled)
+auto_rotate = false
+# Use fast scaling algorithm (for performance)
+scaling_algorithm = fast
+
+# ======================
+# Gentoo-specific Optimizations
+# ======================
+[options]
+# Use the most optimized image loader available
+# (Gentoo typically builds with all supported libraries)
+preferred_loader = libjpeg-turbo,libpng,libtiff,librsvg
+#+end_src
+
+* Kitty
+#+begin_src shell :tangle $HOME/.config/kitty/kitty.conf
+# ~/.config/kitty/kitty.conf
+
+#: === Catppuccin Mocha Theme ===
+foreground              #CDD6F4
+background              #1E1E2E
+selection_foreground    #1E1E2E
+selection_background    #F5E0DC
+
+# Black
+color0                  #45475A
+color8                  #585B70
+
+# Red
+color1                  #F38BA8
+color9                  #F38BA8
+
+# Green
+color2                  #A6E3A1
+color10                 #A6E3A1
+
+# Yellow
+color3                  #F9E2AF
+color11                 #F9E2AF
+
+# Blue
+color4                  #89B4FA
+color12                 #89B4FA
+
+# Magenta
+color5                  #F5C2E7
+color13                 #F5C2E7
+
+# Cyan
+color6                  #94E2D5
+color14                 #94E2D5
+
+# White
+color7                  #BAC2DE
+color15                 #A6ADC8
+
+# Cursor
+cursor                  #F5E0DC
+cursor_text_color       #1E1E2E
+
+#: === Font Settings ===
+font_family             JetBrainsMono Nerd Font
+bold_font              auto
+italic_font            auto
+bold_italic_font       auto
+font_size              12.0
+disable_ligatures      never
+
+#: === Window Settings ===
+window_padding_width   1
+window_margin_width    0
+background_opacity     0.95
+confirm_os_window_close 0
+hide_window_decorations titlebar-only
+
+#: === Tab Bar ===
+tab_bar_style          powerline
+tab_powerline_style    slanted
+tab_title_template     "{title}{' :{}:'.format(num_windows) if num_windows > 1 else ''}"
+active_tab_foreground  #1E1E2E
+active_tab_background  #CBA6F7
+inactive_tab_foreground #CDD6F4
+inactive_tab_background #181825
+
+#: === Keyboard ===
+kitty_mod              ctrl+shift
+
+# Vim-like pane navigation
+map kitty_mod+h neighboring_window left
+map kitty_mod+l neighboring_window right
+map kitty_mod+k neighboring_window up
+map kitty_mod+j neighboring_window down
+
+# Vim-like tab navigation
+map kitty_mod+[ previous_tab
+map kitty_mod+] next_tab
+
+# Copy/paste
+map kitty_mod+c copy_to_clipboard
+map kitty_mod+v paste_from_clipboard
+
+# Font size
+map kitty_mod+equal    change_font_size all +1.0
+map kitty_mod+minus    change_font_size all -1.0
+map kitty_mod+backspace change_font_size all 0
+
+# Scrollback
+map kitty_mod+g show_last_command_output
+map kitty_mod+e scroll_end
+
+#: === Advanced ===
+shell_integration      enabled
+allow_remote_control   yes
+editor                 nvim
+copy_on_select         yes
+strip_trailing_spaces  smart
+
+#: === Performance ===
+repaint_delay          10
+input_delay            3
+sync_to_monitor        yes
+
+#: === URL Handling ===
+url_color              #89B4FA
+url_style              single
+open_url_with          xdg-open
+copy_on_select         yes
+
+#: === Mouse ===
+mouse_hide_wait        3.0
+focus_follows_mouse    yes
+
+#: === Cursor Customization ===
+cursor_shape           beam
+cursor_beam_thickness  1.5
+cursor_blink_interval  0.5
+cursor_stop_blinking_after 15.0
+
+wayland_titlebar_color background
+linux_display_server wayland
+#+end_src
+
+* Lazygit
+=~/.config/lazygit/config.yml=
+#+begin_src shell :tangle $HOME/.config/lazygit/config.yml
+gui:
+  theme:
+    lightTheme: false
+    activeBorderColor:
+      - '#89b4fa'  # Catppuccin Mocha Blue
+      - bold
+    inactiveBorderColor:
+      - '#585b70'  # Catppuccin Mocha Surface2
+    optionsTextColor:
+      - '#74c7ec'  # Catppuccin Mocha Sapphire
+    selectedLineBgColor:
+      - '#313244'  # Catppuccin Mocha Surface0
+    selectedRangeBgColor:
+      - '#313244'
+    cherryPickedCommitBgColor:
+      - '#313244'
+    cherryPickedCommitFgColor:
+      - '#a6e3a1'  # Catppuccin Mocha Green
+    unstagedChangesColor:
+      - '#f38ba8'  # Catppuccin Mocha Red
+    defaultFgColor:
+      - '#cdd6f4'  # Catppuccin Mocha Text
+    searchingActiveBorderColor:
+      - '#fab387'  # Catppuccin Mocha Peach
+
+  keybinding:
+    universal:
+      quit: 'q'
+      quit-alt1: '<c-c>'
+      return: '<esc>'
+      quitWithoutChangingDirectory: 'Q'
+      togglePanel: '<tab>'
+      prevItem: 'k'
+      nextItem: 'j'
+      prevItem-alt: '<up>'
+      nextItem-alt: '<down>'
+      prevPage: '<c-u>'
+      nextPage: '<c-d>'
+      scrollLeft: 'H'
+      scrollRight: 'L'
+      gotoTop: 'gg'
+      gotoBottom: 'G'
+      startSearch: '/'
+      optionMenu: '?'
+      optionMenu-alt1: ''
+
+    status:
+      checkForUpdate: 'u'
+      recentRepos: '<enter>'
+
+    files:
+      commitChanges: 'c'
+      commitChangesWithoutHook: 'C'
+      amendLastCommit: 'A'
+      commitChangesWithEditor: '<c-o>'
+      ignoreFile: 'i'
+      refreshFiles: 'r'
+      stashAllChanges: 's'
+      viewStashOptions: 'S'
+      toggleStagedAll: 'a'
+      viewResetOptions: 'D'
+      fetch: 'f'
+      toggleTreeView: '`'
+
+    branches:
+      createPullRequest: 'o'
+      viewPullRequestOptions: 'O'
+      checkoutBranch: '<space>'
+      checkoutBranch-alt: 'c'
+      forceCheckoutBranch: 'F'
+      rebaseBranch: 'r'
+      mergeIntoCurrentBranch: 'm'
+      viewBranchOptions: 'M'
+      fastForward: 'f'
+      push: 'P'
+      pull: 'p'
+      renameBranch: 'R'
+      createResetToBranchMenu: 'g'
+      deleteBranch: 'd'
+      copyToClipboard: 'y'
+
+    commits:
+      squashDown: 's'
+      renameCommit: 'r'
+      renameCommitWithEditor: 'R'
+      viewResetOptions: 'g'
+      markCommitAsFixup: 'f'
+      createFixupCommit: 'F'
+      squashAboveCommits: 'S'
+      moveDownCommit: '<c-j>'
+      moveUpCommit: '<c-k>'
+      amendToCommit: 'A'
+      pickCommit: 'p'
+      revertCommit: 't'
+      cherryPickCopy: 'c'
+      cherryPickCopyRange: 'C'
+      pasteCommits: 'v'
+      tagCommit: 'T'
+      checkoutCommit: '<space>'
+      resetCherryPick: '<c-r>'
+      copyCommitAttributeToClipboard: 'y'
+
+    stash:
+      popStash: 'g'
+      applyStash: 'a'
+      viewStashOptions: '<space>'
+      dropStash: 'd'
+
+    main:
+      toggleDragSelect: 'v'
+      toggleDragSelect-alt: 'V'
+      toggleSelectHunk: 'a'
+      pickBothHunks: 'b'
+      editSelectHunk: 'e'
+      openFile: 'o'
+      openFile-alt: '<space>'
+      openMergeTool: 'M'
+      openDiffTool: 'd'
+      refresh: 'r'
+      stageSelection: 's'
+      unstageSelection: 'u'
+      prevConflict: '<'
+      nextConflict: '>'
+      selectPrevConflict: '['
+      selectNextConflict: ']'
+      undo: 'U'
+      redo: '<c-r>'
+
+git:
+  paging:
+    colorArg: always
+    pager: delta --paging=never
+
+os:
+  editCommand: nvim
+  editCommandTemplate: '{{editor}} "{{filename}}"'
+  openCommand: xdg-open
+
+customCommands:
+  - key: 'e'
+    command: 'git commit --amend --no-edit'
+    context: 'commits'
+    description: 'Amend commit without editing'
+  - key: 'E'
+    command: 'nvim -c "Gedit {{commitHash}}:"'
+    context: 'commits'
+    description: 'Edit commit in Neovim'
+  - key: 'n'
+    command: 'nvim {{filename}}'
+    context: 'files'
+    description: 'Open file in Neovim'
+  - key: 'N'
+    command: 'nvim +"Gedit {{branchName}}:"'
+    context: 'branches'
+    description: 'Open branch in Neovim'
+
+notARepository: skip
+disableStartupPopups: true
+#+end_src
+
+* TODO Man Pages
+** Core Configuration
+#+begin_src conf :tangle /etc/man_db.conf
+# Optimized man_db.conf for Gentoo Linux with Catppuccin Mocha theming
+
+# System paths - optimized for Gentoo
+MANPATH /usr/share/man
+MANPATH /usr/local/share/man
+MANPATH /usr/X11R6/man
+MANPATH /usr/lib64/perl5/vendor_perl/man
+MANPATH /usr/share/gcc-data/*/man  # Corrected glob pattern
+
+# Pager configuration with less enhancements
+PAGER /usr/bin/less
+LESS -R -M -i -j.5 -z-2 -F -X --mouse --wheel-lines=3
+LESSCHARSET utf-8
+
+# Formatting - enable colors and better formatting
+CAT /bin/cat
+TROFF /usr/bin/groff -Tutf8 -mandoc
+NROFF /usr/bin/groff -Tutf8 -mandoc
+JNROFF /usr/bin/groff -Tutf8 -mandoc
+EQN /usr/bin/eqn -Tutf8
+NEQN /usr/bin/eqn -Tutf8
+TBL /usr/bin/tbl
+REFER /usr/bin/refer
+PIC /usr/bin/pic
+VGRIND /usr/bin/vgrind
+GRAP /usr/bin/grap
+
+# Compression - support all common formats
+COMPRESS /bin/gzip -c
+COMPRESS_EXT .gz
+ZCAT /bin/zcat
+BZIP2 /bin/bzip2 -c
+BZIP2_EXT .bz2
+BZCAT /bin/bzcat
+XZ /bin/xz -c
+XZ_EXT .xz
+XZCAT /bin/xzcat
+ZSTD /bin/zstd -c
+ZSTD_EXT .zst
+ZSTDCAT /bin/zstdcat
+
+# Whatis database options
+MANDATORY_MANPATH /usr/share/man
+#+end_src
+
+** Catppuccin Mocha Theme Integration
+=/etc/groff/grofferrc=:
+#+begin_src shell :tangle /etc/groff/grofferrc
+# Catppuccin Mocha theme for man pages
+.defcolor base      rgb #1e1e2e
+.defcolor text      rgb #cdd6f4
+.defcolor subtext   rgb #bac2de
+.defcolor rosewater rgb #f5e0dc
+.defcolor flamingo  rgb #f2cdcd
+.defcolor pink      rgb #f5c2e7
+.defcolor mauve     rgb #cba6f7
+.defcolor red       rgb #f38ba8
+.defcolor maroon    rgb #eba0ac
+.defcolor peach     rgb #fab387
+.defcolor yellow    rgb #f9e2af
+.defcolor green     rgb #a6e3a1
+.defcolor teal      rgb #94e2d5
+.defcolor sky       rgb #89dceb
+.defcolor sapphire  rgb #74c7ec
+.defcolor blue      rgb #89b4fa
+.defcolor lavender  rgb #b4befe
+
+.if t \{\
+.  mso an-color.tmac  # Corrected macro file
+.  COLOR background base
+.  COLOR foreground text
+.  COLOR title blue
+.  COLOR emphasis flamingo
+.  COLOR strong green
+.  COLOR warning red
+.  COLOR note yellow
+.  COLOR heading peach
+.  COLOR subsection mauve
+.\}
+#+end_src
+
+** TODO Zsh
+#+begin_src zsh :tangle $HOME/.config/zsh/man.zsh
+# Enhanced man page support for Zsh
+export MANPAGER="less -R --use-color -Dd+r -Du+b -Dk+Y -DM +Gg"
+
+# Colored man pages with Catppuccin-compatible colors
+man() {
+    env \
+    LESS_TERMCAP_mb=$(printf "\033[38;2;243;139;168m") \   # Red
+    LESS_TERMCAP_md=$(printf "\033[38;2;137;180;250m") \    # Blue
+    LESS_TERMCAP_me=$(printf "\033[0m") \
+    LESS_TERMCAP_se=$(printf "\033[0m") \
+    LESS_TERMCAP_so=$(printf "\033[48;2;89;89;115m\033[38;2;249;226;175m") \ # Yellow on surface2
+    LESS_TERMCAP_ue=$(printf "\033[0m") \
+    LESS_TERMCAP_us=$(printf "\033[38;2;166;227;161m") \    # Green
+    man "$@"
+}
+
+# Fuzzy man page search
+fzman() {
+    man -k . | fzf --prompt='Man> ' | awk '{print $1}' | xargs -r man
+}
+zle -N fzman
+bindkey '^X^M' fzman
+
+# Man page completion
+zstyle ':completion:*:manuals' separate-sections true
+zstyle ':completion:*:manuals.*' insert-sections true
+zstyle ':completion:*:man:*' menu yes select
+#+end_src
+
+** Additional Quality-of-Life Improvements
+1. *Create =/etc/environment.d/99man.conf=*:
+
+   #+begin_src conf
+   # System-wide man page settings
+   MANWIDTH=80
+   #+end_src
+
+2. *Install additional man page tools*:
+
+   #+begin_src sh
+   sudo emerge -a app-text/man2html app-text/pinfo
+   #+end_src
+
+3. *Set up man page cache updating* (create
+   =/etc/cron.weekly/man-update=):
+
+   #+begin_src sh
+   #!/bin/sh
+   /usr/bin/mandb
+   #+end_src
+
+4. *Make it executable*:
+
+   #+begin_src sh
+   sudo chmod +x /etc/cron.weekly/man-update
+   #+end_src
+
+** Verification
+:PROPERTIES:
+:CUSTOM_ID: verification
+:END:
+After applying these changes:
+
+1. Update the man database:
+
+   #+begin_src sh
+   sudo mandb
+   #+end_src
+
+2. Test the configuration:
+
+   #+begin_src sh
+   man ls
+   #+end_src
+
+You should see man pages with Catppuccin Mocha colors and enhanced
+readability features.
+
+** Optional: Browser Integration
+For web-based man page viewing with the theme:
+
+#+begin_src sh
+sudo emerge -a sys-apps/groff  # Groffer is included in groff
+#+end_src
+
+Then create =~/.groff/groffer.css=:
+
+#+begin_src css
+/* Catppuccin Mocha theme for web man pages */
+:root {
+  --base: #1e1e2e;
+  --text: #cdd6f4;
+  /* ... (keep existing CSS definitions) ... */
+}
+
+/* ... (rest of existing CSS) ... */
+#+end_src
+
+* Mpv
+
+* Nwg-drawer
+
+* Nwg-menu
+
+* Pyprland
+=Integrate with Hyprland=
+#+begin_src shell
+# ~/.config/hypr/pyprland.toml
+[pyprland]
+plugins = ["scratchpads"]
+
+[scratchpads.term]
+command = "kitty --class kitty-dropterm"
+class = "kitty-float"
+size = "70% 70%"
+margin = 50
+animation = "fromTop"
+unfocus = "hide"
+
+[scratchpads.tuifm]
+command = "kitty --class explorer -e yazi"
+class = "explorer"
+size = "90% 90%"
+margin = 50
+animation = "fromBottom"
+unfocus = "hide"
+
+[scratchpads.tuigit]
+command = "kitty --class git-terminal -e lazygit"
+class = "thunar"
+size = "80% 80%"
+margin = 50
+animation = "fromTop"
+unfocus = "hide"
+#+end_src
+
+* TODO Ripgrep
+** Configuration
+#+begin_src sh
+# =~/.config/ripgrep/ripgreprc
+# Catppuccin Mocha theme colors
+--colors=path:fg:#cba6f7      # Mauve (file paths)
+--colors=path:style:bold
+--colors=line:fg:#bac2de      # Subtext1 (line numbers)
+--colors=line:style:nobold
+--colors=column:fg:#9399b2    # Overlay2 (column numbers)
+--colors=column:style:nobold
+--colors=match:fg:#f5c2e7     # Pink (matches)
+--colors=match:style:bold
+--colors=separator:fg:#9399b2 # Overlay2 (separators)
+--colors=context:fg:#6c7086   # Overlay0 (context lines)
+
+# Performance optimizations
+--max-columns=300
+--max-columns-preview
+--smart-case
+--one-file-system
+--mmap
+
+# Search preferences
+--hidden
+--follow
+--glob=!.git/
+--glob=!.svn/
+--glob=!.hg/
+--glob=!CVS/
+--glob=!.idea/
+--glob=!.vscode/
+--glob=!*.min.*
+--glob=!*.o
+--glob=!*.so
+--glob=!*.pyc
+--glob=!__pycache__/
+--glob=!node_modules/
+--glob=!target/
+--glob=!*.swp
+--glob=!*.swo
+--glob=!*.aux
+--glob=!*.out
+--glob=!*.toc
+--glob=!*.blg
+--glob=!*.bbl
+--glob=!*.fls
+--glob=!*.fdb_latexmk
+
+# Binary handling
+--binary
+--text
+#+end_src
+
+** TODO Zsh
+#+begin_src shell :tangle $HOME/.config/zsh/ripgrep.zsh
+# Ripgrep integration with fzf and bat preview
+if command -v rg &>/dev/null; then
+    # Enhanced rg search with preview
+    function rgs() {
+        rg --color=always --heading --line-number "$@" | fzf --ansi \
+            --preview 'bat --style=numbers --color=always --line-range :500 {}' \
+            --preview-window 'right:60%:wrap'
+    }
+
+    # Search for contents and open in vim
+    function rge() {
+        local file
+        local line
+
+        read file line <<< "$(rg --no-heading --line-number $@ | fzf --ansi -0 -1 | awk -F: '{print $1, $2}')"
+
+        if [[ -n $file ]]; then
+            ${EDITOR:-nvim} $file +$line
+        fi
+    }
+
+    # Search for files
+    function rgf() {
+        rg --files | fzf --preview 'bat --style=numbers --color=always --line-range :500 {}'
+    }
+
+    # Use rg for zsh history search
+    function history-rg() {
+        history 1 | rg "$@"
+    }
+
+    # Use rg with bat for code search
+    function rgg() {
+        rg -p "$@" | less -RFX
+    }
+
+    # Completion enhancements
+    compdef _rg rg
+fi
+
+# Gentoo-specific optimizations
+if [[ -f /etc/gentoo-release ]]; then
+    alias rg="rg --max-depth=8" # Gentoo's deep portage tree benefits from depth limit
+    alias rgs="rg --type-set 'ebuild:*.ebuild' --type-set 'gentoo:*.ebuild,*.eclass,*.eselect,*.init.d' --type gentoo"
+fi
+
+export RIPGREP_CONFIG_PATH="$HOME/.config/ripgrep/rc"
+#+end_src
+
+** Gentoo
+#+begin_src sh
+# Install with specific USE flags
+sudo emerge -av sys-apps/ripgrep \
+    app-shells/fzf \
+    app-text/bat
+
+# Recommended additional tools
+sudo emerge -av \
+    dev-vcs/git \
+    sys-apps/fd \
+    app-misc/jq
+#+end_src
+
+** Scripts
+=~/.local/bin/rg-gentoo=:
+#+begin_src sh
+#!/bin/bash
+
+# Gentoo-specific ripgrep wrapper
+case "$1" in
+    -p|--portage)
+        shift
+        rg --type-set 'ebuild:*.ebuild' \
+           --type-set 'eclass:*.eclass' \
+           --type-set 'gentoo:*.ebuild,*.eclass,*.eselect,*.init.d' \
+           --type gentoo \
+           --smart-case \
+           --hidden \
+           --follow \
+           "$@"
+        ;;
+    -k|--kernel)
+        shift
+        rg --type c \
+           --type h \
+           --type make \
+           --type dts \
+           --type dtsi \
+           --type defconfig \
+           --smart-case \
+           --hidden \
+           --follow \
+           "$@"
+        ;;
+    ,*)
+        rg "$@"
+        ;;
+esac
+#+end_src
+
+* TODO Starship
+** =~/.config/starship.toml=
+#+begin_src shell :tangle $HOME/.config/starship.toml
+# Tokyo Night color scheme
+[palette]
+background = "#1a1b26"
+foreground = "#c0caf5"
+selection = "#33467c"
+comment = "#565f89"
+blue = "#7aa2f7"
+cyan = "#7dcfff"
+green = "#9ece6a"
+magenta = "#bb9af7"
+red = "#f7768e"
+yellow = "#e0af68"
+black = "#15161e"
+white = "#a9b1d6"
+orange = "#ff9e64"
+pink = "#f7768e"
+purple = "#9d7cd8"
+
+# Main configuration
+[character]
+success_symbol = "[❯](bold $green)"
+error_symbol = "[❯](bold $red)"
+vicmd_symbol = "[❮](bold $blue)"
+
+[directory]
+truncation_length = 3
+truncate_to_repo = false
+style = "bold $blue"
+read_only_style = "bold $red"
+read_only = " "
+
+[git_branch]
+symbol = " "
+style = "bold $magenta"
+format = "on [$symbol$branch]($style) "
+
+[git_status]
+ahead = "⇡${count}"
+behind = "⇣${count}"
+diverged = "⇕⇡${ahead_count}⇣${behind_count}"
+stashed = "≡"
+modified = "!"
+untracked = "?"
+deleted = "✘"
+renamed = "»"
+style = "bold $green"
+format = "[$all_status$ahead_behind]($style) "
+
+[git_state]
+rebase = "REBASING"
+merge = "MERGING"
+revert = "REVERTING"
+cherry_pick = "CHERRY-PICKING"
+bisect = "BISECTING"
+am = "AM"
+am_or_rebase = "AM/REBASE"
+style = "bold $yellow"
+format = "([$state( $progress_current/$progress_total)]($style)) "
+
+[package]
+format = "[$symbol$version]($style) "
+symbol = " "
+style = "bold $blue"
+
+# Gentoo-specific optimizations
+[status]
+symbol = "✗"
+success_symbol = "✓"
+style = "bold $green"
+format = "[$symbol $exit_code]($style) "
+disabled = false
+
+[cmd_duration]
+min_time = 1000
+format = "took [$duration]($style) "
+style = "bold $yellow"
+
+[memory_usage]
+disabled = false
+threshold = 75
+symbol = "🐏"
+style = "bold $orange"
+
+[env_var]
+variable = "WSL_DISTRO_NAME"
+format = "via [$env_value]($style) "
+style = "bold $green"
+
+# Language support modules
+[aws]
+symbol = "  "
+style = "bold $yellow"
+
+[azure]
+symbol = "ﴃ "
+style = "bold $blue"
+
+[bun]
+symbol = " "
+style = "bold $green"
+
+[c]
+symbol = " "
+style = "bold $blue"
+
+[cmake]
+symbol = "喝 "
+style = "bold $blue"
+
+[cobol]
+symbol = "⚙️ "
+style = "bold $blue"
+
+[dart]
+symbol = " "
+style = "bold $blue"
+
+[deno]
+symbol = "🦕 "
+style = "bold $green"
+
+[docker_context]
+symbol = " "
+style = "bold $blue"
+
+[elixir]
+symbol = " "
+style = "bold $magenta"
+
+[elm]
+symbol = " "
+style = "bold $blue"
+
+[gcloud]
+symbol = " "
+style = "bold $blue"
+
+[golang]
+symbol = " "
+style = "bold $blue"
+
+[helm]
+symbol = "⎈ "
+style = "bold $blue"
+
+[java]
+symbol = " "
+style = "bold $red"
+
+[julia]
+symbol = " "
+style = "bold $magenta"
+
+[kotlin]
+symbol = " "
+style = "bold $blue"
+
+[lua]
+symbol = " "
+style = "bold $blue"
+
+[nodejs]
+symbol = " "
+style = "bold $green"
+
+[ocaml]
+symbol = "🐫 "
+style = "bold $yellow"
+
+[perl]
+symbol = " "
+style = "bold $blue"
+
+[php]
+symbol = " "
+style = "bold $blue"
+
+[pulumi]
+symbol = " "
+style = "bold $yellow"
+
+[python]
+symbol = " "
+style = "bold $blue"
+
+[ruby]
+symbol = " "
+style = "bold $red"
+
+[rust]
+symbol = " "
+style = "bold $red"
+
+[scala]
+symbol = " "
+style = "bold $red"
+
+[swift]
+symbol = "ﯣ "
+style = "bold $yellow"
+
+[terraform]
+symbol = "行 "
+style = "bold $magenta"
+
+[zig]
+symbol = " "
+style = "bold $yellow"
+
+# Gentoo-specific optimizations
+[gentoo_use]
+format = "[$symbol($count)]($style) "
+symbol = "󰣨 "
+style = "bold $blue"
+threshold = 1
+
+[gentoo_portage]
+format = "[$symbol($count)]($style) "
+symbol = "󰣨 "
+style = "bold $magenta"
+threshold = 1
+
+# Line breaks and spacing
+[line_break]
+disabled = false
+
+[container]
+symbol = "⬢"
+style = "bold $blue"
+format = "[$symbol]($style) "
+
+[username]
+style_user = "bold $blue"
+style_root = "bold $red"
+format = "[$user]($style) "
+disabled = false
+show_always = true
+
+[hostname]
+ssh_only = false
+format = "@[$hostname]($style) "
+trim_at = ".local"
+style = "bold $green"
+
+[time]
+disabled = false
+format = "[$time]($style) "
+time_format = "%T"
+utc_time_offset = "local"
+style = "bold $comment"
+#+end_src
+
+** TODO Zsh
+#+begin_src shell :tangle $HOME/.config/zsh/starship.zsh
+# Enable Starship
+eval "$(starship init zsh)"
+
+# Optimize Git for Gentoo
+export GIT_OPTIONAL_LOCKS=0
+
+# Gentoo-specific optimizations
+alias emerge='nocorrect emerge'
+alias ebuild='nocorrect ebuild'
+alias equery='nocorrect equery'
+
+# Cache completions
+zstyle ':completion:*' use-cache on
+zstyle ':completion:*' cache-path ~/.zsh/cache
+
+# Create cache directory if missing
+[[ ! -d ~/.zsh/cache ]] && mkdir -p ~/.zsh/cache
+#+end_src
+
+* Tmux
+#+begin_src shell :tangle $HOME/.tmux.conf
+# ~/.tmux.conf
+# Requirements: TPM, Nerd Fonts, wl-clipboard/xclip
+
+# ======================
+# Security Configuration
+# ======================
+set -g lock-after-time 900
+set -g lock-command "loginctl lock-session"
+set -g visual-activity off
+set -g visual-bell off
+set -g visual-silence off
+set -g escape-time 50
+set -g window-style 'fg=default,bg=terminal'
+set -g window-active-style 'fg=default,bg=terminal'
+set -g -a terminal-overrides ',*:Ss=\E[%p1%d q:Se=\E[2 q'
+
+# ======================
+# Performance Optimizations
+# ======================
+set -g buffer-limit 50
+set -g monitor-activity off
+set -g monitor-silence 0
+set -g repeat-time 500
+set -g status-interval 15
+set -g default-terminal "tmux-256color"
+set -ga terminal-overrides ",*256col*:RGB"
+
+# ======================
+# Plugin Configuration
+# ======================
+set -g @tpm-clean 'on'
+set -g @tpm-interval 15
+
+set -g @plugin 'tmux-plugins/tpm'
+set -g @plugin 'tmux-plugins/tmux-sensible'
+set -g @plugin 'tmux-plugins/tmux-resurrect'
+set -g @plugin 'tmux-plugins/tmux-continuum'
+set -g @plugin 'christoomey/vim-tmux-navigator'
+set -g @plugin 'tmux-plugins/tmux-yank'
+set -g @plugin 'joshmedeski/tmux-nerd-font-window-name'
+
+set -g @resurrect-capture-pane-contents 'off'
+set -g @resurrect-processes 'ssh psql pgcli mysql sqlite3'
+set -g @resurrect-save-bash-history 'off'
+set -g @continuum-restore 'on'
+set -g @continuum-save-interval '10'
+
+# ======================
+# Catppuccin Mocha Colorscheme
+# ======================
+set -g @catppuccin_base "#1e1e2e"
+set -g @catppuccin_text "#cdd6f4"
+set -g @catppuccin_red "#f38ba8"
+set -g @catppuccin_peach "#fab387"
+set -g @catppuccin_yellow "#f9e2af"
+set -g @catppuccin_green "#a6e3a1"
+set -g @catppuccin_blue "#89b4fa"
+set -g @catppuccin_mauve "#cba6f7"
+set -g @catppuccin_teal "#94e2d5"
+set -g @catppuccin_lavender "#b4befe"
+set -g @catppuccin_mantle "#181825"
+set -g @catppuccin_surface0 "#313244"
+
+set -g pane-active-border-style "fg=#{@catppuccin_blue},bg=default"
+set -g pane-border-style "fg=#{@catppuccin_mantle},bg=default"
+set -g message-style "fg=#{@catppuccin_text},bg=#{@catppuccin_mantle}"
+set -g message-command-style "fg=#{@catppuccin_text},bg=#{@catppuccin_mantle}"
+
+# ======================
+# Key Bindings & Navigation
+# ======================
+unbind C-b
+set -g prefix C-a
+bind C-a send-prefix
+
+bind -n M-h select-pane -L
+bind -n M-j select-pane -D
+bind -n M-k select-pane -U
+bind -n M-l select-pane -R
+
+is_vim="ps -o state= -o comm= -t '#{pane_tty}' \
+    | grep -iqE '^[^TXZ ]+ +(\\S+\\/)?g?(view|n?vim?x?)(diff)?$'"
+bind-key -n 'C-h' if-shell "$is_vim" 'send-keys C-h' 'select-pane -L'
+bind-key -n 'C-j' if-shell "$is_vim" 'send-keys C-j' 'select-pane -D'
+bind-key -n 'C-k' if-shell "$is_vim" 'send-keys C-k' 'select-pane -U'
+bind-key -n 'C-l' if-shell "$is_vim" 'send-keys C-l' 'select-pane -R'
+
+bind -r H resize-pane -L 5
+bind -r J resize-pane -D 5
+bind -r K resize-pane -U 5
+bind -r L resize-pane -R 5
+bind '>' swap-pane -D
+bind '<' swap-pane -U
+
+# ======================
+# Status Bar Configuration
+# ======================
+set -g status on
+set -g status-justify left
+set -g status-position bottom
+set -g status-left-length 100
+set -g status-right-length 100
+
+set -g @pl_sep_right ""
+set -g @pl_sep_left ""
+
+set -g status-left "#[fg=#{@catppuccin_mantle},bg=#{@catppuccin_blue}]#{@pl_sep_left}\
+#[fg=#{@catppuccin_text},bg=#{@catppuccin_mantle}] #S #[fg=#{@catppuccin_mantle},bg=#{@catppuccin_blue}]#{@pl_sep_right}"
+
+set -g status-right "#[fg=#{@catppuccin_blue},bg=#{@catppuccin_mantle}]#{@pl_sep_left}\
+#[fg=#{@catppuccin_text},bg=#{@catppuccin_mantle}] %H:%M #[fg=#{@catppuccin_mantle},bg=#{@catppuccin_blue}]#{@pl_sep_right}"
+
+set -g window-status-format "#[fg=#{@catppuccin_text},bg=#{@catppuccin_mantle}] #I:#W "
+set -g window-status-current-format "#[fg=#{@catppuccin_blue},bg=#{@catppuccin_mantle}] 󰮯 #I:#W "
+
+# ======================
+# Clipboard Integration
+# ======================
+set -g @yank_with_mouse off
+set -g @yank_selection_mouse 'clipboard'
+
+if-shell "test -n $WAYLAND_DISPLAY" {
+    set -g @yank_selection 'clipboard'
+    set -g @yank_action 'copy-pipe-no-clear wl-copy -n'
+} {
+    set -g @yank_selection 'clipboard'
+    set -g @yank_action 'copy-pipe-no-clear xclip -in -selection clipboard'
+}
+
+# ======================
+# Security Features
+# ======================
+set -g destroy-unattached off
+set -g detach-on-destroy on
+set -g update-environment ""
+set -g default-command "${SHELL} -l"
+set -g default-shell "/bin/bash"
+set -g allow-rename off
+set -g automatic-rename off
+set -g remain-on-exit off
+set -g pane-deny-action 'kill-pane -t'
+set -g window-size latest
+
+# ======================
+# Quality of Life
+# ======================
+set -g aggressive-resize on
+set -g bell-action none
+set -g bell-on-alert off
+set -g history-file ~/.tmux_history
+set -g backspace 'C-?'
+
+bind-key x confirm-before -p "kill-pane #P? (y/n)" kill-pane
+bind-key X confirm-before -p "kill-window #W? (y/n)" kill-window
+bind S command-prompt -p "New session name:" "new-session -A -s '%%'"
+bind B choose-session -Z
+set -g message-logpath ~/.tmux_audit.log
+set -g history-limit 5000
+
+# Initialize TPM
+run '~/.tmux/plugins/tpm/tpm'
+#+end_src
+
+* Yazi
+
+* Zathura
+#+begin_src shell :tangle $HOME/.config/zathura/zathurarc
+# ~/.config/zathura/zathurarc
+
+# ----------------------------------
+# Catppuccin Mocha Theme
+# ----------------------------------
+set default-bg                  "#1e1e2e"  # base
+set default-fg                  "#cdd6f4"  # text
+
+set statusbar-fg                "#cdd6f4"  # text
+set statusbar-bg                "#585b70"  # surface2
+
+set inputbar-bg                 "#1e1e2e"  # base
+set inputbar-fg                 "#cdd6f4"  # text
+
+set notification-bg             "#1e1e2e"  # base
+set notification-fg             "#cdd6f4"  # text
+set notification-error-bg       "#1e1e2e"  # base
+set notification-error-fg       "#f38ba8"  # red
+set notification-warning-bg     "#1e1e2e"  # base
+set notification-warning-fg     "#fab387"  # peach
+
+set highlight-color             "#f5c2e7"  # pink
+set highlight-active-color      "#f5e0dc"  # rosewater
+
+set completion-highlight-fg     "#1e1e2e"  # base
+set completion-highlight-bg     "#89b4fa"  # blue
+set completion-bg               "#313244"  # surface0
+set completion-fg               "#cdd6f4"  # text
+
+set recolor-lightcolor          "#1e1e2e"  # base
+set recolor-darkcolor           "#cdd6f4"  # text
+set recolor                     "true"
+set recolor-keephue             "true"
+
+# ----------------------------------
+# Vim-like Keybindings
+# ----------------------------------
+# Navigation
+map j scroll down
+map k scroll up
+map h scroll left
+map l scroll right
+map J navigate next
+map K navigate previous
+map gg navigate first
+map G navigate last
+map <C-u> scroll half-up
+map <C-d> scroll half-down
+map <C-f> scroll full-down
+map <C-b> scroll full-up
+
+# Zooming
+map + zoom in
+map - zoom out
+map = zoom in
+map <C-6> zoom best-fit
+map zi zoom in
+map zo zoom out
+map zz zoom best-fit
+
+# Searching
+map / search
+map ? search backward
+map n search next
+map N search previous
+
+# Modes
+set mode-normal "<esc>"
+map i enter-mode insert
+
+# Tabs
+map gt tab-next
+map gT tab-previous
+map gn tab-open
+map gc tab-close
+
+# ----------------------------------
+# Quality of Life Improvements
+# ----------------------------------
+# UI Settings
+set guioptions ""
+set window-title-basename "true"
+set statusbar-home-tilde "true"
+set statusbar-h-padding 8
+set statusbar-v-padding 8
+set adjust-open "best-fit"
+set pages-per-row 1
+set scroll-page-aware "true"
+set scroll-full-overlap 0.01
+set scroll-step 50
+
+# Input Settings
+set incremental-search "true"
+set wrap-search "true"
+set selection-clipboard "clipboard"
+
+# Performance Settings
+set dbus-service "true"
+set sandbox "strict"
+
+# ----------------------------------
+# Advanced Features
+# ----------------------------------
+# Poppler Features
+set synctex "true"
+set synctex-editor-command "emacsclient +%{line} %{input}"
+set embed-orientation "true"
+
+# Document Settings
+set adjust-open "width"
+set render-loading "false"
+
+# ----------------------------------
+# Wayland Specific Settings
+# ----------------------------------
+set selection-clipboard "clipboard"
+set fs-screen "all"
+
+# ----------------------------------
+# Syntax and Filetype Support
+# ----------------------------------
+# Add custom file associations if needed
+# filetype-assoc update "application/epub+zip" "epub"
+
+# ----------------------------------
+# Gentoo-Specific Optimizations
+# ----------------------------------
+# Use GPU acceleration if available
+set windowing-backend "wayland"
+#+end_src
+
+* TODO Zoxide Zsh
+
+#+begin_src sh :tangle $HOME/.config/zsh/zoxide.zsh
+# ======================
+# Zoxide Configuration
+# ======================
+
+# Initialize zoxide with Catppuccin Mocha theme colors and Gentoo optimizations
+if command -v zoxide >/dev/null; then
+    # Use faster database backend (Gentoo-specific optimization)
+    export _ZO_DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/zoxide"
+    mkdir -p "$_ZO_DATA_DIR"
+
+    # Initialize zoxide with optimized settings
+    eval "$(zoxide init zsh --hook pwd --cmd j)"
+
+    # Enhanced completion (Gentoo-specific paths)
+    compctl -U -K _zoxide_z_cmd -x 'C[-1,-*e],C[-1,-*h]' -c - 'c[-1,-l]' -/ -- j
+
+    # Catppuccin Mocha theme colors for zoxide prompt
+    export _ZO_FG_OLD='#a6adc8'    # Subtext0 (old path color)
+    export _ZO_FG_NEW='#89b4fa'    # Blue (new path color)
+    export _ZO_FG_QUERY='#f5e0dc'  # Rosewater (query color)
+    export _ZO_FG_ERROR='#f38ba8' # Red (error color)
+    export _ZO_FG_SUCCESS='#a6e3a1' # Green (success color)
+
+    # Custom zoxide prompt with Gentoo-inspired colors
+    _zoxide_hook() {
+        local ret=$?
+        if [[ $ret -eq 0 ]]; then
+            print -Pn "%F{$_ZO_FG_SUCCESS}✓%f "
+        else
+            print -Pn "%F{$_ZO_FG_ERROR}✗%f "
+        fi
+        print -Pn "%F{$_ZO_FG_QUERY}Gentoo%f %F{$_ZO_FG_NEW}%~%f "
+    }
+    add-zsh-hook precmd _zoxide_hook
+fi
+
+# ======================
+# Quality of Life Improvements
+# ======================
+
+# Enhanced directory jumping with fzf integration (if available)
+if command -v fzf >/dev/null; then
+    function j() {
+        if [[ $# -eq 0 ]]; then
+            local dir
+            dir=$(zoxide query -l | fzf --height 40% --reverse --tac \
+                --color='bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38ba8' \
+                --color='fg:#cdd6f4,header:#f38ba8,info:#cba6f7,pointer:#f5e0dc' \
+                --color='marker:#f5e0dc,fg+:#cdd6f4,prompt:#cba6f7,hl+:#f38ba8' \
+                --preview 'exa -la --color=always --icons --group-directories-first {}') &&
+            zoxide add "$dir" && builtin cd "$dir"
+        else
+            zoxide query --exclude "$(pwd)" "$@" | head -n 1 | while read -r dir; do
+                [ -n "$dir" ] && zoxide add "$dir" && builtin cd "$dir"
+            done
+        fi
+    }
+fi
+
+# Gentoo-specific directory shortcuts
+alias jportage='j /usr/portage'
+alias joverlay='j /var/db/repos'
+alias jebuilds='j /var/db/pkg'
+alias jmakeconf='j /etc/portage'
+
+# ======================
+# Git Optimizations
+# ======================
+
+# Faster git status for zoxide (async)
+function _zoxide_git_status() {
+    local git_dir
+    git_dir=$(git rev-parse --git-dir 2>/dev/null)
+    if [[ -n "$git_dir" ]]; then
+        local branch
+        branch=$(git symbolic-ref --short HEAD 2>/dev/null || git rev-parse --short HEAD 2>/dev/null)
+        if [[ -n "$branch" ]]; then
+            print -Pn " %F{$_ZO_FG_QUERY}%f%F{#b4befe} ${branch}%f"
+
+            # Async git status indicators
+            {
+                local ahead behind staged unstaged untracked
+                ahead=$(git rev-list --count @{upstream}..HEAD 2>/dev/null)
+                behind=$(git rev-list --count HEAD..@{upstream} 2>/dev/null)
+                staged=$(git diff --cached --numstat | wc -l)
+                unstaged=$(git diff --numstat | wc -l)
+                untracked=$(git ls-files --others --exclude-standard | wc -l)
+
+                [[ "$ahead" -gt 0 ]] && print -Pn " %F{$_ZO_FG_SUCCESS}↑${ahead}%f"
+                [[ "$behind" -gt 0 ]] && print -Pn " %F{$_ZO_FG_ERROR}↓${behind}%f"
+                [[ "$staged" -gt 0 ]] && print -Pn " %F{$_ZO_FG_SUCCESS}●${staged}%f"
+                [[ "$unstaged" -gt 0 ]] && print -Pn " %F{$_ZO_FG_ERROR}✚${unstaged}%f"
+                [[ "$untracked" -gt 0 ]] && print -Pn " %F{$_ZO_FG_QUERY}…${untracked}%f"
+            } &!
+        fi
+    fi
+}
+
+# Add git status to zoxide prompt
+add-zsh-hook precmd _zoxide_git_status
+
+# ======================
+# Gentoo-Specific Optimizations
+# ======================
+
+# Optimize zoxide database location for Gentoo's filesystem structure
+export _ZO_EXCLUDE_DIRS='/usr/portage/distfiles/*:/var/tmp/*:/usr/src/*'
+
+# Faster database updates (Gentoo often has many directory changes)
+export _ZO_MAXAGE=5000  # Increase max age for Gentoo's frequent updates
+
+# Pre-populate zoxide with common Gentoo directories
+[ -f "${_ZO_DATA_DIR}/db.zo" ] || {
+    zoxide add ~
+    zoxide add /etc/portage
+    zoxide add /usr/portage
+    zoxide add /var/db/repos
+    zoxide add /var/db/pkg
+    zoxide add /usr/src/linux
+}
+
+# ======================
+# Advanced ZSH Integration
+# ======================
+
+# Dynamic completion for Gentoo directories
+_zoxide_gentoo_complete() {
+    local -a dirs
+    dirs=(
+        /etc/portage(/)
+        /usr/portage(/)
+        /var/db/repos(/)
+        /var/db/pkg(/)
+        /usr/src/linux(/)
+        ~/.config(/)
+    )
+    _describe 'directory' dirs
+}
+compdef _zoxide_gentoo_complete j
+
+# History integration - log directory changes
+function zoxide-add-history() {
+    local last_command=$(fc -ln -1)
+    if [[ "$last_command" =~ ^(cd|j|z|zi) ]]; then
+        zoxide add "$(pwd)"
+    fi
+}
+add-zsh-hook zshaddhistory zoxide-add-history
+
+# ======================
+# Performance Optimizations
+# ======================
+
+# Use a more efficient hashing algorithm for Gentoo's deep directory structures
+export _ZO_HASH_CMD='xxh64sum'
+
+# Parallel processing for database updates
+if command -v parallel >/dev/null; then
+    export _ZO_UPDATE_CMD="parallel -j $(nproc) -- zoxide add"
+fi
+
+# ======================
+# Final Initialization
+# ======================
+
+# Verify zoxide is working
+if ! command -v zoxide >/dev/null; then
+    print -P "%F{$_ZO_FG_ERROR}Warning:%f zoxide not found. Install with:"
+    print -P "  %F{$_ZO_FG_NEW}emerge -a app-shells/zoxide%f"
+fi
+#+end_src
+
+* TODO Zsh
+
+#+begin_src shell $HOME/.zshrc
+#+end_src
+
+* Setup Script
+
+#+begin_src sh
+cd && mkdir -p ~/.config/bat/themes
+cd ~/.config/bat/themes
+wget https://raw.githubusercontent.com/catppuccin/bat/main/catppuccin-mocha.tmtheme
+
+bat cache --build
+
+sudo groupadd clipboard
+sudo usermod -aG clipboard ahsan
+
+(crontab -l 2>/dev/null; echo "0 3 * * 0 cliphist optimize --compact") | crontab -
+
+git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm --depth 1
+chmod 700 ~/.tmux && chmod 600 ~/.tmux.conf
+tmux source-file ~/.tmux.conf
+#+end_src

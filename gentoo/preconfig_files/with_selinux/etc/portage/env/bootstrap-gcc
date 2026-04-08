@@ -1,0 +1,39 @@
+###/etc/portage/make.conf
+# These settings were set by the catalyst build script that automatically
+# built this stage.
+# Please consult /usr/share/portage/config/make.conf.example for a more
+# detailed example.
+####
+##
+COMMON_FLAGS="-O3 -pipe -march=native -flto -fno-strict-aliasing"
+#COMMON_FLAGS="-O2 -pipe -march=native -flto -fno-semantic-interposition -fopenmp  -fopenmp-simd  "
+CPU_FLAGS_X86="aes avx avx2 f16c fma3 mmx mmxext pclmul popcnt rdrand sha sse sse2 sse3 sse4_1 sse4_2 sse4a ssse3 vpclmulqdq"
+CFLAGS="${COMMON_FLAGS}"
+CXXFLAGS="${COMMON_FLAGS}"
+FCFLAGS="${COMMON_FLAGS}"
+FFLAGS="${COMMON_FLAGS}"
+CGO_CFLAGS="${CFLAGS}"
+CGO_CXXFLAGS="${CXXFLAGS}"
+CGO_FFLAGS="${FFLAGS}"
+CGO_LDFLAGS="${LDFLAGS}"
+#RUSTFLAGS="-C opt-level=3 -C target-cpu=native -Clinker-plugin-lto""
+MAKEOPTS="-j14"
+NOCOMMON_OVERRIDE_LIBTOOL="yes"
+EMERGE_DEFAULT_OPTS="--keep-going=y"
+#EMERGE_DEFAULT_OPTS="--jobs=10 --keep-going=y --ask"
+RUBY_TARGETS="ruby33 ruby34"
+PYTHON_TARGETS="python3_13 python3_12 pypy3_11"
+PYTHON_SINGLE_TARGET="python3_12"
+LLVM_SLOT=19
+L10N="en en_US en-US"
+LINGUAS="${L10N}"
+ABI_X86="64 32"
+# NOTE: This stage was built with the bindist Use flag enabled
+PORTDIR="/var/db/repos/gentoo"
+DISTDIR="/var/cache/distfiles"
+PKGDIR="/var/cache/binpkgs"
+
+# This sets the language of build output to English.
+# Please keep this setting intact when reporting bugs.
+LC_MESSAGES=C
+GRUB_PLATFORMS="efi-64"

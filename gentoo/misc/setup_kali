@@ -1,0 +1,14 @@
+#!/bin/bash
+sudo wget https://archive.kali.org/archive-key.asc -O /etc/apt/trusted.gpg.d/kali-archive-keyring.asc
+sudo cp -R $HOME/.dots/debian-scripts/preconfig_files/kali.list /etc/apt/sources.list.d/
+
+wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | sudo gpg --dearmor -o /usr/share/keyrings/elasticsearch-keyring.gpg
+sudo apt install apt-transport-https
+echo "deb [signed-by=/usr/share/keyrings/elasticsearch-keyring.gpg] https://artifacts.elastic.co/packages/8.x/apt stable main" | sudo tee /etc/apt/sources.list.d/elastic-8.x.list
+sudo apt update
+#sudo apt-get install elasticsearch
+
+# wget --quiet -O /etc/apt/trusted.gpg.d/rudder_apt_key.gpg "https://repository.rudder.io/apt/rudder_apt_key.gpg"
+# echo "deb [arch=$(dpkg --print-architecture)] http://repository.rudder.io/apt/8.1/ $(lsb_release -cs) main" >/etc/apt/sources.list.d/rudder.list
+#
+# sudo apt update

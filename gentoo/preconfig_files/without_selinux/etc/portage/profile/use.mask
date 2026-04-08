@@ -1,0 +1,9 @@
+-lto
+-gmp-autoupdate
+-llvm-libunwind
+-system-llvm
+-llvm_slot_20
+-pypy3 
+-pypy3_11
+-vulkan
+-jit

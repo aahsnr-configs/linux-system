@@ -1,0 +1,9 @@
+#!/bin/bash
+cd && git clone https://github.com/Kirottu/kidex.git
+cd kidex
+cargo fetch --locked
+cargo build --frozen --release
+cd target/release
+sudo install -Dm755 kidex "/usr/local/bin/kidex"
+sudo install -Dm755 kidex-client "/usr/local/bin/kidex-client"
+cd && sudo rm -R kidex

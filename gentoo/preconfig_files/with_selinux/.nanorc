@@ -1,0 +1,18 @@
+set atblanks
+set cutfromcursor
+#set nohelp
+set softwrap
+#set suspend
+set tabsize 2
+set tabstospaces
+include "/usr/share/nano/*.nanorc"
+set speller "aspell -x -c"
+set constantshow
+#set linenumbers
+set casesensitive
+set historylog
+set positionlog
+set zap
+set autoindent
+set indicator
+set minibar

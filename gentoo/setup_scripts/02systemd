@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# Set Up Systemd
+sudo systemctl set-default graphical.target
+sudo systemctl enable grub-btrfsd hyprlux.service
+systemctl --user enable wireplumber.service pipewire-pulse.socket pipewire.socket pipewire-pulse.service pipewire.service pipewire-pulse.socket pipewire.socket pipewire-pulse.service pipewire.service hypridle.service hyprpolkitagent gnome-keyring-daemon
+cp -R ~/.dots/.config/systemd/user/* ~/.config/systemd/user/
+systemctl --user enable cliphist.service cliphist-images.service hyprpaper.service hyprsunset.service pyprland.service

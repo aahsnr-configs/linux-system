@@ -1,0 +1,8 @@
+#!/bin/bash
+echo "Installing Ignis"
+cd && git clone https://github.com/linkfrg/ignis.git
+cd ignis
+meson setup build
+meson compile -C build
+sudo meson install -C build 
+cd && sudo rm -rf ignis

@@ -1,0 +1,2 @@
+#!/bin/bash
+sudo apt purge --autoremove meson libgjs-dev gjs libgtk-layer-shell-dev libgtk-3-dev libpulse-dev network-manager-dev libgnome-bluetooth-3.0-dev libdbusmenu-gtk3-dev libsoup-3.0-dev gir1.2-gtop-2.0 libgtop-2.0-11 libpam-dev

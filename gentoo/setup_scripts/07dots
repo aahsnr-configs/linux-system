@@ -1,0 +1,25 @@
+#!/bin/bash
+echo "Setting up Dotfiles"
+ln -sv "$HOME/.dots/gentoo_setup" "$HOME/"
+ln -sv "$HOME/.dots/org" "$HOME/"
+ln -sv "$HOME/.dots/.config/hypr" "$HOME/.config/"
+ln -sv "$HOME/.dots/.config/bat" "$HOME/.config/"
+ln -sv "$HOME/.dots/.config/Thunar" "$HOME/.config/"
+ln -sv "$HOME/.dots/.config/gtk-3.0" "$HOME/.config/"
+ln -sv "$HOME/.dots/.config/gtk-4.0" "$HOME/.config/"
+ln -sv "$HOME/.dots/.config/btop" "$HOME/.config/"
+ln -sv "$HOME/.dots/.config/nwg-look" "$HOME/.config/"
+ln -sv "$HOME/.dots/.config/lazygit" "$HOME/.config/"
+ln -sv "$HOME/.dots/.config/nvim-astronvim/" "$HOME/.config/nvim"
+ln -sv $HOME/.dots/.config/qalculate $HOME/.config/
+ln -sv $HOME/.dots/.config/yazi $HOME/.config/
+ln -sv $HOME/.dots/.config/zathura $HOME/.config/
+ln -sv $HOME/.dots/.gtkrc-2.0 $HOME/
+
+nvim ~/.config/user-dirs.dirs
+xdg-user-dirs-update
+#cd && cp -R ~/.dots/.config/nix/ ~/.config/
+#cd && cp -R ~/.dots/.config/home-manager/ ~/.config/
+
+mkdir ~/.config/zellij
+zellij setup --dump-config >~/.config/zellij/config.kdl

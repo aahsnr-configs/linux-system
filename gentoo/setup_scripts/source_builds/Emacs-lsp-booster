@@ -1,0 +1,9 @@
+#!/bin/bash
+echo "Installing Emacs Lsp Booster"
+sleep 3
+cd && git clone https://github.com/blahgeek/emacs-lsp-booster.git
+cd emacs-lsp-booster
+cargo build --release
+cd target/release
+sudo install -Dm755 emacs-lsp-booster "/usr/local/bin/emacs-lsp-booster"
+cd && sudo rm -rf emacs-lsp-booster

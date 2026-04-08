@@ -1,0 +1,5 @@
+#!/bin/bash
+sudo apt install -y systemd-zram-generator
+cd && sudo cp -R $HOME/.dots/debian-scripts/preconfig_files/zram-generator.conf /etc/systemd/
+sudo systemctl daemon-reload
+sudo systemctl start dev-zram0.swap 

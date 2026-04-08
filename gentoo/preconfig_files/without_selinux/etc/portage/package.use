@@ -1,0 +1,126 @@
+### /etc/portage/package.use
+*/* INPUT_DEVICES:        -* libinput synaptics
+sys-apps/apparmor doc
+sys-libs/libapparmor doc
+media-libs/mesa vaapi vdpau vulkan wayland
+media-video/libva-utils vainfo
+sys-apps/fwupd -dell nvme spi synaptics uefi lzma gnutls
+#x11-libs/libdrm video_cards_radeon
+sys-kernel/cachyos-sources -hardened kcfi
+dev-util/perf libpfm
+virtual/secret-service libsecret
+media-video/ffmpeg x264
+sys-apps/util-linux build
+dev-build/cmake -gui qt6
+sys-firmware/intel-microcode hostonly initramfs
+sys-kernel/linux-firmware compress-zstd initramfs
+dev-libs/libsodium -verify-sig
+#net-wireless/bluez extra-tools
+#dev-libs/libpcre2 static-libs
+#dev-libs/glib static-libs
+sys-kernel/installkernel systemd grub dracut
+sys-boot/refind btrfs
+media-video/ffmpeg -xvid
+media-libs/freetype -harfbuzz
+app-antivirus/clamav milter
+gnome-extra/gnome-software flatpak
+net-firewall/firewalld -iptables
+net-firewall/nftables json xtables
+media-libs/libsdl2 -wayland
+sys-libs/ncurses -gpm
+dev-vcs/git keyring
+net-libs/nodejs npm lto
+net-p2p/transmission gtk -qt5 -qt6
+sys-config/ltoize keep-nocommon clang
+dev-util/cmake -emacs ncurses -qt5
+media-fonts/iosevka iosevka-aile
+app-text/xmlto text
+gnome-base/gvfs udisks
+dev-libs/libdbusmenu gtk3
+app-crypt/gcr gtk
+sys-apps/kmod zstd
+sys-boot/grub device-mapper mount
+app-admin/sysstat lto lm-sensors
+sys-libs/zlib minizip
+app-text/poppler cairo
+dev-lang/python pgo ensurepip tk hardened -jit
+net-misc/dhcpcd privsep
+net-misc/dhcpcd-ui -qt5 -ncurses
+sys-devel/gcc lto pgo default-stack-clash-protection jit graphite rust go
+app-editors/emacs tree-sitter jit gtk gui -X dynamic-loading -acl -alsa mailutils dbus -gmp gtk gui -harfbuzz inotify -jpeg sqlite -ssl -tiff -xattr xpm -zlib
+app-emacs/po-mode -sound
+app-text/ghostscript-gpl cups
+dev-python/PyQt5 widgets
+media-sound/pulseaudio -daemon
+media-video/pipewire sound-server flatpak extra
+sys-apps/kmod tools
+sys-apps/xdg-desktop-portal -screencast -geolocation
+sys-apps/systemd policykit cryptsetup zstd audit seccomp resolvconf kernel-install
+media-sound/mpg123 -pulseaudio
+media-libs/libpng apng
+app-arch/zstd static-libs
+dev-qt/qtgui eglfs egl dbus
+sys-apps/xdg-desktop-portal flatpak geolocation
+sys-libs/gdbm berkdb
+dev-qt/qtwidgets dbus
+dev-qt/qtbase egl icu
+dev-qt/qtdeclarative opengl
+dev-libs/boost context
+dev-libs/boehm-gc cxx
+virtual/libcrypt static-libs
+sys-libs/libxcrypt static-libs
+media-fonts/nerdfonts jetbrainsmono ubuntu ubuntumono
+gui-libs/gtk-layer-shell introspection
+net-wireless/wpa_supplicant dbus
+net-libs/libssh server
+sys-apps/flatpak policykit seccomp
+app-admin/keepassxc browser autotype keeshare network yubikey
+gui-apps/swaybg gdk-pixbuf
+dev-python/PyQt5 opengl
+dev-python/pillow webp
+dev-python/QtPy svg printsupport
+virtual/wine staging
+media-libs/harfbuzz icu
+dev-python/PyQt5 network svg sql printsupport
+app-crypt/gnupg nls
+app-office/libreoffice branding googledrive gtk gstreamer
+dev-libs/boost nls
+dev-libs/xmlsec nss
+sys-auth/polkit gtk daemon
+net-analyzer/snort threads
+app-portage/eix optimization strong-security tools
+app-misc/fdupes ncurses
+dev-libs/libpcre2 pcre32
+dev-qt/qtcore icu
+media-libs/libvpx postproc
+x11-base/xorg-server xvfb
+x11-drivers/nvidia-drivers modules powerd tools kernel-open wayland -X
+#dev-lang/rust llvm-libunwind  rust-analyzer rust-src rustfmt system-llvm lto
+x11-terms/alacritty -X wayland
+gui-apps/alacritty-graphics -X wayland
+media-gfx/imv -X wayland gif heif icu jpeg jpegxl png svg tiff
+# media-libs/vulkan-loader layers -X
+# media-libs/vulkan-layers -X
+sys-apps/rng-tools jitterentropy
+sys-fs/lvm2 lvm
+sys-libs/libcap static-libs
+dev-python/pyqt5 widgets
+llvm-runtimes/compiler-rt-sanitizers orc profile
+llvm-core/clang-runtime sanitize llvm-libunwind
+kde-frameworks/sonnet qml
+dev-qt/qtbase -icu
+dev-qt/qt5compat qml
+net-firewall/iptables nftables
+dev-util/xdelta lzma
+sys-fs/squashfs-tools lzma
+media-video/pipewire gstreamer gsettings pipewire-alsa
+x11-base/xwayland xcsecurity
+www-client/firefox -X clang -telemetry openh264 hwaccel
+gui-libs/gtk -X
+llvm-core/clang-runtime sanitize
+sys-devel/clang-common default-compiler-rt default-lld llvm-libunwind
+sci-chemistry/pymol web
+gui-apps/uwsm uuctl uwsm-app
+gui-wm/hyprland X qtutils systemd
+gui-wm/hyprland-contrib grimblast hyprprop hdrop scratchpad shellevents swap
+#dev-python/gpep517 python_targets_python3_12

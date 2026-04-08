@@ -1,0 +1,5 @@
+#!/bin/bash
+sudo apt install -y curl zsh zsh-antidote
+ln -sv $HOME/.dots/.config/zsh $HOME/.config/
+ln -sv $HOME/.dots/.zshrc $HOME/
+#chsh -s $(which zsh)

@@ -1,0 +1,22 @@
+### /etc/portage/profile/package.provided
+app-emacs/seq-2.24
+sys-kernel/gentoo-sources-6.4
+app-text/texlive-9999
+app-text/texlive-core-9999
+dev-tex/latexdiff-9999
+dev-texlive/texlive-basic-9999
+dev-texlive/texlive-fontsextra-9999
+dev-texlive/texlive-fontsrecommended-9999
+dev-texlive/texlive-fontutils-9999
+dev-texlive/texlive-formatsextra-9999
+dev-texlive/texlive-latex-9999
+dev-texlive/texlive-latexextra-9999
+dev-texlive/texlive-latexrecommended-9999
+dev-texlive/texlive-luatex-9999
+dev-texlive/texlive-mathscience-9999
+dev-texlive/texlive-plaingeneric-9999
+dev-texlive/texlive-pstricks-9999
+dev-texlive/texlive-xetex-9999
+dev-tex/tex4ht-999999999999
+virtual/latex-base-1.0
+virtual/tex-base-9999

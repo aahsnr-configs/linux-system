@@ -1,0 +1,10 @@
+#!/bin/bash
+echo "Installing Anyrun"
+sleep 3
+sudo apt install -y gui-libs/gtk-layer-shell x11-libs/gtk+ x11-libs/pango x11-libs/cairo dev-perl/Cairo-GObject x11-libs/gdk-pixbuf dev-libs/glib
+cd && git clone https://github.com/Kirottu/anyrun.git && cd anyrun
+cargo build --release
+cargo install --path anyrun/
+cp target/release/*.so ~/.dots/.config/anyrun/plugins
+sudo ln -sv $HOME/.cargo/bin/anyrun /usr/local/bin/anyrun
+cd && sudo rm -R anyrun

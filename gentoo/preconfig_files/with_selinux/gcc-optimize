@@ -1,0 +1,9 @@
+#!/bin/bash
+#emerge linux-headers
+#emerge glibc
+#emerge binutils
+#exit
+#emerge gcc
+#emerge -a bash
+#emerge -a xz-utils
+emerge -a dev-lang/python:3.12 dev-lang/python:3.13

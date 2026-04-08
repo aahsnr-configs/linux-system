@@ -1,0 +1,43 @@
+#!/bin/bash
+#emerge linux-headers
+#emerge glibc
+#emerge binutils
+#emerge gcc
+#emerge glibc
+#emerge binutils
+#emerge gcc
+#emerge dev-build/libtool
+#emerge --oneshot --usepkg=n --verbose dev-libs/boost
+#libtool --finish /usr/lib/../lib64
+#libtool --finish /usr/lib64
+#libtool --finish /usr/libexec/gcc/x86_64-pc-linux-gnu
+#libtool --finish /usr/libexec/gcc/x86_64-pc-linux-gnu/14
+#emerge dev-lang/python:3.12 dev-lang/python:3.13
+#emerge linux-headers
+#emerge glibc
+#emerge sys-libs/zlib dev-lang/tcl dev-tcltk/expect dev-util/dejagnu dev-libs/elfutils dev-debug/valgrind dev-libs/mpfr dev-libs/mpc
+#emerge -a binutils
+#re-enter
+#emerge gcc
+libtool --finish /usr/libexec/gcc/x86_64-pc-linux-gnu/14
+#emerge sys-libs/zlib dev-lang/tcl dev-tcltk/expect dev-util/dejagnu dev-libs/elfutils dev-debug/valgrind dev-libs/mpfr dev-libs/mpc
+#emerge dev-lang/python:3.12 dev-lang/python
+# build the packages in the next line with gcc
+#emerge cmake
+#emerge llvm-core/polly
+#emerge -a dbus-broker dev-lang/python:3.12 dev-lang/python:3.13 dev-lang/python:3.13t
+#emerge --j
+#emerge llvm-core/clang:19 llvm-core/clang-common llvm-core/clang-runtime:19 llvm-core/clang-toolchain-symlinks:19 llvm-core/lld:19 llvm-core/lld-toolchain-symlinks:19 llvm-core/llvm:19 llvm-core/llvm-common llvm-core/llvm-toolchain-symlinks:19 llvm-runtimes/compiler-rt:19 llvm-runtimes/compiler-rt-sanitizers:19 llvm-runtimes/libunwind dev-util/spirv-llvm-translator:19
+
+#emerge --ask llvm-core/llvmgold llvm-core/clang:18 llvm-core/clang-common llvm-core/clang-runtime:18 llvm-core/clang-toolchain-symlinks:18 llvm-core/lld:18 llvm-core/lld-toolchain-symlinks:18 llvm-core/llvm:18 llvm-core/llvm-common llvm-core/llvm-toolchain-symlinks:18 llvm-runtimes/compiler-rt:18 llvm-runtimes/compiler-rt-sanitizers:18 llvm-runtimes/libunwind dev-util/spirv-llvm-transla#tor:18
+#
+
+#emerge --emptytree --usepkg=n @system
+#emerge dev-util/sysprof
+#emerge --emptytree --usepkg=n @world
+# emerge python
+# emerge -uvDN @world
+# emerge rust
+# emerge go
+# emerge nodejs
+#emerge -ev @world --exclude gcc

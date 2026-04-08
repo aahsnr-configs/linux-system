@@ -1,0 +1,4 @@
+#!/bin/bash
+cd && wget https://mxrepo.com/mx/repo/pool/main/m/mx23-archive-keyring/mx23-archive-keyring_2023.6.6_all.deb
+sudo apt install ./mx23-archive-keyring_2023.6.6_all.deb
+sudo rm -rf mx23-archive-keyring_2023.6.6_all.deb

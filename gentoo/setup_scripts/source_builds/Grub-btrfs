@@ -1,0 +1,8 @@
+#!/bin/bash
+echo "Installing grub-btrfs"
+sleep 3
+cd && git clone https://github.com/Antynea/grub-btrfs.git
+cd grub-btrfs
+make
+sudo make install
+cd && sudo rm -rf grub-btrfs

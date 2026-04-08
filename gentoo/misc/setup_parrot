@@ -1,0 +1,8 @@
+#!/bin/sh
+cd && git clone https://gitlab.com/parrotsec/project/debian-conversion-script.git
+cd debian-conversion-script
+cd scripts/editions
+vim core.sh
+cd && cd debian-conversion-script
+chmod +x ./install.sh
+sudo ./install.sh

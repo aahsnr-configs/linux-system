@@ -1,0 +1,6 @@
+#!/bin/bash
+echo "Settig up git"
+sudo make --directory=/usr/share/doc/git/contrib/credential/libsecret
+git config --global credential.helper /usr/share/doc/git/contrib/credential/libsecret/git-credential-libsecret
+git config --global user.name "aahsnr"
+git config --global user.email "ahsanur041@proton.me"

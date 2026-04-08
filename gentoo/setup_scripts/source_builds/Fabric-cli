@@ -1,0 +1,5 @@
+#!/bin/bash
+cd && git clone https://github.com/Fabric-Development/fabric-cli.git
+cd fabric-cli
+meson setup --buildtype=release --prefix=/usr build && sudo meson install -C build
+cd && sudo rm -rf fabric-cli

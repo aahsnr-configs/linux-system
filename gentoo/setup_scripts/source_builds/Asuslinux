@@ -1,0 +1,21 @@
+#!/bin/bash
+echo "Installing asusctl"
+sudo apt install -y libclang-dev libudev-dev libfontconfig-dev build-essential cmake libxkbcommon-dev 
+cd && git clone https://gitlab.com/asus-linux/asusctl.git
+cd asusctl
+make -j8
+sudo make install
+cd && sudo rm -rf asusctl
+
+echo "Installing supergfxctl"
+cd && git clone https://gitlab.com/asus-linux/supergfxctl.git
+cd supergfxctl
+make -j8
+sudo make install
+cd && sudo rm -rf supergfxctl
+
+echo "Installing asusctltray"
+cd && git clone https://github.com/Baldomo/asusctltray.git
+cd asusctltray
+sudo ./install.sh
+cd && sudo rm -rf asusctltray

@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# polkit
+/usr/libexec/polkit-mate-authentication-agent-1 &
+
+# services
+#nm-applet &
+thunar --daemon &
+emacs --daemon &
+GDK_DPI_SCALE=1.2 ags &
+pypr &
+dropbox &
+
+# theme
+hyprtheme &
+
+# wallpaper &
+hyprpaper &
+
+# idle daemon
+hypridle &
+
+# lock
+
+# xdg
+dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP &
+systemctl --user start xdg-desktop-portal-hyprland &
+
+# cliphist
+wl-paste --type text --watch cliphist store --no-newline &
+wl-paste --type image --watch cliphist store &
+
+# git
+dbus-update-activation-environment --all &
+gnome-keyring-daemon -r -d &
+
+hyprshade on ~/.config/hypr/shaders/blue-light-filter.glsl &
+
+# reload hyprland plugins
+hyprpm reload -n &

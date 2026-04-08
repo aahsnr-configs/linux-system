@@ -1,0 +1,8 @@
+#!/bin/bash
+echo "Installing From Source"
+sleep 3
+bash "$HOME/.dots/gentoo/setup_scripts/source_builds/Kidex"
+bash "$HOME/.dots/gentoo/setup_scripts/source_builds/Asuslinux"
+bash "$HOME/.dots/gentoo/setup_scripts/source_builds/Ianny"
+bash "$HOME/.dots/gentoo/setup_scripts/source_builds/Ananicy-Cpp"
+bash "$HOME/.dots/gentoo/setup_scripts/source_builds/Fabric-cli"

@@ -1,0 +1,20 @@
+#!/bin/bash
+echo "Installing theme and icons"
+sudo emerge --ask x11-themes/gnome-themes-standard x11-themes/gtk-engines-murrine dev-lang/sassc  x11-themes/gnome-icon-theme-extras 
+cd && git clone https://github.com/Fausto-Korpsvart/Tokyonight-GTK-Theme.git
+cd Tokyonight-GTK-Theme/themes
+./install.sh -s compact -t all --tweaks storm -l
+cd && cp -R ~/.themes/* ~/.local/share/themes/
+sudo ./install.sh -s compact -t all --tweaks storm -l
+cd && sudo rm -rf ~/Tokyonight-GTK-Theme/ 
+
+echo "Installing Icons"
+cd && git clone https://github.com/vinceliuice/Colloid-icon-theme.git
+cd Colloid-icon-theme
+./install.sh -s catppuccin -t purple
+sudo ./install.sh -s catppuccin -t all
+cd && sudo rm -R Colloid-icon-theme
+
+echo "Installing Cursors"
+sudo emerge --ask x11-themes/bibata-cursor 
+
