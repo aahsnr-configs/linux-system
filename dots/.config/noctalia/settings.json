@@ -314,6 +314,15 @@
                     "defaultSettings": {
                     },
                     "id": "plugin:workspace-overview"
+                },
+                {
+                    "id": "plugin:keybind-cheatsheet"
+                },
+                {
+                    "id": "plugin:port-monitor"
+                },
+                {
+                    "id": "plugin:usb-drive-manager"
                 }
             ]
         }
@@ -532,7 +541,7 @@
     },
     "idle": {
         "customCommands": "[]",
-        "enabled": true,
+        "enabled": false,
         "fadeDuration": 5,
         "lockCommand": "",
         "lockTimeout": 40000,
@@ -550,7 +559,7 @@
         "firstDayOfWeek": -1,
         "hideWeatherCityName": false,
         "hideWeatherTimezone": false,
-        "name": "Dhaka",
+        "name": "Singapore",
         "showCalendarEvents": true,
         "showCalendarWeather": true,
         "showWeekNumberInCalendar": false,
