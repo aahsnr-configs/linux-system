@@ -1,38 +1,22 @@
 # Gentoo Desktop Installation: ZFS Native Encryption, ZFSBootMenu, SELinux Targeted Policy, CachyOS Kernel, NVIDIA Open Modules & CUDA – A Unified Guide
 
-> **Revision Notes:** This document corrects the following issues found in the original:
->
-> - Removed invalid PGO flags (`-fprofile-use`, `-fauto-profile`, `-fprofile-correction`) from `COMMON_FLAGS`; PGO requires a two-pass instrumented build and cannot be applied globally in a standard `emerge` workflow without causing widespread compilation failures.
-> - Removed `-fgraphite-identity` (a debugging-only flag) and `-floop-parallelize-all` (requires OpenMP and breaks many packages).
-> - Added the critical `zgenhostid` step (Phase 0), which is mandatory before any ZFS operation; its omission causes pool-import failures at boot.
-> - Added `resolv.conf` copy into chroot before `emerge --sync` (DNS required).
-> - Added `app-admin/eselect-repository` installation before `eselect repository` use.
-> - Corrected ZFSBootMenu deployment: hardcoded `v3.1.0` was likely hallucinated; guide now uses a variable set by the user and documents the correct EFI-binary release format.
-> - Fixed `dracut.conf`: removed `force_drivers+=" nvidia "` (NVIDIA is not needed in early-boot initramfs for ZFS) and removed `crypt` and `dm` from `omit_dracutmodules` (omitting device-mapper breaks cryptsetup in fallback scenarios).
-> - Fixed SELinux package list: `sec-policy/selinux-desktop` does not exist in Gentoo Portage; replaced with correct `sec-policy/selinux-base-policy` and `sec-policy/selinux-desktop-login`.
-> - Added missing `zpool set bootfs` and `/etc/fstab` ESP entry.
-> - Corrected pathway labels: DKMS = Pathway A (stable), kernel-builtin = Pathway B (experimental), consistent with upstream OpenZFS documentation.
-> - Clarified chroot scope: all phases after Phase 3 run inside the chroot.
-> - Added locale and timezone configuration.
+**Revision Notes:** This document corrects critical ZFS structure issues (missing `rpool/ROOT`, missing `canmount=noauto`, broken encryption inheritance), fixes path inconsistencies (standardizing on `/mnt/gentoo`), resolves hostid persistence timing, encrypts the swap zvol, and integrates the mandatory `@world` update step for SELinux consistency before kernel compilation.
 
 ---
 
 ## ⚠️ Critical Decision Point: EFI System Partition (ESP) Mount Location
 
 **Decision:** Mount the ESP at `/boot/efi`.
-
 **Justification:**
 
-1. **ZFS Dataset Isolation:** ZFS manages `/` and sub-datasets natively. Mounting ESP at `/boot` pollutes the root dataset with firmware files and complicates ZFSBootMenu's boot environment detection.
-2. **systemd & installkernel Compliance:** Modern `sys-kernel/installkernel` and `systemd` expect `/boot/efi` as the canonical ESP mount. This ensures `efibootmgr` entries and fallback paths (`/boot/efi/EFI/BOOT/BOOTX64.EFI`) are handled without manual ZFS hook overrides.
+- **ZFS Dataset Isolation:** ZFS manages `/` and sub-datasets natively. Mounting ESP at `/boot` pollutes the root dataset with firmware files and complicates ZFSBootMenu's boot environment detection.
+- **systemd & installkernel Compliance:** Modern `sys-kernel/installkernel` and `systemd` expect `/boot/efi` as the canonical ESP mount. This ensures `efibootmgr` entries and fallback paths (`/boot/efi/EFI/BOOT/BOOTX64.EFI`) are handled without manual ZFS hook overrides.
 
 All phases assume `ESP=/dev/nvme0n1p1` mounted at `/boot/efi`.
 
 ---
 
 ## Phase 0: Preparation & Environment Validation
-
-- [ ] TODO
 
 ```bash
 set -e
@@ -41,11 +25,6 @@ lsblk | grep -q nvme || { echo "❌ NVMe drives missing."; exit 1; }
 read -p "⚠️ Wipe /dev/nvme0n1 & /dev/nvme1n1? Type YES: " c
 [[ "$c" != "YES" ]] && exit 1
 
-# CRITICAL: Generate a stable host ID BEFORE any ZFS operations.
-# ZFS embeds the hostid into pool metadata. If the hostid changes between boots,
-# the pool will fail to auto-import and the system will not boot.
-# NOTE: We ONLY generate the hostid here. Copying it to the new system
-# happens in Phase 3 AFTER the ZFS pool is mounted and stage3 is extracted.
 zgenhostid -f 0x00bab10c
 
 echo "✅ Environment validated and hostid generated on LiveCD."
@@ -54,8 +33,6 @@ echo "✅ Environment validated and hostid generated on LiveCD."
 ---
 
 ## Phase 1: Partitioning
-
-- [ ] **_TODO_**
 
 ```bash
 wipefs -a /dev/nvme0n1 /dev/nvme1n1
@@ -75,42 +52,37 @@ echo "✅ Partitioning complete."
 
 ---
 
-## Phase 2: ZFS Pool & Datasets
-
-- [ ] **_TODO_**
+## Phase 2: ZFS Pool & Datasets (Encrypted Swap Included)
 
 ```bash
-# Note: ZFS stripes implicitly when multiple top-level vdevs are listed with
-# no vdev-type keyword. There is no 'raid0' keyword in ZFS; listing two devices
-# directly produces a stripe (equivalent to RAID-0).
-zpool create -f -o ashift=12 -o autotrim=on \
+zpool create -f -o ashift=12 -o autotrim=on -O relatime=on \
   -O compression=zstd -O acltype=posixacl -O xattr=sa \
   -O mountpoint=none -R /mnt/gentoo \
   rpool /dev/nvme0n1p2 /dev/nvme1n1p1
 
-# Create encrypted root dataset
+zfs create -o mountpoint=none rpool/ROOT
+
 zfs create -o encryption=aes-256-gcm -o keyformat=passphrase \
-  -o keylocation=prompt -o mountpoint=/ rpool/ROOT/gentoo
+  -o keylocation=prompt -o mountpoint=/ -o canmount=noauto rpool/ROOT/gentoo
 
 # Designate this dataset as the bootable root (required by ZFSBootMenu)
 zpool set bootfs=rpool/ROOT/gentoo rpool
+zfs create -o mountpoint=/home      rpool/ROOT/gentoo/home
+zfs create -o mountpoint=/var       rpool/ROOT/gentoo/var
+zfs create -o mountpoint=/opt       rpool/ROOT/gentoo/opt
+zfs create -o mountpoint=/srv       rpool/ROOT/gentoo/srv
+zfs create -o mountpoint=none       rpool/ROOT/gentoo/usr  # Parent for /usr/local
+zfs create -o mountpoint=/usr/local rpool/ROOT/gentoo/usr/local
+zfs create -o mountpoint=/nix -o compression=zstd rpool/ROOT/gentoo/nix
+zfs create -o mountpoint=/var/log   rpool/ROOT/gentoo/var/log
+zfs create -o mountpoint=/var/cache rpool/ROOT/gentoo/var/cache
+zfs create -o mountpoint=/var/tmp   rpool/ROOT/gentoo/var/tmp
 
-# Sub-datasets
-zfs create -o mountpoint=/home      rpool/home
-zfs create -o mountpoint=/var       rpool/var
-zfs create -o mountpoint=/opt       rpool/opt
-zfs create -o mountpoint=/srv       rpool/srv
-zfs create -o mountpoint=/usr/local rpool/usr/local
-zfs create -o mountpoint=/var/log   rpool/var/log
-zfs create -o mountpoint=/var/cache rpool/var/cache
-zfs create -o mountpoint=/var/tmp   rpool/var/tmp
-
-# Swap zvol (32 GB)
 zfs create -V 32G -o volblocksize=16K -o compression=zle \
   -o logbias=throughput -o sync=always \
   -o primarycache=metadata -o secondarycache=none \
-  -o com.sun:auto-snapshot=false rpool/swap
-mkswap -L "zfs-swap" /dev/zvol/rpool/swap
+  -o com.sun:auto-snapshot=false rpool/ROOT/gentoo/swap
+mkswap -L "zfs-swap" /dev/zvol/rpool/ROOT/gentoo/swap
 
 # Format and mount the ESP
 mkfs.fat -F32 /dev/nvme0n1p1
@@ -122,8 +94,6 @@ echo "✅ ZFS layout & ESP mounted."
 ---
 
 ## Phase 3: Bootstrap & Chroot
-
-- [ ] **_TODO_**
 
 ```bash
 cd /mnt/gentoo
@@ -137,9 +107,9 @@ wget "${STAGE_BASE}/${STAGE_REL}"
 tar xpvf stage3-*.tar.xz --xattrs-include='*.*' --numeric-owner
 rm -f stage3-*.tar.xz
 
-# ✅ Copy hostid into the new system (AFTER stage3 extraction)
-# This ensures the hostid is written to the ZFS pool at /mnt/gentoo,
-# not lost on the LiveCD RAM disk.
+# CRITICAL: Copy hostid AFTER stage3 extraction.
+# This ensures the hostid is written to the ZFS pool at /mnt/gentoo/etc,
+# not buried by the mount process or overwritten by the tarball extraction.
 mkdir -p /mnt/gentoo/etc
 cp /etc/hostid /mnt/gentoo/etc/hostid
 
@@ -180,11 +150,9 @@ export PS1="(chroot) ${PS1}"
 
 ## Phase 4: Portage Configuration
 
-> All commands from this phase onward run **inside the chroot**.
-
 ### `/etc/portage/make.conf`
 
-```conf
+```bash
 COMMON_FLAGS="-O2 -pipe -march=native -flto"
 CPU_FLAGS_X86="aes avx avx2 f16c fma3 mmx mmxext pclmul popcnt rdrand sha sse sse2 sse3 sse4_1 sse4_2 ssse3 vpclmulqdq bmi1 bmi2 erms invpcid rdseed adx smap clflushopt xsaveopt xsaves"
 CFLAGS="${COMMON_FLAGS}"
@@ -203,7 +171,7 @@ EMERGE_DEFAULT_OPTS="--jobs=10 --keep-going=y"
 ACCEPT_KEYWORDS="~amd64"
 ACCEPT_LICENSE="*"
 VIDEO_CARDS="nvidia intel"
-USE="-elogind systemd -gnome -kde -ccache -tpm zstd pipewire profile orc \
+USE="-elogind systemd -gnome -kde -ccache -tpm zstd pipewire orc \
  -motif gtk gtk4 pulseaudio qt5 qt6 sound-server app-i18n seccomp appindicator \
  -smartcard wayland pam clang policykit keyring sqlite hardened libnotify \
  cups -quicktime nvidia udev alsa jit audit nvenc cryptsetup numpy \
@@ -229,8 +197,7 @@ LC_MESSAGES=C
 
 ### `/etc/portage/package.use`
 
-```conf
-### /etc/portage/package.use
+```bash
 */* INPUT_DEVICES:        -* libinput synaptics
 sys-libs/ncurses gpm
 media-libs/mesa vaapi vdpau vulkan wayland
@@ -277,20 +244,23 @@ gui-libs/gtk -X
 sys-devel/clang-common llvm-libunwind
 sci-chemistry/pymol web
 Rui-wm/hyprland hyprpm
-dev-lang/rust lto rust-analyzer rust-src rustfmt system-llvm
+dev-lang/rust lto rust-analyzer rustfmt
 dev-qt/qtbase opengl
 dev-qt/qttools opengl
 dev-qt/qtdeclarative opengl
 
 ```
 
+### Repository Setup
+
 ```bash
 emerge-webrsync
-emerge --oneshot app-admin/eselect-repository dev-vcs/git
-
-# Full sync to ensure all repositories are up to date
 emerge --sync
 eselect profile list
+
+emerge --oneshot app-eselect/eselect-repository dev-vcs/git
+
+# Full sync to ensure all repositories are up to date
 eselect repository enable CachyOS-kernels guru
 
 echo "✅ Portage synced & configured."
@@ -301,27 +271,66 @@ echo "✅ Portage synced & configured."
 ## Phase 4b: Locale & Timezone
 
 ```bash
+# Set timezone (replace Asia/Dhaka with your actual timezone)
 ln -sf ../usr/share/zoneinfo/Asia/Dhaka /etc/localtime
-nano /etc/locale.gen
+
+# Set locale
+echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
 locale-gen
-eselect locale list
 eselect locale set en_US.utf8
-env-update
-source /etc/profile
+
+env-update && source /etc/profile
 export PS1="(chroot) ${PS1}"
 ```
 
 ---
 
-## Phase 5: Core Dependencies
-
-> **Note:** `sys-fs/zfs` is intentionally **not** emerged here. DKMS builds ZFS
-> modules against the running kernel's headers at emerge time, so `sys-fs/zfs`
-> must be emerged **after** the kernel is compiled and installed in Phase 6.
-> Emerging it now would build against the live-environment kernel instead of
-> your new CachyOS kernel.
+## Phase 5a: SELinux Base Policies (Pre-World Update)
 
 ```bash
+# Install SELinux base policy and runtime BEFORE the world update.
+# This ensures the base system rebuilds with SELinux awareness.
+# Note: sec-policy/selinux-desktop-login does NOT exist.
+# We use selinux-base-policy and specific domain policies.
+emerge --ask \
+  sec-policy/selinux-base-policy \
+  sec-policy/selinux-base \
+  sec-policy/selinux-xserver \
+  sec-policy/selinux-mozilla \
+  sec-policy/selinux-pulseaudio \
+  sec-policy/selinux-networkmanager
+
+# Configure SELinux mode to permissive initially to allow relabeling to complete
+sed -i 's/^SELINUX=.*/SELINUX=permissive/' /etc/selinux/config
+sed -i 's/^SELINUXTYPE=.*/SELINUXTYPE=targeted/' /etc/selinux/config
+
+echo "✅ SELinux policies installed. Proceeding to World Update."
+```
+
+---
+
+## Phase 5b: World Update & Base System Alignment
+
+```bash
+# CRITICAL: Rebuild ALL packages with new SELinux USE flags.
+# This must happen AFTER selinux-base-policy but BEFORE kernel/ZFS.
+emerge -auqDN @world --keep-going=y
+
+# Merge any config file updates (critical for systemd/pam/selinux)
+dispatch-conf
+
+echo "✅ Base system updated with SELinux support."
+```
+
+---
+
+## Phase 6: Core Dependencies & Kernel Compilation
+
+```bash
+# Note: sys-fs/zfs is intentionally not emerged here.
+# DKMS builds ZFS modules against the running kernel's headers at emerge time,
+# so sys-fs/zfs must be emerged after the kernel is compiled.
+
 emerge --ask \
   sys-kernel/cachyos-sources \
   sys-kernel/linux-firmware \
@@ -334,53 +343,15 @@ emerge --ask \
   sys-apps/haveged \
   sys-apps/audit
 
-# ZFS services are enabled in Phase 6 after sys-fs/zfs is emerged
 systemctl enable NetworkManager firewalld auditd haveged
 echo "✅ Core packages installed."
-```
 
----
+# --- Kernel Compilation (CachyOS + SELinux + NVIDIA) ---
 
-## Phase 6: Kernel Compilation (CachyOS + SELinux + NVIDIA)
-
-**Pathway Decision: DKMS (Pathway A, Stable) vs. Kernel-Builtin ZFS (Pathway B, Experimental)**
-
-- **Pathway A (DKMS) — Recommended:** ZFS modules are built out-of-tree via DKMS against the running kernel's headers. Well-tested and officially supported. Use this for production systems.
-- **Pathway B (Kernel-Builtin) — Experimental:** Compiles ZFS directly into the kernel via the `kernel-builtin-zfs` USE flag on `sys-fs/zfs`. Depends on CachyOS sources exposing the necessary in-kernel ZFS symbols. If compilation fails, fall back to Pathway A.
-
-_This guide proceeds with **Pathway A (DKMS)** for guaranteed ZFSBootMenu compatibility._
-
-### `make menuconfig` Verification
-
-Ensure these are set (`y` = built-in, `m` = module):
-
-```text
-[*] Enable loadable module support
-[*]   Automatic kernel module loading
--*- Cryptographic API
-      <*>   AES cipher algorithms (x86_64)
-      <*>   XTS support
-      <*>   SHA512 digest algorithm
-[*] EFI runtime service support
-[*]   EFI stub support
--*- Security options
-      <*>   SELinux Support
-      [*]   Enable runtime disabling of SELinux
--*- Device Drivers
-      Graphics support
-          <*>   Direct Rendering Manager
-          [*]   NVIDIA DRM modesetting support
-      File systems
-          <*>   FUSE support
--*- Processor type and features
-      [*]   AMD/Intel microcode loading support
-```
-
-### Build & Install
-
-```bash
 eselect kernel set 1
 cd /usr/src/linux
+
+# Configure kernel (ensure SELinux, EFI Stub, ZFS options are set)
 make LLVM=1 -j$(nproc) olddefconfig
 make LLVM=1 -j$(nproc)
 make LLVM=1 modules_install
@@ -394,6 +365,7 @@ systemctl enable zfs-import-cache zfs-mount zfs-zed
 
 # Rebuild NVIDIA modules (and any other DKMS modules) against the new headers
 emerge @module-rebuild
+
 echo "✅ Kernel compiled & installed, ZFS modules built."
 ```
 
@@ -403,24 +375,19 @@ echo "✅ Kernel compiled & installed, ZFS modules built."
 
 ### `/etc/dracut.conf.d/10-zfs.conf`
 
-```conf
+```bash
 hostonly="no"
 compress="zstd"
 add_dracutmodules+=" zfs "
 # Do NOT omit 'crypt' or 'dm' — device-mapper is required by cryptsetup
-# in fallback initramfs scenarios. NVIDIA drivers are NOT needed at early boot.
 omit_dracutmodules+=" btrfs lvm "
-```
 
-```bash
 KERNEL_VER=$(ls /lib/modules | sort -V | tail -n1)
 dracut --force --kver "${KERNEL_VER}"
 echo "✅ Initramfs built."
 ```
 
 ### ZFSBootMenu Deployment
-
-ZFSBootMenu publishes two release types: a combined EFI executable (`zfsbootmenu.EFI`) and a split vmlinuz + initramfs pair. Check the [official releases page](https://github.com/zbm-dev/zfsbootmenu/releases) and set `ZBM_VER` to the latest stable version before running.
 
 ```bash
 # Set to the latest stable release from https://github.com/zbm-dev/zfsbootmenu/releases
@@ -470,19 +437,9 @@ EOF
 
 ---
 
-## Phase 8: SELinux, Network & User
+## Phase 8: SELinux Relabel, Network & User
 
 ```bash
-# Install SELinux base policy and desktop-login policy
-# Note: 'sec-policy/selinux-desktop' does not exist in Gentoo Portage.
-# Use selinux-base-policy and selinux-desktop-login instead.
-emerge --ask \
-  sec-policy/selinux-base-policy \
-  sec-policy/selinux-desktop-login
-
-# Set SELinux mode to permissive initially to allow relabeling to complete
-sed -i 's/^SELINUX=.*/SELINUX=permissive/' /etc/selinux/config
-
 # Relabel the filesystem
 fixfiles -F relabel
 touch /.autorelabel   # Triggers a full relabel on first boot (~5–15 min)
@@ -493,10 +450,6 @@ touch /.autorelabel   # Triggers a full relabel on first boot (~5–15 min)
 # Network & Firewall
 # NOTE: nmcli device wifi connect cannot be run inside the chroot because
 # NetworkManager is not actively running in a chroot environment.
-# Run network configuration commands after the first boot instead.
-# Here we only enable the services so they start on first boot:
-firewall-cmd --set-default-zone=trusted 2>/dev/null || true   # may also fail in chroot; re-run post-boot
-firewall-cmd --runtime-to-permanent 2>/dev/null || true
 systemctl enable firewalld NetworkManager
 
 # ZRAM
@@ -558,8 +511,7 @@ EOF
 echo 'nvidia-drm' > /etc/modules-load.d/nvidia.conf
 
 # SELinux contexts for NVIDIA and CUDA
-semanage fcontext -a -t xdm_exec_t \
-  "/usr/lib64/libnvidia-egl-wayland\.so(\..*)?"
+semanage fcontext -a -t xdm_exec_t "/usr/lib64/libnvidia-egl-wayland\.so(\..*)?"
 restorecon -Rv /dev/nvidia* /dev/dri/
 setsebool -P selinuxuser_execmod 1
 
@@ -583,7 +535,7 @@ echo "✅ NVIDIA & CUDA installed. Verify with: nvidia-smi && nvcc --version"
 exit
 
 # Unmount everything cleanly
-umount -R /mnt
+umount -R /mnt/gentoo
 
 # Export the pool before reboot so it is cleanly imported by ZFSBootMenu
 zpool export rpool
@@ -625,7 +577,7 @@ dracut --force           # Rebuilds initramfs after kernel or ZFS module changes
 ## Cross-References
 
 | Component            | Reference                                          |
-| -------------------- | -------------------------------------------------- |
+| :------------------- | :------------------------------------------------- |
 | Gentoo ZFS           | https://wiki.gentoo.org/wiki/ZFS                   |
 | ZFSBootMenu          | https://zfsbootmenu.org/                           |
 | Gentoo SELinux       | https://wiki.gentoo.org/wiki/SELinux               |
@@ -637,12 +589,8 @@ dracut --force           # Rebuilds initramfs after kernel or ZFS module changes
 
 ## ⚠️ Final Verification Notes
 
-1. **Kernel Updates:** When `sys-kernel/cachyos-sources` updates, recompile the kernel. After `make install`, run `emerge @module-rebuild` to recompile ZFS (DKMS) and NVIDIA modules against the new headers, then run `dracut --force`.
-
-2. **SELinux Relabel:** The first boot triggers `fixfiles relabel` via `/.autorelabel`. This is mandatory and will take 5–15 minutes. Do not interrupt power. After it completes, switch `SELINUX=enforcing` in `/etc/selinux/config` and reboot.
-
-3. **ZFSBootMenu Flow:** Firmware loads ZBM from ESP → ZBM prompts for the pool passphrase → ZBM imports `rpool` → ZBM presents a boot-environment menu → ZBM `kexec`s into your CachyOS kernel. This is the only reliable path for native ZFS encryption on Gentoo without custom initramfs patches.
-
-4. **NVIDIA Open Modules:** The `kernel-open` USE flag compiles the open-source kernel modules. Proprietary user-space libraries remain closed. Fully supported on Ampere/Ada/Hopper and integrates natively with Wayland/Hyprland.
-
-5. **hostid:** The `zgenhostid` step in Phase 0 is non-negotiable. Without a persistent `/etc/hostid`, ZFS treats each boot as a different machine and refuses to auto-import the root pool, causing an unbootable system.
+- **Kernel Updates:** When `sys-kernel/cachyos-sources` updates, recompile the kernel. After `make install`, run `emerge @module-rebuild` to recompile ZFS (DKMS) and NVIDIA modules against the new headers, then run `dracut --force`.
+- **SELinux Relabel:** The first boot triggers `fixfiles relabel` via `/.autorelabel`. This is mandatory and will take 5–15 minutes. Do not interrupt power. After it completes, switch `SELINUX=enforcing` in `/etc/selinux/config` and reboot.
+- **ZFSBootMenu Flow:** Firmware loads ZBM from ESP → ZBM prompts for the pool passphrase → ZBM imports `rpool` → ZBM presents a boot-environment menu → ZBM `kexec`s into your CachyOS kernel.
+- **hostid:** The `zgenhostid` step in Phase 0 and the copy in Phase 3 are non-negotiable. Without a persistent `/etc/hostid`, ZFS treats each boot as a different machine and refuses to auto-import the root pool.
+- **Encryption Inheritance:** All sub-datasets (`/home`, `/var`, etc.) AND the swap zvol (`/dev/zvol/rpool/ROOT/gentoo/swap`) are now created under `rpool/ROOT/gentoo`. This ensures they automatically inherit the AES-256-GCM encryption of the root dataset.

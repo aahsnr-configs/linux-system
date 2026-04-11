@@ -4,6 +4,7 @@
 # 90 is highest priority (sp1rit), 95 is secondary (Wayland)
 sudo zypper ar -f -p 90 https://download.opensuse.org/repositories/home:/sp1rit/openSUSE_Tumbleweed/ sp1rit
 sudo zypper ar -f -p 95 https://download.opensuse.org/repositories/X11:Wayland/openSUSE_Tumbleweed/ X11_Wayland
+sudo zypper addrepo https://download.opensuse.org/repositories/home:tecosaur/openSUSE_Tumbleweed/home:tecosaur.repo
 
 # 2. Refresh everything
 sudo zypper --gpg-auto-import-keys ref
@@ -18,8 +19,7 @@ sudo zypper dup --from X11_Wayland --allow-vendor-change -y
 
 # 5. Install the core Hyprland ecosystem to ensure nothing was missed
 # This includes the latest runtime libraries (aquamarine, hyprlang, etc.)
-sudo zypper install hyprland xdg-desktop-portal-hyprland
-
+sudo zypper install hyprland xdg-desktop-portal-hyprland zotero
 echo "init"
 sleep 5
 sudo cp -R "$HOME/Git/configs/linux-system/tumbleweed/preconfig/99-custom-env.sh" "/etc/profile.d/"

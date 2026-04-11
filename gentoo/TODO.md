@@ -1,0 +1,1 @@
+- [ ] Is it possible sub gentoo system inside host gentoo system for development purposes using emacs

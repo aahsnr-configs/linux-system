@@ -12,11 +12,11 @@ virtual/secret-service libsecret
 #media-video/ffmpeg x264
 #sys-apps/util-linux build
 #dev-build/cmake -gui qt6
-#sys-firmware/intel-microcode hostonly initramfs
+sys-firmware/intel-microcode initramfs
 sys-kernel/linux-firmware compress-zstd initramfs
 #dev-libs/libsodium -verify-sig
-sys-kernel/installkernel grub dracut
-sys-boot/refind btrfs
+sys-kernel/installkernel dracut
+# sys-boot/refind btrfs
 #media-video/ffmpeg -xvid
 #media-libs/freetype -harfbuzz
 app-antivirus/clamav milter
@@ -35,8 +35,7 @@ app-text/xmlto text
 gnome-base/gvfs udisks
 #dev-libs/libdbusmenu gtk3
 #app-crypt/gcr gtk
-sys-apps/kmod zstd
-sys-boot/grub device-mapper mount
+#sys-boot/grub device-mapper mount
 app-admin/sysstat lto lm-sensors
 #sys-libs/zlib minizip
 #app-text/poppler cairo
@@ -50,7 +49,7 @@ app-editors/emacs tree-sitter jit gtk gui -X dynamic-loading -acl -alsa mailutil
 #dev-python/PyQt5 widgets
 media-sound/pulseaudio -daemon
 media-video/pipewire sound-server flatpak extra
-#sys-apps/kmod tools
+sys-apps/kmod zstd tools
 sys-apps/xdg-desktop-portal screencast geolocation
 #media-sound/mpg123 -pulseaudio
 #media-libs/libpng apng
