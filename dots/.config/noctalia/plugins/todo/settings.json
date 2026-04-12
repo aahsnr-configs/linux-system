@@ -1,10 +1,19 @@
 {
   "todos": [
     {
-      "id": 1775742693665,
-      "text": "Complete reading reading1.md, reading2.md, reading22.md",
+      "id": 1776011122454,
+      "text": "Since I am starting from scratch, I need to move my computer's power connection to the other side using the multiplug",
       "completed": false,
-      "createdAt": "2026-04-09T13:51:33.665Z",
+      "createdAt": "2026-04-12T16:25:22.454Z",
+      "pageId": 0,
+      "priority": "medium",
+      "details": ""
+    },
+    {
+      "id": 1776010212488,
+      "text": "Adapt portage with git in section 9.4 from https://wiki.gentoo.org/wiki/Portage_with_Git",
+      "completed": false,
+      "createdAt": "2026-04-12T16:10:12.488Z",
       "pageId": 0,
       "priority": "medium",
       "details": ""
@@ -55,15 +64,6 @@
       "details": ""
     },
     {
-      "id": 1775334570229,
-      "text": "Use veracrypt to encrypt all my files before uploading to terabox; can veracrypt use gnome keyring or ssh to unencrypt",
-      "completed": false,
-      "createdAt": "2026-04-04T20:29:30.229Z",
-      "pageId": 0,
-      "priority": "low",
-      "details": ""
-    },
-    {
       "id": 1775015881179,
       "text": "Setup gptel in emacs",
       "completed": false,
@@ -77,15 +77,6 @@
       "text": "Encrypt all my git repos using git-remote-gcrypt",
       "completed": false,
       "createdAt": "2026-04-01T03:50:15.145Z",
-      "pageId": 0,
-      "priority": "medium",
-      "details": ""
-    },
-    {
-      "id": 1775011745064,
-      "text": "Ask chat.z.ai about nvidia artifat issues when waking from suspend.",
-      "completed": false,
-      "createdAt": "2026-04-01T02:49:05.064Z",
       "pageId": 0,
       "priority": "medium",
       "details": ""
@@ -161,6 +152,24 @@
       "pageId": 0,
       "priority": "medium",
       "details": ""
+    },
+    {
+      "id": 1775011745064,
+      "text": "Ask chat.z.ai about nvidia artifat issues when waking from suspend.",
+      "completed": true,
+      "createdAt": "2026-04-01T02:49:05.064Z",
+      "pageId": 0,
+      "priority": "medium",
+      "details": ""
+    },
+    {
+      "id": 1775742693665,
+      "text": "Complete reading reading1.md, reading2.md, reading22.md",
+      "completed": true,
+      "createdAt": "2026-04-09T13:51:33.665Z",
+      "pageId": 0,
+      "priority": "medium",
+      "details": ""
     }
   ],
   "pages": [
@@ -170,8 +179,8 @@
     }
   ],
   "current_page_id": 0,
-  "count": 18,
-  "completedCount": 6,
+  "count": 19,
+  "completedCount": 8,
   "showCompleted": true,
   "showBackground": true,
   "isExpanded": false,
