@@ -3,6 +3,6 @@ media-libs/mesa wayland vaapi vdpau vulkan
 x11-drivers/nvidia-drivers wayland powerd 
 media-gfx/imv -X wayland gif heif icu jpeg jpegxl png svg tiff
 gui-wm/hyprland hyprpm
-dev-qt/qtbase egl icu
+dev-qt/qtbase egl icu opengl
 dev-qt/qtdeclarative opengl
 dev-qt/qtgui eglfs egl dbus

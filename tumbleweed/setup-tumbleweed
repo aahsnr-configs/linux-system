@@ -1,132 +1,55 @@
 #!/bin/bash
-
-# 1. Add Repos with proper hierarchy
-# 90 is highest priority (sp1rit), 95 is secondary (Wayland)
+sudo sed -i 's/^solver.allowVendorChange = true/solver.allowVendorChange = false/' /etc/zypp/zypp.conf
 sudo zypper ar -f -p 90 https://download.opensuse.org/repositories/home:/sp1rit/openSUSE_Tumbleweed/ sp1rit
-sudo zypper ar -f -p 95 https://download.opensuse.org/repositories/X11:Wayland/openSUSE_Tumbleweed/ X11_Wayland
-sudo zypper addrepo https://download.opensuse.org/repositories/home:tecosaur/openSUSE_Tumbleweed/home:tecosaur.repo
+sudo zypper ar -f -p 92 https://download.opensuse.org/repositories/home:/neifua/openSUSE_Tumbleweed/home:neifua.repo
+sudo zypper ar -f -p 95 https://download.opensuse.org/repositories/home:/sbrabec/openSUSE_Tumbleweed/home:sbrabec.repo
+sudo zypper ar -f -p 95 https://download.opensuse.org/repositories/home:/Werwolf2517/openSUSE_Tumbleweed/home:Werwolf2517.repo
+sudo zypper ar -f -p 96 https://download.opensuse.org/repositories/home:/tecosaur/openSUSE_Tumbleweed/home:tecosaur.repo
+sudo zypper ar -f -p 100 https://download.opensuse.org/repositories/X11:/Wayland/openSUSE_Tumbleweed/ X11_Wayland
+sudo zypper ar -f -p 105 https://download.opensuse.org/repositories/home:/soupglasses/openSUSE_Tumbleweed/home:soupglasses.repo
+sudo zypper addrepo https://download.nvidia.com/opensuse/tumbleweed/ NVIDIA
 
 # 2. Refresh everything
 sudo zypper --gpg-auto-import-keys ref
 
-# 3. THE VENDOR ANCHORS
-# Switch the compositor to sp1rit
-sudo zypper dup --from sp1rit --allow-vendor-change -y
+sudo zypper in --no-recommends acpid adw-gtk3 ananicy-cpp ananicy-rules aspell atuin bat bleachbit bluez bluez-firmware bpftune btop cava chafa cliphist cronie curl direnv distrobox dust enchant enchant-devel evolution-data-server eza fail2ban fastfetch fd file-roller fwupd fwupd-efi gh git-core git-lfs gnome-keyring gnome-tweaks gnuplot google-noto-coloremoji-fonts google-noto-sans-cjk-fonts graphviz grim gsettings-desktop-schemas gzip haveged hunspell i2c-tools ImageMagick imv inotify-tools ispell jq kernel-firmware-bluetooth kernel-firmware-intel kernel-firmware-iwlwifi kernel-firmware-nvidia kernel-firmware-platform kernel-firmware-sound lazygit logrotate luajit lynis mpv myspell-en nautilus neovide neovim nerd-fonts-JetBrainsMono nodejs24 noctalia-shell npm24 nwg-look opi pandoc-cli papers papirus-icon-theme pipewire pipewire-alsa pipewire-pulseaudio pkgconf-pkg-config podman podman-docker profile-sync-daemon python314-neovim python314-pipx python314-pymol qt5ct qt6ct ripgrep slurp socat sof-firmware starship swappy symbols-only-nerd-fonts tealdeer tmux topgrade transmission-gtk trash-cli tuned-ppd ucode-intel unzip wireplumber wl-clipboard wlr-randr xdg-desktop-portal-gnome xdg-desktop-portal-gtk xdg-desktop-portal-hyprland xdg-user-dirs xdg-user-dirs-gtk yazi zathura zathura-plugin-pdf-mupdf zeromq-tools zip zotero zram-generator zsh zstd
 
-# Switch the portal/tools to X11_Wayland
-# Even if the version is the same today, this 'claims' the package for this repo.
-sudo zypper dup --from X11_Wayland --allow-vendor-change -y
+sudo zypper install --from repo-oss kitty kitty-shell-integration kitty-terminfo
+sudo zypper addlock kitty kitty-shell-integration kitty-terminfo
 
-# 5. Install the core Hyprland ecosystem to ensure nothing was missed
-# This includes the latest runtime libraries (aquamarine, hyprlang, etc.)
-sudo zypper install hyprland xdg-desktop-portal-hyprland zotero
-echo "init"
-sleep 5
-sudo cp -R "$HOME/Git/configs/linux-system/tumbleweed/preconfig/99-custom-env.sh" "/etc/profile.d/"
-sudo zypper ref
-sudo zypper up
-sudo zypper in curl wget git-core git-lfs gh unzip zip
-
-echo "installers"
-sleep 5
+curl -LsSf https://astral.sh/uv/install.sh | sh
+curl -fsSL https://pixi.sh/install.sh | sh
+curl https://mise.run | sh
 curl -fsS https://dl.brave.com/install.sh | sh
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-cd
-echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv bash)"' >>/home/ahsan/.bashrc
-source ~/.bashrc
-cd
-brew install pandoc uv pixi mise
-brew install --cask font-jetbrains-mono
-brew install --cask font-jetbrains-mono-nerd-font
-brew install --cask font-noto-color-emoji
-brew install --cask font-google-sans-code
-brew install --cask font-symbols-only-nerd-font
+sudo zypper in nvidia-open-driver-G07-signed-kmp-default ucode-intel intel-media-driver libva-utils thermald libnvidia-egl-wayland1 vulkan-validationlayers nvidia-video-G07 nvidia-gl-G07 nvidia-compute-utils-G07 nvidia-settings OpenRGB kernel-firmware-intel kernel-firmware-bluetooth sof-firmware kernel-firmware-nvidia alsa-firmware kernel-firmware-iwlwifi kernel-firmware-sound
 
-adw-gtk-theme
-ananicy-cpp
-apparmor
-aquamarine
-aspell
-atuin
-bat
-brightnessctl
-btop
-cava
-chafa
-cliphist
-cronie
-curl
-ddcutil
-direnv
-distrobox
-dust
-enchant
-evolution-data-server
-eza
-fd
-file-roller
-git
-git-lfs
-github-cli
-gnome-keyring
-grim
-hunspell
-hunspell-en_gb
-hunspell-en_us
-i2c-tools
-imv
-inotify-tools
-inxi
-jq
-json-c
-kitty
-kitty-shell-integration
-kitty-terminfo
-lazygit
-lcms2
-leancrypto
-leptonica
-less
-ly
-lynis
-mpv
-nautilus
-neovide
-neovim
-noto-fonts
-noto-fonts-cjk
-noto-fonts-emoji
-nwg-look
-papers
-papirus-icon-theme
-paru
-power-profiles-daemon
-profile-sync-daemon
-pymol
-qrencode
-riff-client
-ripgrep
-rog-control-center
-slang
-slurp
-socat
-starship
-swappy
-tmux
-topgrade
-transmission-gtk
-wget
-wireplumber
-wl-clipboard
-wlr-randr
-yazi
-zen-browser-bin
+opi codecs
 
-echo "main pkgs"
-sleep 5
-sudo zypper in acpid aspell bleachbit bluez bluez-firmware bpftune brightnessctl btop cliphist cpio cronie ddcutil direnv distrobox dust emacs enchant-devel evolution-data-server fail2ban fastfetch flatpak fwupd fwupd-efi gnome-keyring gnome-tweaks gnuplot graphviz grim gsettings-desktop-schemas gtk4-layer-shell-devel gzip haveged hunspell hunspell-tools i2c-tools ImageMagick imv inotify-tools ispell jq kitty kitty-shell-integration kitty-terminfo lazygit libgtk4-layer-shell0 logrotate luajit lynis meson mpv neovim nodejs24 npm24 nwg-look opi papers papirus-icon-theme pciutils pipewire pipewire-alsa pipewire-pulseaudio pkgconf-pkg-config podman podman-docker profile-sync-daemon python313-pipx python313-pymol qt5ct qt6ct slurp swappy switcheroo-control tealdeer tmux topgrade transmission-gtk trash-cli ucode-amd udiskie wireplumber wl-clipboard xdg-desktop-portal-gnome xdg-desktop-portal-gtk xdg-user-dirs xdg-user-dirs-gtk zathura zathura-plugin-pdf-mupdf zeromq-tools zoxide zram-generator zsh zstd wl-sunset zotero
+sudo systemctl enable acpid.service bluez.service bpftune.service cronie.service fail2ban.service fwupd.service haveged.service i2c-dev.service logrotate.timer tuned.service zram-generator.service
+
+systemctl --user enable gnome-keyring-daemon pipewire pipewire-pulse wireplumber
+systemctl --user enable podman.socket
+
+# Create ZRAM configuration directory
+sudo mkdir -p /etc/systemd
+
+# Create ZRAM generator configuration
+sudo tee /etc/systemd/zram-generator.conf >/dev/null <<'EOF'
+[zram0]
+# Use zstd compression (best ratio)
+compression-algorithm = zstd
+# Set ZRAM size to 50% of RAM (adjust as needed)
+zram-size = ram / 2
+# Priority higher than regular swap
+priority = 100
+# Use lz4 for faster (de)compression if zstd is too slow
+# compression-algorithm = lz4
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl enable systemd-zram-setup@zram0.service
 
 echo "rust pkgs"
 sleep 5
@@ -140,15 +63,6 @@ trap "rm -f '$PIA_INSTALLER'" EXIT
 wget -O "$PIA_INSTALLER" https://installers.privateinternetaccess.com/download/pia-linux-3.6.2-08398.run
 chmod +x "$PIA_INSTALLER"
 bash "$PIA_INSTALLER"
-
-echo "Opi pkgs"
-sleep 5
-opi codecs
-opi adw-gtk3
-opi hyprland
-opi ly
-opi zotero
-opi zen-browser
 
 echo "symlink and directory"
 sleep 5
@@ -198,5 +112,5 @@ bash "$PIA_INSTALLER"
 
 systemctl --user enable wireplumber.service pipewire.service pipewire-pulse.service
 systemctl --user enable gnome-keyring-daemon
-
+sudo systemctl enable --now ananicy-cpp.service
 chsh -s $(which zsh)

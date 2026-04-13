@@ -1,8 +1,6 @@
 # Gentoo Linux Deployment Guide
 ## RAID 0 + Full Disk Encryption + Tumbleweed-Style Btrfs + Snapper + Bootable Snapshots
 
-**April 2026 Edition — Second Review, Fully Verified & Corrected**
-
 ---
 
 > **Warning — RAID 0 has zero redundancy.** Any single disk failure destroys all data on both volumes. Maintain off-site backups at all times.
@@ -251,7 +249,7 @@ mdadm --create --verbose /dev/md0 \
   --raid-devices=2 \
   --name=swap12 \
   --metadata=1.2 \
-  /dev/nvme1n1p2 /dev/nvme0n1p1
+  /dev/nvme0n1p2 /dev/nvme1n1p1
 ```
 
 ### 4.2 Create root RAID 0 (md1 = root12)
@@ -262,7 +260,7 @@ mdadm --create --verbose /dev/md1 \
   --raid-devices=2 \
   --name=root12 \
   --metadata=1.2 \
-  /dev/nvme1n1p3 /dev/nvme0n1p2
+  /dev/nvme0n1p3 /dev/nvme1n1p2
 ```
 
 Verify both arrays are active and clean:
@@ -586,7 +584,7 @@ swapon --show
 ### 8.1 Download and Verify Stage 3
 
 ```bash
-cd /mnt/gentoo && wget https://distfiles.gentoo.org/releases/amd64/autobuilds/20260405T170105Z/stage3-amd64-desktop-systemd-20260405T170105Z.tar.xz && tar xpvf stage3-*.tar.xz --xattrs-include='*.*' --numeric-owner
+cd /mnt/gentoo && wget https://distfiles.gentoo.org/releases/amd64/autobuilds/20260412T164603Z/stage3-amd64-hardened-systemd-20260412T164603Z.tar.xz && tar xpvf stage3-*.tar.xz --xattrs-include='*.*' --numeric-owner
 
 ```
 
@@ -683,10 +681,16 @@ export PS1="(chroot) $PS1"
 emerge-webrsync
 emerge --sync
 
+export TERM=xterm-256color
+
 # List available profiles and select the systemd variant
 eselect profile list
 eselect profile set 22
 emerge --sync
+
+ln -sf ../usr/share/zoneinfo/Asia/Dhaka /etc/localtime && nano /etc/locale.gen && locale-gen && eselect locale list && eselect locale set 4 && env-update && source /etc/profile && export PS1="(chroot) ${PS1}"
+
+
 emerge sys-apps/portage dev-vcs/git app-eselect/eselect-repository 
 
 
@@ -698,6 +702,8 @@ ls -d /var/db/pkg/*/* | sed 's|/var/db/pkg/||' > /root/installed-packages.txt
 ```bash
 nano /etc/portage/make.conf
 ```
+
+
 
 Replace the file contents with:
 
@@ -830,6 +836,15 @@ cd /usr/src/linux
 ```
 
 ### 10.3 Configure the Kernel
+
+#### Build with llvm 03
+```bash
+make menuconfig LLVM=1 KCFLAGS="-O3 -march=native -pipe -flto=thin"
+make -j14 LLVM=1 KCFLAGS="-O3 -march=native -pipe -flto=thin"
+make modules_install -j14 LLVM=1 KCFLAGS="-O3 -march=native -pipe -flto=thin"
+emerge x11-drivers/nvidia-drivers gui-libs/egl-wayland gui-libs/egl-gbm gui-libs/egl-x11 media-libs/nvidia-vaapi-driver sys-process/nvtop x11-drivers/xf86-video-amdgpu
+make install LLVM=1 KCFLAGS="-O3 -march=native -pipe -flto=thin"
+```
 
 ```bash
 make menuconfig
