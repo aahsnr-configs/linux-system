@@ -1,6 +1,5 @@
 #!/bin/bash
 sudo sed -i 's/^solver.allowVendorChange = true/solver.allowVendorChange = false/' /etc/zypp/zypp.conf
-sudo zypper ar -f -p 90 https://download.opensuse.org/repositories/home:/sp1rit/openSUSE_Tumbleweed/ sp1rit
 sudo zypper ar -f -p 92 https://download.opensuse.org/repositories/home:/neifua/openSUSE_Tumbleweed/home:neifua.repo
 sudo zypper ar -f -p 95 https://download.opensuse.org/repositories/home:/sbrabec/openSUSE_Tumbleweed/home:sbrabec.repo
 sudo zypper ar -f -p 95 https://download.opensuse.org/repositories/home:/Werwolf2517/openSUSE_Tumbleweed/home:Werwolf2517.repo
@@ -12,10 +11,7 @@ sudo zypper addrepo https://download.nvidia.com/opensuse/tumbleweed/ NVIDIA
 # 2. Refresh everything
 sudo zypper --gpg-auto-import-keys ref
 
-sudo zypper in --no-recommends acpid adw-gtk3 ananicy-cpp ananicy-rules aspell atuin bat bleachbit bluez bluez-firmware bpftune btop cava chafa cliphist cronie curl direnv distrobox dust enchant enchant-devel evolution-data-server eza fail2ban fastfetch fd file-roller fwupd fwupd-efi gh git-core git-lfs gnome-keyring gnome-tweaks gnuplot google-noto-coloremoji-fonts google-noto-sans-cjk-fonts graphviz grim gsettings-desktop-schemas gzip haveged hunspell i2c-tools ImageMagick imv inotify-tools ispell jq kernel-firmware-bluetooth kernel-firmware-intel kernel-firmware-iwlwifi kernel-firmware-nvidia kernel-firmware-platform kernel-firmware-sound lazygit logrotate luajit lynis mpv myspell-en nautilus neovide neovim nerd-fonts-JetBrainsMono nodejs24 noctalia-shell npm24 nwg-look opi pandoc-cli papers papirus-icon-theme pipewire pipewire-alsa pipewire-pulseaudio pkgconf-pkg-config podman podman-docker profile-sync-daemon python314-neovim python314-pipx python314-pymol qt5ct qt6ct ripgrep slurp socat sof-firmware starship swappy symbols-only-nerd-fonts tealdeer tmux topgrade transmission-gtk trash-cli tuned-ppd ucode-intel unzip wireplumber wl-clipboard wlr-randr xdg-desktop-portal-gnome xdg-desktop-portal-gtk xdg-desktop-portal-hyprland xdg-user-dirs xdg-user-dirs-gtk yazi zathura zathura-plugin-pdf-mupdf zeromq-tools zip zotero zram-generator zsh zstd
-
-sudo zypper install --from repo-oss kitty kitty-shell-integration kitty-terminfo
-sudo zypper addlock kitty kitty-shell-integration kitty-terminfo
+sudo zypper in --no-recommends acpid adw-gtk3 ananicy-cpp ananicy-rules aspell atuin bat bleachbit bluez bluez-firmware bpftune btop cava chafa cliphist cronie curl direnv distrobox dust enchant enchant-devel evolution-data-server eza fail2ban fastfetch fd file-roller flatpak fwupd fwupd-efi gh git-core git-lfs gnome-keyring gnome-tweaks gnuplot google-noto-coloremoji-fonts google-noto-sans-cjk-fonts graphviz grim gsettings-desktop-schemas gzip haveged hunspell hyprland hyprland-guiutils i2c-tools ImageMagick imv inotify-tools ispell jq kitty kitty-shell-integration kitty-terminfo lazygit logrotate luajit lynis mpv myspell-en nautilus neovide neovim nerd-fonts-JetBrainsMono nodejs24 noctalia-shell npm24 nwg-look opi pandoc-cli papers papirus-icon-theme pipewire pipewire-alsa pipewire-pulseaudio pkgconf-pkg-config podman podman-docker profile-sync-daemon python314-neovim python314-pipx python314-pymol qt5ct qt6ct ripgrep slurp socat sof-firmware starship swappy symbols-only-nerd-fonts tealdeer tmux topgrade transmission-gtk trash-cli tuned-ppd ucode-intel unzip wireplumber wl-clipboard wlr-randr wlsunset xdg-desktop-portal-gnome xdg-desktop-portal-gtk xdg-desktop-portal-hyprland xdg-user-dirs xdg-user-dirs-gtk yazi zathura zathura-plugin-pdf-mupdf zeromq-tools zip zotero zram-generator zsh zstd gdm
 
 curl -LsSf https://astral.sh/uv/install.sh | sh
 curl -fsSL https://pixi.sh/install.sh | sh
@@ -23,7 +19,7 @@ curl https://mise.run | sh
 curl -fsS https://dl.brave.com/install.sh | sh
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
-sudo zypper in nvidia-open-driver-G07-signed-kmp-default ucode-intel intel-media-driver libva-utils thermald libnvidia-egl-wayland1 vulkan-validationlayers nvidia-video-G07 nvidia-gl-G07 nvidia-compute-utils-G07 nvidia-settings OpenRGB kernel-firmware-intel kernel-firmware-bluetooth sof-firmware kernel-firmware-nvidia alsa-firmware kernel-firmware-iwlwifi kernel-firmware-sound
+sudo zypper in alsa-firmware intel-media-driver kernel-firmware-bluetooth kernel-firmware-intel kernel-firmware-iwlwifi kernel-firmware-nvidia kernel-firmware-platform kernel-firmware-sound libnvidia-egl-wayland1 libva-utils nvidia-compute-utils-G07 nvidia-gl-G07 nvidia-open-driver-G07-signed-kmp-default nvidia-settings nvidia-video-G07 OpenRGB sof-firmware thermald ucode-intel vulkan-validationlayers
 
 opi codecs
 
