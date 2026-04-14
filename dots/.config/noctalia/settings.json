@@ -283,29 +283,6 @@
                 },
                 {
                     "defaultSettings": {
-                        "borderRadius": 1,
-                        "expandDirection": "down",
-                        "focusBorderColor": "primary",
-                        "mainIcon": "layout-grid",
-                        "primaryPillColor": "none",
-                        "primaryShowPill": false,
-                        "primarySize": 0.9,
-                        "primarySymbolColor": "none",
-                        "secondaryPillColor": "primary",
-                        "secondaryShowPill": true,
-                        "secondarySize": 0.9,
-                        "secondarySymbolColor": "none",
-                        "workspaces": [
-                            {
-                                "icon": "message",
-                                "name": "communication"
-                            }
-                        ]
-                    },
-                    "id": "plugin:special-workspaces"
-                },
-                {
-                    "defaultSettings": {
                         "enableCross": true,
                         "enableWindowsSelection": true,
                         "screenshotEditor": "swappy"

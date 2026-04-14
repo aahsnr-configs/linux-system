@@ -6,7 +6,11 @@
   ],
   "transAvailable": false,
   "selectedOcrLang": "afr",
+  "screenshotPath": "",
+  "videoPath": "",
+  "filenameFormat": "",
   "detectedRecorder": "",
+  "detectedCompositor": "hyprland",
   "stateIsRunning": false,
   "stateActiveTool": ""
 }
