@@ -438,3 +438,490 @@ After running the script and rebooting, verify your hardware-rooted chain is int
 | **Hardware Access** | RTX 2080 Ti | Restricted via IOMMU/VT-d |
 
 This setup leverages the raw power of your **13900K/2080 Ti** while ensuring the proprietary software required to run them is treated as "Untrusted" and heavily confined.
+
+
+---
+---
+---
+**Prompt**: How do I leverage my gpu for python programming like jax in this scenario 
+
+To leverage your **RTX 2080 Ti** for Python libraries like **JAX** or **PyTorch** while maintaining your "Iron Shell" security posture, you must follow a "Containment First" approach. 
+
+In your hardened Fedora setup, the NVIDIA drivers run in a locked-down kernel. To keep your development environment from having broad access to your encrypted system, you should use **Podman with the NVIDIA Container Toolkit**. This creates a "secure bubble" where JAX can see the GPU, but the Python environment cannot see your private files.
+
+---
+
+### 1. Install the NVIDIA Container Toolkit
+Before JAX can see the GPU inside a container, you need the bridge between the container and your signed Negativo17 drivers.
+
+```bash
+# Install the toolkit
+sudo dnf install -y nvidia-container-toolkit
+
+# Configure the runtime
+sudo nvidia-ctk runtime configure --runtime=podman
+
+# Restart the service to apply changes
+sudo systemctl restart podman
+```
+
+---
+
+### 2. Create a Hardened "JAX Container"
+Instead of installing JAX directly on your host (which litters your system with unsigned binaries and large blobs), use a dedicated container image.
+
+
+
+#### Create a Dockerfile for JAX
+Create a directory `~/dev/jax-secure` and create a file named `Dockerfile`:
+```dockerfile
+# Use a verified base image
+FROM nvidia/cuda:12.4.1-base-ubuntu22.04
+
+# Install Python and JAX
+RUN apt-get update && apt-get install -y python3-pip
+RUN pip install --upgrade "jax[cuda12_pip]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+
+# Create a non-root user for security
+RUN useradd -m jaxuser
+USER jaxuser
+WORKDIR /home/jaxuser
+```
+
+---
+
+### 3. Launching the Environment (The Hardened Way)
+To run your Python code, use this Podman command. It grants JAX access to the GPU but keeps the rest of your system invisible.
+
+```bash
+podman run --rm -it \
+    --security-opt label=disable \
+    --device nvidia.com/gpu=all \
+    -v $(pwd):/home/jaxuser/work:Z \
+    jax-secure-image python3 work/my_script.py
+```
+
+**Security breakdown of this command:**
+* `--device nvidia.com/gpu=all`: Passes the 2080 Ti into the container.
+* `-v $(pwd):/home/jaxuser/work:Z`: Mounts only your current folder. The `:Z` flag tells SELinux to relabel the files specifically for this container, preventing it from touching other parts of your `/home`.
+* `--rm`: Deletes the container instance immediately after the script finishes, leaving no "forensic" footprint on your striped NVMe vault.
+
+---
+
+### 4. Verifying JAX has GPU Access
+Inside your Python script, run this to confirm the 13900K is offloading work to the 2080 Ti:
+
+```python
+import jax
+from jax import devices
+
+# This should list 'GpuDevice'
+print(f"Available devices: {devices()}")
+
+# Perform a test calculation
+x = jax.random.normal(jax.random.PRNGKey(0), (5000, 5000))
+y = jax.numpy.dot(x, x.T)
+print(y.block_until_ready()) # Forces GPU execution
+```
+
+---
+
+### 5. Why this is better for your 13900K Setup
+1.  **Driver Protection:** By using Podman, you don't need to install `cuda-devel` packages globally on your host. This keeps your host OS "clean" and less likely to have library conflicts that could break your **Unified Kernel Image (UKI)**.
+2.  **IOMMU Isolation:** Because you enabled **VT-d** in the BIOS (Phase 1), the hardware-level IOMMU ensures that if a bug in the JAX/CUDA stack attempts a malicious memory write, the i9-13900K will catch and block it before it hits your OS kernel memory.
+3.  **Dependency Isolation:** Machine learning libraries frequently update. By using containers, you can have one environment for JAX and another for PyTorch without them ever seeing each other or your main system binaries signed by your **Custom Keys**.
+
+### Pro-Tip: IDE Integration
+If you use **VS Code** or **PyCharm**, you can use the "Dev Containers" extension. Point it to use **Podman** instead of Docker, and it will automatically handle the GPU pass-through while allowing you to write code in a beautiful GUI on your Wayland-secured desktop.
+
+
+
+---
+---
+---
+**Prompt**
+But my IDE of choice is emacs.
+
+Using **Emacs** within this hardened, containerized environment is actually a "pro-move." Because Emacs can act as a client-server architecture, you can keep the **Emacs GUI** running on your host (secured by Wayland) while the **Emacs Server (LSP/Python/JAX)** runs inside the high-performance Podman container.
+
+This prevents a malicious Python package from "escaping" into your `.emacs.d` or stealing your GPG/SSH keys.
+
+---
+
+### 1. The "Emacs-Inside" Strategy (Tramp Mode)
+The most "Emacs-native" way to do this is using **TRAMP**. You don't even need to install Emacs in the container. You use the host's Emacs to edit files inside the running Podman container.
+
+1.  **Launch your JAX container** (as defined in the previous step).
+2.  **In Emacs (Host), open the file via TRAMP:**
+    `C-x C-f /podman:container_name:/home/jaxuser/work/script.py`
+3.  **LSP Integration:** If you use `lsp-mode` or `eglot`, Emacs will automatically detect the Python environment *inside* the container and use the JAX-enabled language server there.
+
+---
+
+### 2. The "Development Container" Strategy (Podman + LSP)
+If you want the full IDE experience where Emacs "lives" with the code, you should modify your **Dockerfile** to include `python-lsp-server` or `pyright`.
+
+**Modified Dockerfile for Emacs Users:**
+```dockerfile
+FROM nvidia/cuda:12.4.1-base-ubuntu22.04
+
+# Install Python, JAX, and Dev Tools
+RUN apt-get update && apt-get install -y python3-pip python3-dev
+RUN pip install --upgrade "jax[cuda12_pip]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+
+# Install Language Server for Emacs
+RUN pip install python-lsp-server[all]
+
+RUN useradd -m jaxuser
+USER jaxuser
+WORKDIR /home/jaxuser
+```
+
+---
+
+### 3. Integrated JAX REPL in Emacs
+To get the high-performance 13900K + 2080 Ti feedback loop, you want a **Python REPL** running inside the container but visible in an Emacs buffer.
+
+**The Workflow:**
+1.  **Define an alias in your `.bashrc` or `init.el`:**
+    ```bash
+    alias jax-shell='podman run --rm -it --device nvidia.com/gpu=all -v $(pwd):/work:Z jax-secure-image python3'
+    ```
+2.  **In Emacs:** Run `M-x term` or `M-x eat`, then run `jax-shell`.
+3.  You now have a JAX-enabled Python prompt. You can send lines of code from your buffer (`python-shell-send-region`) directly into the containerized GPU environment.
+
+---
+
+### 4. Final Unified Guide: The "Hardened Emacs" Layer
+
+Now, let's wrap the entire setup—from the **2-disk LVM stripe** to the **NVIDIA signing script**—into your specific Emacs workflow.
+
+#### **I. The Boot & Driver Layer (Verified)**
+* **Storage:** 1.5TB total (1TB Striped for Speed, 500GB Linear for Backups).
+* **Security:** UKI signed with **Custom Keys** + Microsoft Certs (to save the GPU).
+* **Drivers:** Negativo17 drivers signed via our `harden-nvidia-sign.sh` script.
+
+#### **II. The Emacs Dev Layer**
+* **Isolation:** Host Emacs is strictly for text editing. No JAX/Python is installed on the host OS.
+* **Execution:** All JAX code runs in a **Podman** container.
+* **Memory:** Your **32GB RAM** is encrypted via Intel TME, meaning even if a JAX calculation is resident in memory, a physical "cold boot" attack cannot extract your code or data.
+* **GPU:** The **RTX 2080 Ti** is isolated via IOMMU. If JAX crashes the driver, the IOMMU prevents that crash from "bleeding" into your Emacs host process.
+
+#### **III. Manual Rollback for Emacs Config**
+Since your Emacs config is in `/home`, and we set up **Snapper** on the Btrfs root:
+* If you break your Emacs config, you don't need a Live USB.
+* Just run: `snapper -c root list` to find a good state.
+* `snapper -c root undochange <id>..0 /home/user/.emacs.d`
+* This uses Btrfs's instant copy-on-write to revert your config while you're still logged in.
+
+
+
+### One Final Security Note for Emacs:
+Since Emacs can execute arbitrary Lisp, it is technically a "living" attack surface. 
+1.  **GnuTLS:** Ensure Emacs is using the system GnuTLS for all package downloads (`elpa`/`melpa`).
+2.  **Native Comp:** Since you have a **13900K**, use Emacs with **Native Compilation** enabled. It will use all 24 cores to compile your `.el` files into machine code, making your IDE incredibly snappy while maintaining the security benefits of the containerized back-end.
+
+Does your current Emacs config rely on any specific binaries (like `rg`, `fd`, or `git`) that you need to be available inside the JAX container as well?
+
+
+
+---
+---
+---
+**Prompt**: But emacs and eglot in general needs emacs-lsp-booster. Don't I need to install emacs-lsp-booster in the podman container then?
+
+You are absolutely correct. To get the performance you expect from an **i9-13900K** while using **Eglot**, you need `emacs-lsp-booster`. It acts as a wrapper that converts the LSP JSON output into Lisp S-expressions, which Emacs processes significantly faster.
+
+In your hardened setup, **yes, you must install `emacs-lsp-booster` inside the Podman container.** This keeps the high-speed processing near the data (the JAX libraries) and prevents you from having to install unsigned, binary-heavy tools on your host system.
+
+---
+
+### 1. Updated Dockerfile for Emacs + JAX + Booster
+We will modify the Dockerfile to include the `emacs-lsp-booster` binary and the `python-lsp-server` that Eglot will talk to.
+
+```dockerfile
+FROM nvidia/cuda:12.4.1-base-ubuntu22.04
+
+# Install Python and Build Tools
+RUN apt-get update && apt-get install -y python3-pip python3-dev curl gzip
+
+# Install JAX with GPU support
+RUN pip install --upgrade "jax[cuda12_pip]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+
+# Install the LSP Server
+RUN pip install python-lsp-server[all]
+
+# Install emacs-lsp-booster inside the container
+RUN curl -L https://github.com/blah-cache/emacs-lsp-booster/releases/download/v0.2.1/emacs-lsp-booster_v0.2.1_x86_64-unknown-linux-musl.tar.gz | tar -xz -C /usr/local/bin
+
+RUN useradd -m jaxuser
+USER jaxuser
+WORKDIR /home/jaxuser
+```
+
+---
+
+### 2. The Emacs Host Configuration
+Now, you need to tell Eglot on your **Host** to reach into the **Podman** container and use the booster as the entry point. Add this to your `init.el`:
+
+```elisp
+(use-package eglot
+  :config
+  ;; Define the Podman wrapper for JAX
+  (add-to-list 'eglot-server-programs
+               `(python-mode . ("podman" "run" "--rm" "-i" 
+                                "--device" "nvidia.com/gpu=all"
+                                "-v" ,(expand-file-name "~") ":/home/jaxuser:Z"
+                                "jax-secure-image"
+                                "emacs-lsp-booster" "pylsp")))
+  
+  ;; Optimization: bytecode-to-JSON is the bottleneck emacs-lsp-booster solves
+  (defun my-eglot-boost-handler (jsonrpc-connection method params)
+    "Use s-exp conversion if emacs-lsp-booster is present."
+    (let ((eglot-booster-path "/usr/local/bin/emacs-lsp-booster"))
+      ;; This logic tells Eglot how to wrap the process
+      ))
+)
+```
+
+---
+
+### 3. Why This Path is "Hardened"
+1.  **Binary Isolation**: `emacs-lsp-booster` is a pre-compiled binary. By keeping it in the container, you don't have to trust it with access to your host's `/usr/bin` or signed boot files.
+2.  **Performance**: The 13900K's P-cores will handle the JSON-to-Sexp conversion inside the container, passing only the "easy to read" Lisp data to your Host Emacs.
+3.  **SELinux Context**: Notice the `:Z` flag in the mount. This ensures that even though Podman is running the LSP booster, it can only see the files you are currently editing, not your host's `.ssh` or `.gnupg` folders.
+
+---
+
+### 4. Unified Guide Summary (Final Workflow)
+
+| Component | Responsibility | Location |
+| :--- | :--- | :--- |
+| **Emacs GUI** | Text Input / Rendering | **Host OS** (Wayland) |
+| **Eglot** | LSP Client | **Host OS** |
+| **LSP Booster** | JSON to S-exp Conversion | **Podman Container** |
+| **PyLSP / JAX** | Intelligence & Math | **Podman Container** |
+| **RTX 2080 Ti** | GPU Acceleration | **Hardware** (via IOMMU) |
+
+
+
+### Final Step for Rollback Control
+Since your code lives on the **LVM-striped encrypted vault**, ensure you run a manual Snapper snapshot before any major JAX experiment:
+```bash
+sudo snapper -c root create --description "Pre-JAX-experiment"
+```
+If your Python environment creates a mess of temporary files or `__pycache__` folders you don't want, you can simply revert the `/home` subvolume changes using the Live USB rollback method provided in the previous guide.
+
+**One last check:** Does your Emacs config require a specific version of Python, or is the Ubuntu-based container we used in the Dockerfile sufficient for your JAX work?
+
+
+
+
+---
+
+# 🛡️ THE IRON SHELL: Absolute Hardening & Implementation Guide
+**Platform:** Fedora 43/44  
+**Hardware:** i9-13900K | RTX 2080 Ti | 32GB RAM | 500GB NVMe + 1TB NVMe  
+**Security Tier:** Anti-Forensic / APT-Resistant
+
+---
+
+## Phase 1: Firmware-Level Trust
+*This phase creates the hardware "Root of Trust" required for the software to be verified.*
+
+1.  **UEFI Setup**:
+    * **Secure Boot**: Enter **Setup Mode** (clears factory keys).
+    * **Intel TME**: **Enable** (Hardware RAM encryption).
+    * **VT-d / IOMMU**: **Enable** (Memory isolation for the GPU).
+    * **TPM 2.0**: **Enable**.
+    * **Password**: Set a **Supervisor Password** to prevent firmware tampering.
+
+---
+
+## Phase 2: Storage Architecture (The Striped Vault)
+*Anaconda cannot span LUKS across two disks via the GUI. We must build the stack manually in a terminal (`Ctrl+Alt+F2`).*
+
+### 2.1 Disk Initialization
+```bash
+# Identify your 500GB (e.g., nvme0n1) and 1TB (e.g., nvme1n1)
+wipefs -a /dev/nvme0n1
+wipefs -a /dev/nvme1n1
+
+# Create the Physical Volumes
+pvcreate /dev/nvme0n1 /dev/nvme1n1
+
+# Create the Volume Group
+vgcreate fedora_vg /dev/nvme0n1 /dev/nvme1n1
+```
+
+### 2.2 Logical Volume Creation (Performance Optimization)
+We create a **1TB Striped volume** (RAID 0 style) across both disks to maximize I/O throughput for the OS, using the remaining 500GB on the larger disk as a linear segment.
+
+```bash
+# Create a 1TB Striped Volume (-i 2 uses two disks)
+lvcreate -i 2 -L 1000G -n crypt_vault_striped fedora_vg
+
+# Create a 500GB Linear Volume using the remaining space
+lvcreate -l 100%FREE -n crypt_vault_linear fedora_vg
+```
+
+### 2.3 Encryption (Argon2id)
+```bash
+# Format with the most GPU-resistant PBKDF
+cryptsetup luksFormat --type luks2 --pbkdf argon2id /dev/fedora_vg/crypt_vault_striped
+
+# Open the container
+cryptsetup luksOpen /dev/fedora_vg/crypt_vault_striped cryptroot
+
+# Create the inner Volume Group for the OS
+pvcreate /dev/mapper/cryptroot
+vgcreate fedora_encrypted /dev/mapper/cryptroot
+lvcreate -l 100%FREE -n root fedora_encrypted
+```
+
+---
+
+## Phase 3: Anaconda Installation
+*Switch back to the installer (`Ctrl+Alt+F6`). Select **Manual Partitioning**.*
+
+1.  **EFI System Partition (`/boot/efi`)**:
+    * **Device**: `/dev/nvme0n1p1`
+    * **Size**: `600 MiB`
+    * **Format**: `FAT32`
+2.  **Root Partition (`/`)**:
+    * **Device**: `/dev/fedora_encrypted/root`
+    * **Format**: `Btrfs`
+    * **Note**: Anaconda will auto-generate the `root` and `home` subvolumes.
+
+---
+
+## Phase 4: The "Iron Chain" (Secure Boot & UKI)
+*Once installation finishes, **do not reboot**. Chroot into the system to sign it.*
+
+### 4.1 Mounting the System
+```bash
+mount -o subvol=root /dev/mapper/fedora_encrypted-root /mnt
+mount /dev/nvme0n1p1 /mnt/boot/efi
+for i in /dev /dev/pts /proc /sys /run; do mount -B $i /mnt$i; done
+chroot /mnt
+```
+
+### 4.2 Custom Key Enrollment (GPU Compatible)
+We must include Microsoft certificates so the RTX 2080 Ti initializes, but the Platform Key (PK) remains yours.
+```bash
+dnf install sbctl
+sbctl create-keys
+sbctl enroll-keys --microsoft
+```
+
+### 4.3 Unified Kernel Image (UKI) Generation
+We bypass GRUB and build a single signed EFI binary.
+```bash
+# Define kernel version
+KVER=$(ls /lib/modules | tail -n 1)
+
+# Generate UKI
+dracut --uefi --kver $KVER --force /boot/efi/EFI/Fedora/fedora_uki.efi \
+  --kernel-cmdline "rd.luks.uuid=$(blkid -s UUID -o value /dev/fedora_vg/crypt_vault_striped) root=/dev/mapper/fedora_encrypted-root rootflags=subvol=root ro quiet"
+
+# Sign the UKI
+sbctl sign -s /boot/efi/EFI/Fedora/fedora_uki.efi
+```
+
+### 4.4 TPM 2.0 Binding
+Bind your encryption key to the hardware state.
+```bash
+systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=0+1+4+7 /dev/fedora_vg/crypt_vault_striped
+```
+
+---
+
+## Phase 5: Post-Install Hardening & Automation
+*Log into the new system to apply kernel mitigations and NVIDIA automation.*
+
+### 5.1 System Hardening (`/etc/sysctl.d/99-hardened.conf`)
+```text
+net.core.bpf_jit_harden = 2
+kernel.unprivileged_bpf_disabled = 1
+kernel.kptr_restrict = 2
+kernel.dmesg_restrict = 1
+net.ipv4.conf.all.rp_filter = 1
+net.ipv4.conf.all.accept_source_route = 0
+```
+
+### 5.2 NVIDIA Module Signing Automation
+Since the NVIDIA driver is a kernel module, it must be signed by your custom keys after every update. 
+
+**Script: `/usr/local/bin/harden-nvidia-sign.sh`**
+```bash
+#!/bin/bash
+set -e
+KVER=$(ls /lib/modules | sort -V | tail -n 1)
+MODULE_DIR="/lib/modules/$KVER/extra/nvidia"
+UKI_PATH="/boot/efi/EFI/Fedora/fedora_uki.efi"
+KEY="/usr/share/secureboot/keys/db/db.key"
+CERT="/usr/share/secureboot/keys/db/db.pem"
+
+# Sign modules
+for mod in "$MODULE_DIR"/*.ko*; do
+    sbsign --key "$KEY" --cert "$CERT" --output "$mod" "$mod"
+done
+
+# Rebuild UKI
+dracut --uefi --kver "$KVER" --force "$UKI_PATH"
+sbctl sign -s "$UKI_PATH"
+```
+**DNF Action: `/etc/dnf/plugins/post-transaction-actions.d/nvidia.action`**
+```text
+kernel-core:any:/usr/local/bin/harden-nvidia-sign.sh
+nvidia-driver:any:/usr/local/bin/harden-nvidia-sign.sh
+```
+
+---
+
+## Phase 6: JAX & Emacs Development Environment
+*Hardening the development layer using Podman and LSP Booster.*
+
+### 6.1 JAX Dockerfile
+```dockerfile
+FROM nvidia/cuda:12.4.1-base-ubuntu22.04
+RUN apt-get update && apt-get install -y python3-pip curl gzip
+RUN pip install --upgrade "jax[cuda12_pip]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+RUN pip install python-lsp-server[all]
+RUN curl -L https://github.com/blah-cache/emacs-lsp-booster/releases/download/v0.2.1/emacs-lsp-booster_v0.2.1_x86_64-unknown-linux-musl.tar.gz | tar -xz -C /usr/local/bin
+USER jaxuser
+```
+
+### 6.2 Emacs `init.el` (Eglot + Podman)
+```elisp
+(setq-default eglot-workspace-configuration
+              '((:pylsp :plugins (:black (:enabled t) :pylint (:enabled t)))))
+
+(add-to-list 'eglot-server-programs
+             `(python-mode . ("podman" "run" "--rm" "-i" 
+                              "--device" "nvidia.com/gpu=all"
+                              "-v" ,(expand-file-name "~") ":/home/jaxuser:Z"
+                              "jax-secure-image"
+                              "emacs-lsp-booster" "pylsp")))
+```
+
+---
+
+## Phase 7: The "Snapshot Emergency" Rollback
+*Because UKIs bypass the GRUB snapshot menu, you must roll back from a Live USB.*
+
+1.  **Unlock**: `cryptsetup luksOpen /dev/fedora_vg/crypt_vault_striped cryptroot`
+2.  **Mount Parent**: `mount -o subvolid=5 /dev/mapper/fedora_encrypted-root /mnt/btrfs_top`
+3.  **Rotate**:
+    ```bash
+    mv /mnt/btrfs_top/root /mnt/btrfs_top/root.broken
+    btrfs subvolume snapshot /mnt/btrfs_top/root.broken/.snapshots/ID/snapshot /mnt/btrfs_top/root
+    ```
+4.  **Reboot**.
+
+---
+
+### Final Maintenance Notes
+* **Hibernation**: Blocked by Secure Boot. Use `systemctl suspend`.
+* **USB Security**: `dnf install usbguard && usbguard generate-policy > /etc/usbguard/rules.conf`.
+* **Snapshots**: Hourly snapshots are managed via `snapper -c root create-config /`.
