@@ -216,3 +216,225 @@ If your system fails to boot, follow these exact steps:
     sudo reboot
     ```
     Your system will now boot into the exact state of Snapshot #45, completely ignoring the `root.broken` directory.
+
+
+-----
+---
+---
+
+Yes, you can use the **negativo17.org** repository with this setup, but because you are using **Secure Boot with Custom Keys**, there is a critical extra step you must take. 
+
+Since NVIDIA drivers are kernel modules, the Linux kernel will refuse to load them unless they are signed by a key that your UEFI (motherboard) trusts. Because you own the keys now (via `sbctl`), you are the only one who can sign those drivers.
+
+Here is how to integrate Negativo17 into your hardened "Iron Chain" setup.
+
+---
+
+### 1. The Security Trade-off
+For an **APT-hardened threat model**, the general recommendation is **RPM Fusion** because it is more tightly integrated with the Fedora ecosystem and undergoes more community scrutiny. However, **Negativo17** is excellent for performance and often packages specific libraries (like Steam or CUDA) more cleanly.
+
+* **Risk:** Adding any third-party repository increases your attack surface. If the Negativo17 infrastructure were compromised, a state actor could push a malicious "update" to your NVIDIA driver.
+* **Mitigation:** Only enable the repository when installing/updating, and use GPG key verification (which Fedora does by default).
+
+---
+
+### 2. Signing the NVIDIA Kernel Modules (The "Must-Do" Step)
+When you install NVIDIA drivers from Negativo17, they are compiled on your machine using **DKMS** or **AKMOD**. These compiled binaries are unsigned. With your current setup, the system will boot, but the GPU driver will fail to load, leaving you with a low-resolution "Nouveau" or basic display.
+
+Since you are already using `sbctl`, you can use your custom keys to sign the modules automatically.
+
+#### Step 1: Install the Repository
+```bash
+sudo dnf config-manager --add-repo=https://negativo17.org/repos/fedora-nvidia.repo
+sudo dnf config-manager --add-repo=https://negativo17.org/repos/fedora-multimedia.repo
+```
+
+#### Step 2: Install Drivers and Codecs
+```bash
+sudo dnf install nvidia-driver nvidia-settings nvidia-driver-libs.i686 \
+    vlc ffmpeg-free-devel gstreamer1-plugins-bad-free-devel
+```
+
+#### Step 3: Sign the Drivers with `sbctl`
+You don't want to sign every individual `.ko` file manually every time the kernel updates. `sbctl` can be integrated into the kernel install process.
+
+1.  **Find the modules:** After installation, the NVIDIA modules are usually located in `/lib/modules/$(uname -r)/extra/`.
+2.  **Sign them:**
+    ```bash
+    # Sign the specific NVIDIA modules
+    sudo sbctl sign -s /lib/modules/$(uname -r)/extra/nvidia/nvidia.ko
+    sudo sbctl sign -s /lib/modules/$(uname -r)/extra/nvidia/nvidia-modeset.ko
+    sudo sbctl sign -s /lib/modules/$(uname -r)/extra/nvidia/nvidia-drm.ko
+    sudo sbctl sign -s /lib/modules/$(uname -r)/extra/nvidia/nvidia-uvm.ko
+    ```
+
+
+
+---
+
+### 3. Automating the Process (The Hardened Way)
+To ensure that every time your kernel updates, the new NVIDIA modules are signed and your **Unified Kernel Image (UKI)** is rebuilt and resigned:
+
+1.  **Create a post-install script:** In Fedora, you can place a script in `/etc/kernel/postinst.d/` that triggers `sbctl sign` and then rebuilds the UKI.
+2.  **Dracut Integration:** Ensure your `/etc/dracut.conf.d/` includes a directive to always build a UEFI-bundled image so that `sbctl` can sign the entire package.
+
+---
+
+### 4. Media Libraries & Codecs
+The multimedia libraries (ffmpeg, gstreamer, etc.) from Negativo17 are **userspace** applications. Unlike the NVIDIA driver (which is a **kernel** module), userspace libraries **do not need to be signed** to work with Secure Boot.
+
+* You can install them normally.
+* **Hardening Tip:** Since codecs are historically a major source of vulnerabilities (e.g., a malicious video file exploiting a buffer overflow in a codec), ensure you are running your media players (like VLC or MPV) inside a **Flatpak** and use **Flatseal** to strip them of network and "all-file" access.
+
+---
+
+### 5. Verified Workflow for your Setup
+
+| Action | Impact on Secure Boot | Required Step |
+| :--- | :--- | :--- |
+| **Install Codecs** | None | Normal `dnf install` |
+| **Install NVIDIA Driver** | **Breaks Boot** | Must sign `.ko` files with `sbctl` |
+| **Update Kernel** | **Breaks Boot** | Must rebuild UKI and sign with `sbctl` |
+
+### One Final Warning for your 2080 Ti
+Since you opted for the **Co-Signed strategy** (Custom Keys + Microsoft Certs), your GPU will initialize correctly during the BIOS phase. However, if you ever decide to remove the Microsoft certificates and go "Pure Custom," remember that the driver installation from Negativo17 will still need your signature to function within the OS.
+
+**Does this make sense, or would you like the specific script logic to automate the signing every time the driver updates?**
+
+---
+---
+---
+
+To maintain a truly "hardened" system, you cannot rely on manual intervention every time a kernel or driver updates. Because you are using **Unified Kernel Images (UKI)** and **Secure Boot with Custom Keys**, any change to the kernel modules (like NVIDIA drivers) or the kernel itself requires a signature from your private key.
+
+Here is the automated "Iron Chain" script and the comprehensive, rewritten guide for the NVIDIA/Multimedia stack.
+
+---
+
+### Part 1: The Automation Script
+This script performs three critical tasks: it finds the newly compiled NVIDIA modules, signs them using your `sbctl` keys, and then triggers a rebuild of your signed UKI.
+
+**Create the file:** `sudo nano /usr/local/bin/harden-nvidia-sign.sh`
+
+```bash
+#!/bin/bash
+# Hardened Fedora NVIDIA Signing & UKI Rebuilder
+# Optimized for Fedora 43/44 with sbctl and UKI
+
+set -e
+
+# 1. Variables
+KVER=$(ls /lib/modules | grep -v "rescue" | sort -V | tail -n 1)
+MODULE_DIR="/lib/modules/$KVER/extra/nvidia"
+UKI_PATH="/boot/efi/EFI/Fedora/fedora_uki.efi"
+DB_KEY="/usr/share/secureboot/keys/db/db.key"
+DB_CERT="/usr/share/secureboot/keys/db/db.pem"
+
+echo "==> Detected Kernel: $KVER"
+
+# 2. Sign NVIDIA Kernel Modules
+if [ -d "$MODULE_DIR" ]; then
+    echo "==> Signing NVIDIA modules in $MODULE_DIR..."
+    for module in "$MODULE_DIR"/*.ko*; do
+        echo "Signing $module"
+        # We use sbsign directly or sbctl if preferred
+        sudo sbsign --key "$DB_KEY" --cert "$DB_CERT" --output "$module" "$module"
+    done
+else
+    echo "!! NVIDIA module directory not found. Ensure akmod-nvidia has run."
+    exit 1
+fi
+
+# 3. Rebuild the Unified Kernel Image (UKI)
+echo "==> Rebuilding Unified Kernel Image..."
+sudo dracut --uefi --kver "$KVER" \
+    --kernel-cmdline "rd.luks.uuid=$(blkid -s UUID -o value /dev/fedora_vg/crypt_vault_striped) root=/dev/mapper/fedora_encrypted-root rootflags=subvol=root ro quiet" \
+    --force "$UKI_PATH"
+
+# 4. Sign the UKI
+echo "==> Signing UKI with sbctl..."
+sudo sbctl sign -s "$UKI_PATH"
+
+echo "==> SUCCESS: System is sealed and ready for reboot."
+```
+
+**Make it executable:**
+```bash
+sudo chmod +x /usr/local/bin/harden-nvidia-sign.sh
+```
+
+**Automate via DNF:**
+To make this run automatically after every update, create a DNF plugin/hook file:
+`sudo nano /etc/dnf/plugins/post-transaction-actions.d/nvidia-sign.action`
+*(Note: Requires `python3-dnf-plugin-post-transaction-actions` package)*
+```text
+# Run the signing script after any kernel or nvidia package update
+kernel-core:any:/usr/local/bin/harden-nvidia-sign.sh
+nvidia-driver:any:/usr/local/bin/harden-nvidia-sign.sh
+```
+
+---
+
+### Part 2: The Unified NVIDIA & Multimedia Hardening Guide
+
+This guide ensures your **RTX 2080 Ti** and media stack are high-performance but strictly contained.
+
+#### 1. Repository Setup (Negativo17)
+Negativo17 provides a cleaner separation of CUDA and drivers than RPM Fusion, which is better for containerized isolation.
+```bash
+sudo dnf config-manager --add-repo=https://negativo17.org/repos/fedora-nvidia.repo
+sudo dnf config-manager --add-repo=https://negativo17.org/repos/fedora-multimedia.repo
+```
+
+#### 2. Clean Driver & Codec Installation
+We install the drivers and the full suite of hardware-accelerated codecs.
+```bash
+sudo dnf install nvidia-driver nvidia-settings nvidia-driver-libs.i686 \
+    cuda dkms-nvidia nvidia-driver-cuda \
+    gstreamer1-plugins-bad-free-devel gstreamer1-plugins-ugly-free-devel \
+    ffmpeg-free-devel libva-nvidia-driver
+```
+
+#### 3. Why This Requires "The Script"
+
+The Linux kernel operates in **Lockdown Mode** when Secure Boot is active. It will strictly refuse to load the `nvidia.ko` module because Negativo17 cannot sign the module with your private keys. By running the script in Part 1, you manually extend your "Trust" to the driver.
+
+#### 4. Sandbox the NVIDIA Attack Surface
+Because the NVIDIA driver is proprietary and large, it is a target for APTs. 
+* **Avoid NVIDIA Settings as Root:** Never run `sudo nvidia-settings`. It creates unneeded root-level configuration files.
+* **CUDA Isolation:** If you use the 2080 Ti for AI (Stable Diffusion, LLMs) or rendering (Blender):
+    * **Do not install the libraries globally.**
+    * Run them in a **Podman** container using the `--device nvidia.com/gpu=all` flag. This prevents a vulnerability in the CUDA stack from reading your `/home/user/Documents` folder.
+
+#### 5. Multimedia Hardening
+Codecs (like those for `.mp4` or `.mkv`) are historically buggy and often used as exploit vectors (e.g., a malicious video file triggering a buffer overflow).
+* **The Flatpak Rule:** Install your media players (VLC, MPV, Obsidian) via Flatpak.
+* **Flatseal Lockdown:** 1. Open **Flatseal**.
+    2. Select your Video Player.
+    3. **Disable** "All system files" and "All user files."
+    4. **Enable** only the specific "XDG-Videos" folder.
+    5. This ensures that even if a state-actor-crafted video file exploits a codec from Negativo17, the attacker is "trapped" inside the Flatpak and cannot see your SSH keys or browser data.
+
+---
+
+### Part 3: Verification (The "Trust but Verify" Step)
+After running the script and rebooting, verify your hardware-rooted chain is intact:
+
+1.  **Check Secure Boot State:**
+    `sbctl status` — Should show `Setup Mode: Disabled` and `Secure Boot: Enabled`.
+2.  **Check NVIDIA Module Signature:**
+    `modinfo nvidia | grep signature` — It should display the signer info, showing it was signed by *your* custom key.
+3.  **Check Kernel Lockdown:**
+    `dmesg | grep -i lockdown` — Should show `Kernel is locked down from EFI Secure Boot mode`. This confirms the i9-13900K is actively protecting the kernel memory from being tampered with by the GPU driver.
+
+
+
+### Summary Table for NVIDIA Setup
+| Component | Source | Protection |
+| :--- | :--- | :--- |
+| **Kernel Modules** | Negativo17 | Signed via `sbsign` (Custom Keys) |
+| **CUDA / AI** | Negativo17 | Isolated in Podman Containers |
+| **Video Codecs** | Negativo17 | Contained in Flatpak + Flatseal |
+| **Hardware Access** | RTX 2080 Ti | Restricted via IOMMU/VT-d |
+
+This setup leverages the raw power of your **13900K/2080 Ti** while ensuring the proprietary software required to run them is treated as "Untrusted" and heavily confined.
