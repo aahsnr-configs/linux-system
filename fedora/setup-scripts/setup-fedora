@@ -1,12 +1,11 @@
 #!/bin/bash
 
-# sudo cp -R "$HOME/Git/configs/linux-system/fedora/preconfig/99-custom-env.sh" "/etc/profile.d/"
-# sudo cp -R "$HOME/Git/configs/linux-system/fedora/preconfig/dnf.conf" "/etc/dnf/"
+sudo cp -R "$HOME/Git/configs/linux-system/fedora/preconfig/99-custom-env.sh" "/etc/profile.d/"
+sudo cp -R "$HOME/Git/configs/linux-system/fedora/preconfig/dnf.conf" "/etc/dnf/"
 sudo hostnamectl set-hostname workstation
 
 echo "setup repos"
 sleep 1
-sudo dnf copr remove shdwchn10/ryzenadj -y
 #sudo dnf copr enable sneexy/zen-browser -y
 sudo dnf copr remove lukenukem/asus-linux -y
 #sudo dnf install dnf-plugins-core -y

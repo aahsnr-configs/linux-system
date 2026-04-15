@@ -6,6 +6,6 @@
   "autoHeight": true,
   "columnCount": 3,
   "modKeyVariable": "Super",
-  "hyprlandConfigPath": "~/.config/hypr/hyprland.conf",
+  "hyprlandConfigPath": "~/.config/hypr/hyprland/binds.conf",
   "niriConfigPath": "~/.config/niri/config.kdl"
 }
