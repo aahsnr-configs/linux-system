@@ -27,7 +27,7 @@ Boot the **Fedora 43 Workstation Live ISO**. When the "Welcome to Fedora" screen
 2.  **Switch to Root**: `sudo -i`
 3.  **Wipe and Span the Disks**:
     We will create a 1TB high-speed striped vault (using 500GB from each disk) and a 500GB linear overflow on the 1TB drive.
-    ```bash
+    ``` bash
     # 1. Erase metadata
     wipefs -a /dev/nvme0n1 /dev/nvme1n1
 
