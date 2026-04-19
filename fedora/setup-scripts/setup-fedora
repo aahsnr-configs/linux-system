@@ -6,93 +6,65 @@ sudo hostnamectl set-hostname workstation
 
 echo "setup repos"
 sleep 1
-#sudo dnf copr enable sneexy/zen-browser -y
-sudo dnf copr remove lukenukem/asus-linux -y
-#sudo dnf install dnf-plugins-core -y
-sudo dnf copr remove tofik/nwg-shell -y
-# sudo dnf install --nogpgcheck --repofrompath 'terra,https://repos.fyralabs.com/terra$releasever' terra-release -y
+sudo dnf copr enable sneexy/zen-browser 
+sudo dnf install dnf-plugins-core -y
+sudo dnf install --nogpgcheck --repofrompath 'terra,https://repos.fyralabs.com/terra$releasever' terra-release -y
 
-# echo "core pkgs"
-# sleep 2
-# sudo dnf install git-core curl wget pciutils
-#
-# echo "cachyos kernel"
-# sleep 5
-# sudo dnf config-manager setopt fedora.excludepkgs=kernel,kernel-core,kernel-modules,kernel-uki-virt,kernel-devel,kernel-modules-extra,kernel-modules-core,kernel-devel-matched
-# sudo dnf config-manager setopt updates.excludepkgs=kernel,kernel-core,kernel-modules,kernel-uki-virt,kernel-devel,kernel-modules-extra,kernel-modules-core,kernel-devel-matched
-# sudo dnf config-manager setopt updates-testing.excludepkgs=kernel,kernel-core,kernel-modules,kernel-uki-virt,kernel-devel,kernel-modules-extra,kernel-modules-core,kernel-devel-matched
-#
-# sudo dnf copr enable bieszczaders/kernel-cachyos
-# sudo dnf install kernel-cachyos kernel-cachyos-devel-matched --setopt=install_weak_deps=True
-# sudo dnf update
+sudo dnf install git-core curl wget pciutils
 
-# echo "nvidia"
-# sleep 5
-# sudo dnf config-manager addrepo --from-repofile=https://negativo17.org/repos/fedora-multimedia.repo
-# sudo dnf install nvidia-driver nvidia-settings nvidia-driver-cuda cuda-devel nvenc nvidia-driver-NvFBCOpenGL vulkan vulkan-tools libva-nvidia-driver gstreamer1-plugins-base gstreamer1-plugins-good gstreamer1-plugins-ugly gstreamer1-plugins-bad-free gstreamer1-plugins-bad-freeworld ffmpeg libva-utils
-#
+sudo dnf config-manager addrepo --from-repofile=https://negativo17.org/repos/fedora-multimedia.repo
+sudo dnf install nvidia-driver nvidia-settings nvidia-driver-cuda cuda-devel nvenc nvidia-driver-NvFBCOpenGL vulkan vulkan-tools libva-nvidia-driver gstreamer1-plugins-base gstreamer1-plugins-good gstreamer1-plugins-ugly gstreamer1-plugins-bad-free gstreamer1-plugins-bad-freeworld ffmpeg libva-utils
+
 curl -fsS https://dl.brave.com/install.sh | sh
-#
-# echo "Installers"
-# curl -LsSf https://astral.sh/uv/install.sh | sh
-# curl -fsSL https://pixi.sh/install.sh | sh
-#
-# echo "cargo pkgs"
-# sleep 5
-# sudo dnf install cargo -y
-# sudo carge install emacs-lsp-booster texlab --root /usr/local
-#
-# echo "installing pkgs"
-# sleep 5
-sudo dnf install --allowerasing lazygit pandoc-cli plantuml ripgrep starship tealdeer tmux topgrade yazi zoxide gh git git-lfs eza fastfetch fd-find fzf atuin bat btop cava chafa du-dust abattis-cantarell-vf-fonts adobe-source-code-pro-fonts adwaita-mono-fonts adwaita-sans-fonts bleachbit bluez bluez-tools brightnessctl cliphist cronie curl ddcutil direnv distrobox evolution-data-server fail2ban file-roller fontconfig fonts-filesystem gnome-keyring gnome-tweaks gnuplot go google-noto-color-emoji-fonts google-noto-sans-symbols-fonts google-noto-sans-symbols2-fonts graphviz grim gsettings-desktop-schemas gtk4-layer-shell gzip haveged hunspell ImageMagick imv inotify-tools ispell jq kitty kitty-kitten kitty-shell-integration kitty-terminfo liberation-fonts logrotate luajit lynis mpv neovim node npm nwg-look papers papirus-icon-theme pipewire pipewire-alsa pipewire-gstreamer pipewire-pulseaudio pipewire-utils pipx podman podman-compose policycoreutils-python-utils power-profiles-daemon pymol qt5ct qt6ct slurp sqlite swappy switcheroo-control transmission-gtk udiskie urw-base35-fonts util-linux wget wireplumber wl-clipboard wlsunset xdg-desktop-portal xdg-desktop-portal-gnome xdg-desktop-portal-gtk xdg-desktop-portal-hyprland xdg-user-dirs xdg-user-dirs-gtk xorg-x11-server-Xorg xorg-x11-server-Xwayland zathura zathura-pdf-mupdf zathura-zsh-completion zen-browser zsh poppler-utils jetbrainsmono-nerd-fonts nerdfontssymbolsonly-nerd-fonts jetbrains-mono-fonts-all stix-fonts default-fonts-cjk default-fonts-cjk-mono default-fonts-cjk-sans default-fonts-cjk-serif default-fonts-core default-fonts-core-emoji default-fonts-core-math default-fonts-core-mono default-fonts-core-serif google-noto-sans-math-fonts google-noto-sans-bengali-vf-fonts google-noto-sans-symbols-vf-fonts google-noto-serif-bengali-vf-fonts stix-fonts
+curl -LsSf https://astral.sh/uv/install.sh | sh
+curl -fsSL https://pixi.sh/install.sh | sh
 
-# echo "symlink and directory"
-# sleep 5
-# ln -sv "$HOME/Git/configs/linux-system/dots/bin/" "$HOME/"
-# sudo rm -rf ~/.zshrc
-# ln -sv "$HOME/Git/configs/linux-system/dots/.zshrc" "$HOME/"
-# ln -sv "$HOME/Git/configs/linux-system/dots/.config/atuin/" "$HOME/.config/"
-# ln -sv "$HOME/Git/configs/linux-system/dots/.config/bat/" "$HOME/.config/"
-# ln -sv "$HOME/Git/configs/linux-system/dots/.config/enchant/" "$HOME/.config/"
-# ln -sv "$HOME/Git/configs/linux-system/dots/.config/fd/" "$HOME/.config/"
-# ln -sv "$HOME/Git/configs/linux-system/dots/.config/noctalia/" "$HOME/.config/"
-# ln -sv "$HOME/Git/configs/linux-system/dots/.config/gh/" "$HOME/.config/"
-# ln -sv "$HOME/Git/configs/linux-system/dots/.config/kitty/" "$HOME/.config/"
-# ln -sv "$HOME/Git/configs/linux-system/dots/.config/home-manager/" "$HOME/.config/"
-# ln -sv "$HOME/Git/configs/linux-system/dots/.config/hypr/" "$HOME/.config/"
-# ln -sv "$HOME/Git/configs/linux-system/dots/.config/imv/" "$HOME/.config/"
-# ln -sv "$HOME/Git/configs/linux-system/dots/.config/lazygit/" "$HOME/.config/"
-# ln -sv "$HOME/Git/configs/linux-system/dots/.config/nvim/" "$HOME/.config/"
-# ln -sv "$HOME/Git/configs/linux-system/dots/.config/pipewire/" "$HOME/.config/"
-# ln -sv "$HOME/Git/configs/linux-system/dots/.config/pypr/" "$HOME/.config/"
-# ln -sv "$HOME/Git/configs/linux-system/dots/.config/swappy/" "$HOME/.config/"
-# ln -sv "$HOME/Git/configs/linux-system/dots/.config/tealdeer/" "$HOME/.config/"
-# ln -sv "$HOME/Git/configs/linux-system/dots/.config/tmux/" "$HOME/.config/"
-# ln -sv "$HOME/Git/configs/linux-system/dots/.config/xdg-desktop-portal/" "$HOME/.config"
-# ln -sv "$HOME/Git/configs/linux-system/dots/.config/yazi/" "$HOME/.config/"
-# ln -sv "$HOME/Git/configs/linux-system/dots/.config/zathura/" "$HOME/.config/"
-# ln -sv "$HOME/Git/configs/linux-system/dots/.config/chrome-flags.conf" "$HOME/.config/"
-# ln -sv "$HOME/Git/configs/linux-system/dots/.config/electron-flags.conf" "$HOME/.config/"
-# ln -sv "$HOME/Git/configs/linux-system/dots/.config/mimeapps.list" "$HOME/.config/"
-# ln -sv "$HOME/Git/configs/linux-system/dots/.config/starship.toml" "$HOME/.config/"
-# ln -sv "$HOME/Git/configs/linux-system/dots/.config/topgrade.toml" "$HOME/.config/"
-# sudo rm -rf ~/.config/user-dirs.dirs
-# ln -sv "$HOME/Git/configs/linux-system/dots/.config/user-dirs.dirs" "$HOME/.config/"
+sudo dnf install cargo -y
+sudo carge install emacs-lsp-booster texlab --root /usr/local
+
+sudo dnf install --allowerasing lazygit pandoc-cli plantuml ripgrep starship tealdeer tmux topgrade yazi zoxide gh git git-lfs eza fastfetch fd-find fzf atuin bat btop cava chafa du-dust abattis-cantarell-vf-fonts adobe-source-code-pro-fonts adwaita-mono-fonts adwaita-sans-fonts bleachbit bluez bluez-tools brightnessctl cliphist cronie curl ddcutil direnv distrobox evolution-data-server fail2ban file-roller fontconfig fonts-filesystem gnome-keyring gnome-tweaks gnuplot go google-noto-color-emoji-fonts google-noto-sans-symbols-fonts google-noto-sans-symbols2-fonts graphviz grim gsettings-desktop-schemas gtk4-layer-shell gzip haveged hunspell ImageMagick imv inotify-tools ispell jq kitty kitty-kitten kitty-shell-integration kitty-terminfo liberation-fonts logrotate luajit lynis mpv neovim node npm nwg-look papers papirus-icon-theme pipewire pipewire-alsa pipewire-gstreamer pipewire-pulseaudio pipewire-utils pipx podman podman-compose policycoreutils-python-utils pymol qt5ct qt6ct slurp sqlite swappy transmission-gtk udiskie urw-base35-fonts util-linux wget wireplumber wl-clipboard wlsunset xdg-desktop-portal xdg-desktop-portal-gnome xdg-desktop-portal-gtk xdg-desktop-portal-hyprland xdg-user-dirs xdg-user-dirs-gtk xorg-x11-server-Xorg xorg-x11-server-Xwayland zathura zathura-pdf-mupdf zathura-zsh-completion zen-browser zsh poppler-utils jetbrainsmono-nerd-fonts nerdfontssymbolsonly-nerd-fonts jetbrains-mono-fonts-all stix-fonts default-fonts-cjk default-fonts-cjk-mono default-fonts-cjk-sans default-fonts-cjk-serif default-fonts-core default-fonts-core-emoji default-fonts-core-math default-fonts-core-mono default-fonts-core-serif google-noto-sans-math-fonts google-noto-sans-bengali-vf-fonts google-noto-sans-symbols-vf-fonts google-noto-serif-bengali-vf-fonts stix-fonts
+
+ln -sv "$HOME/Git/configs/linux-system/dots/bin/" "$HOME/"
+sudo rm -rf ~/.zshrc
+ln -sv "$HOME/Git/configs/linux-system/dots/.zshrc" "$HOME/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/atuin/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/bat/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/enchant/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/fd/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/noctalia/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/gh/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/kitty/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/home-manager/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/hypr/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/imv/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/lazygit/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/nvim/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/pipewire/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/pypr/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/swappy/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/tealdeer/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/tmux/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/xdg-desktop-portal/" "$HOME/.config"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/yazi/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/zathura/" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/chrome-flags.conf" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/electron-flags.conf" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/mimeapps.list" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/starship.toml" "$HOME/.config/"
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/topgrade.toml" "$HOME/.config/"
+sudo rm -rf ~/.config/user-dirs.dirs
+ln -sv "$HOME/Git/configs/linux-system/dots/.config/user-dirs.dirs" "$HOME/.config/"
+
+# Configure User
+mkdir -p "$HOME/.npm-global"
+npm config set prefix "$HOME/.npm-global"
+
+PIA_INSTALLER=$(mktemp --suffix=.run)
+trap "rm -f '$PIA_INSTALLER'" EXIT
+wget -O "$PIA_INSTALLER" https://installers.privateinternetaccess.com/download/pia-linux-3.6.2-08398.run
+chmod +x "$PIA_INSTALLER"
+bash "$PIA_INSTALLER"
 #
-# # Configure User
-# mkdir -p "$HOME/.npm-global"
-# npm config set prefix "$HOME/.npm-global"
-#
-# echo "systemd services"
-# mkdir -p $HOME/.config/systemd/user/
-# cd $HOME/Git/configs/linux-system/arch/user-systemd-files/ && cp -R * $HOME/.config/systemd/user/ && cd
-#
-# PIA_INSTALLER=$(mktemp --suffix=.run)
-# trap "rm -f '$PIA_INSTALLER'" EXIT
-# wget -O "$PIA_INSTALLER" https://installers.privateinternetaccess.com/download/pia-linux-3.6.2-08398.run
-# chmod +x "$PIA_INSTALLER"
-# bash "$PIA_INSTALLER"
-#
-# systemctl --user enable wireplumber.service pipewire.service pipewire-pulse.service
-# # systemctl --user enable gnome-keyring-daemon
+systemctl --user enable wireplumber.service pipewire.service pipewire-pulse.service
+systemctl --user enable gnome-keyring-daemon
 # # #sudo systemctl enable power-profiles-daemon
