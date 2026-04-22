@@ -101,7 +101,7 @@ check_tumbleweed_distro() {
 
 # Check Python version
 check_python_version() {
-    if ! command -v python3 &> /dev/null; then
+    if ! command -v python3 &>/dev/null; then
         log_error "Python 3 is not installed. Install python313 via zypper."
         exit 1
     fi
@@ -111,8 +111,8 @@ check_python_version() {
     python_major=$(echo "$python_version" | cut -d'.' -f1)
     python_minor=$(echo "$python_version" | cut -d'.' -f2)
 
-    if [[ $python_major -lt $MIN_PYTHON_MAJOR ]] || \
-       [[ $python_major -eq $MIN_PYTHON_MAJOR && $python_minor -lt $MIN_PYTHON_MINOR ]]; then
+    if [[ $python_major -lt $MIN_PYTHON_MAJOR ]] ||
+        [[ $python_major -eq $MIN_PYTHON_MAJOR && $python_minor -lt $MIN_PYTHON_MINOR ]]; then
         log_error "Python ${MIN_PYTHON_MAJOR}.${MIN_PYTHON_MINOR}+ is required. Found: $python_version"
         exit 1
     fi
@@ -405,7 +405,7 @@ save_version() {
     cd "$BUILD_DIR" || return
     local current_commit
     current_commit=$(git rev-parse HEAD)
-    echo "$current_commit" > "$VERSION_FILE"
+    echo "$current_commit" >"$VERSION_FILE"
 }
 
 # Verify installation
@@ -417,7 +417,7 @@ verify_installation() {
     local all_good=true
 
     # Check pypr
-    if command -v pypr &> /dev/null; then
+    if command -v pypr &>/dev/null; then
         local pypr_version
         pypr_version=$(pypr --version 2>&1 || echo "version check failed")
         log_success "pypr command is available"
@@ -429,7 +429,7 @@ verify_installation() {
     fi
 
     # Check pypr-client
-    if command -v pypr-client &> /dev/null; then
+    if command -v pypr-client &>/dev/null; then
         log_success "pypr-client command is available"
         log_info "  Location: $(which pypr-client)"
     else
@@ -446,7 +446,7 @@ verify_installation() {
 
 # Display usage
 usage() {
-    cat << 'EOF'
+    cat <<'EOF'
 Pyprland Installation Script for openSUSE Tumbleweed
 
 Converted from pyprland-git PKGBUILD (AUR)
@@ -564,7 +564,7 @@ main_install() {
     echo
     log_info "Commands available:"
     log_info "  pypr          - Main daemon (required)"
-    if command -v pypr-client &> /dev/null; then
+    if command -v pypr-client &>/dev/null; then
         log_info "  pypr-client   - Fast client for keybindings (optional)"
     fi
     echo
@@ -585,32 +585,32 @@ main() {
     local command="${1:-install}"
 
     case "$command" in
-        install)
-            main_install
-            ;;
-        check-update|check)
-            check_root
-            if check_for_updates; then
-                echo
-                log_info "To update: $0 install"
-            fi
-            ;;
-        remove|uninstall)
-            check_root
-            remove_pyprland
-            ;;
-        clean)
-            clean_build_dir
-            ;;
-        help|-h|--help)
-            usage
-            ;;
-        *)
-            log_error "Unknown command: $command"
+    install)
+        main_install
+        ;;
+    check-update | check)
+        check_root
+        if check_for_updates; then
             echo
-            usage
-            exit 1
-            ;;
+            log_info "To update: $0 install"
+        fi
+        ;;
+    remove | uninstall)
+        check_root
+        remove_pyprland
+        ;;
+    clean)
+        clean_build_dir
+        ;;
+    help | -h | --help)
+        usage
+        ;;
+    *)
+        log_error "Unknown command: $command"
+        echo
+        usage
+        exit 1
+        ;;
     esac
 }
 

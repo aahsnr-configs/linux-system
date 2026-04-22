@@ -26,6 +26,7 @@ application/x-extension-xhtml=zen.desktop
 application/x-extension-xht=zen.desktop
 x-scheme-handler/discord=vesktop.desktop
 x-scheme-handler/etcher=balenaEtcher.desktop
+x-scheme-handler/magnet=userapp-transmission-gtk-Q15FO3.desktop
 
 [Added Associations]
 x-scheme-handler/http=zen.desktop;
@@ -34,3 +35,4 @@ x-scheme-handler/chrome=zen.desktop;
 application/x-shellscript=nvim.desktop;
 application/pdf=org.pwmt.zathura-pdf-mupdf.desktop;org.gnome.Papers.desktop;
 image/vnd.djvu+multipage=org.pwmt.zathura-djvu.desktop;
+x-scheme-handler/magnet=userapp-transmission-gtk-Q15FO3.desktop;

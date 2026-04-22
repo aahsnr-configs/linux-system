@@ -357,7 +357,7 @@
     },
     "colorSchemes": {
         "darkMode": true,
-        "generationMethod": "tonal-spot",
+        "generationMethod": "muted",
         "manualSunrise": "06:30",
         "manualSunset": "18:30",
         "monitorForColors": "",
@@ -546,7 +546,7 @@
     },
     "idle": {
         "customCommands": "[]",
-        "enabled": false,
+        "enabled": true,
         "fadeDuration": 5,
         "lockCommand": "",
         "lockTimeout": 40000,
@@ -588,7 +588,7 @@
         "autoSchedule": true,
         "dayTemp": "5544",
         "enabled": true,
-        "forced": true,
+        "forced": false,
         "manualSunrise": "06:30",
         "manualSunset": "18:30",
         "nightTemp": "4572"
@@ -814,9 +814,9 @@
     },
     "ui": {
         "boxBorderEnabled": false,
-        "fontDefault": "JetBrains Mono Medium",
+        "fontDefault": "JetBrainsMono Nerd Font",
         "fontDefaultScale": 1,
-        "fontFixed": "JetBrains Mono Medium",
+        "fontFixed": "JetBrainsMono Nerd Font",
         "fontFixedScale": 1,
         "panelBackgroundOpacity": 0.93,
         "panelsAttachedToBar": true,

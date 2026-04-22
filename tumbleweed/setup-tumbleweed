@@ -1,112 +1,112 @@
 #!/bin/bash
-sudo sed -i 's/^solver.allowVendorChange = true/solver.allowVendorChange = false/' /etc/zypp/zypp.conf
-sudo zypper ar -f -p 92 https://download.opensuse.org/repositories/home:/neifua/openSUSE_Tumbleweed/home:neifua.repo
-sudo zypper ar -f -p 95 https://download.opensuse.org/repositories/home:/sbrabec/openSUSE_Tumbleweed/home:sbrabec.repo
-sudo zypper ar -f -p 95 https://download.opensuse.org/repositories/home:/Werwolf2517/openSUSE_Tumbleweed/home:Werwolf2517.repo
-sudo zypper ar -f -p 96 https://download.opensuse.org/repositories/home:/tecosaur/openSUSE_Tumbleweed/home:tecosaur.repo
-sudo zypper ar -f -p 100 https://download.opensuse.org/repositories/X11:/Wayland/openSUSE_Tumbleweed/ X11_Wayland
-sudo zypper ar -f -p 105 https://download.opensuse.org/repositories/home:/soupglasses/openSUSE_Tumbleweed/home:soupglasses.repo
-sudo zypper addrepo https://download.nvidia.com/opensuse/tumbleweed/ NVIDIA
-
+# sudo sed -i 's/^solver.allowVendorChange = true/solver.allowVendorChange = false/' /etc/zypp/zypp.conf
+# sudo zypper ar -f -p 92 https://download.opensuse.org/repositories/home:/neifua/openSUSE_Tumbleweed/home:neifua.repo
+# sudo zypper ar -f -p 95 https://download.opensuse.org/repositories/home:/sbrabec/openSUSE_Tumbleweed/home:sbrabec.repo
+# sudo zypper ar -f -p 95 https://download.opensuse.org/repositories/home:/Werwolf2517/openSUSE_Tumbleweed/home:Werwolf2517.repo
+# sudo zypper ar -f -p 96 https://download.opensuse.org/repositories/home:/tecosaur/openSUSE_Tumbleweed/home:tecosaur.repo
+# sudo zypper ar -f -p 100 https://download.opensuse.org/repositories/X11:/Wayland/openSUSE_Tumbleweed/ X11_Wayland
+# sudo zypper ar -f -p 105 https://download.opensuse.org/repositories/home:/soupglasses/openSUSE_Tumbleweed/home:soupglasses.repo
+# sudo zypper addrepo https://download.nvidia.com/opensuse/tumbleweed/ NVIDIA
+#
 # 2. Refresh everything
-sudo zypper --gpg-auto-import-keys ref
+#sudo zypper --gpg-auto-import-keys ref
 
-sudo zypper in --no-recommends acpid adw-gtk3 ananicy-cpp ananicy-rules aspell atuin bat bleachbit bluez bluez-firmware bpftune btop cava chafa cliphist cronie curl direnv distrobox dust enchant enchant-devel evolution-data-server eza fail2ban fastfetch fd file-roller flatpak fwupd fwupd-efi gh git-core git-lfs gnome-keyring gnome-tweaks gnuplot google-noto-coloremoji-fonts google-noto-sans-cjk-fonts graphviz grim gsettings-desktop-schemas gzip haveged hunspell hyprland hyprland-guiutils i2c-tools ImageMagick imv inotify-tools ispell jq kitty kitty-shell-integration kitty-terminfo lazygit logrotate luajit lynis mpv myspell-en nautilus neovide neovim nerd-fonts-JetBrainsMono nodejs24 noctalia-shell npm24 nwg-look opi pandoc-cli papers papirus-icon-theme pipewire pipewire-alsa pipewire-pulseaudio pkgconf-pkg-config podman podman-docker profile-sync-daemon python314-neovim python314-pipx python314-pymol qt5ct qt6ct ripgrep slurp socat sof-firmware starship swappy symbols-only-nerd-fonts tealdeer tmux topgrade transmission-gtk trash-cli tuned-ppd ucode-intel unzip wireplumber wl-clipboard wlr-randr wlsunset xdg-desktop-portal-gnome xdg-desktop-portal-gtk xdg-desktop-portal-hyprland xdg-user-dirs xdg-user-dirs-gtk yazi zathura zathura-plugin-pdf-mupdf zeromq-tools zip zotero zram-generator zsh zstd gdm
-
-curl -LsSf https://astral.sh/uv/install.sh | sh
-curl -fsSL https://pixi.sh/install.sh | sh
-curl https://mise.run | sh
-curl -fsS https://dl.brave.com/install.sh | sh
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-
+# sudo zypper in --no-recommends acpid adw-gtk3 ananicy-cpp ananicy-rules aspell atuin bat bleachbit bluez bluez-firmware bpftune btop cava chafa cliphist cronie curl direnv distrobox dust enchant enchant-devel evolution-data-server eza fail2ban fastfetch fd file-roller flatpak fwupd fwupd-efi gh git-core git-lfs gnome-keyring gnome-tweaks gnuplot google-noto-coloremoji-fonts google-noto-sans-cjk-fonts graphviz grim gsettings-desktop-schemas gzip haveged hunspell hyprland hyprland-guiutils i2c-tools ImageMagick imv inotify-tools ispell jq kitty kitty-shell-integration kitty-terminfo lazygit logrotate luajit lynis mpv myspell-en nautilus neovide neovim nerd-fonts-JetBrainsMono nodejs24 noctalia-shell npm24 nwg-look opi pandoc-cli papers papirus-icon-theme pipewire pipewire-alsa pipewire-pulseaudio pkgconf-pkg-config podman podman-docker profile-sync-daemon python314-neovim python314-pipx python314-pymol qt5ct qt6ct ripgrep slurp socat sof-firmware starship swappy symbols-only-nerd-fonts tealdeer tmux topgrade transmission-gtk trash-cli tuned-ppd ucode-intel unzip wireplumber wl-clipboard wlr-randr wlsunset xdg-desktop-portal-gnome xdg-desktop-portal-gtk xdg-desktop-portal-hyprland xdg-user-dirs xdg-user-dirs-gtk yazi zathura zathura-plugin-pdf-mupdf zeromq-tools zip zotero zram-generator zsh zstd gdm
+#
+# curl -LsSf https://astral.sh/uv/install.sh | sh
+# curl -fsSL https://pixi.sh/install.sh | sh
+# curl https://mise.run | sh
+# curl -fsS https://dl.brave.com/install.sh | sh
+# curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+#
 sudo zypper in alsa-firmware intel-media-driver kernel-firmware-bluetooth kernel-firmware-intel kernel-firmware-iwlwifi kernel-firmware-nvidia kernel-firmware-platform kernel-firmware-sound libnvidia-egl-wayland1 libva-utils nvidia-compute-utils-G07 nvidia-gl-G07 nvidia-open-driver-G07-signed-kmp-default nvidia-settings nvidia-video-G07 OpenRGB sof-firmware thermald ucode-intel vulkan-validationlayers
 
-opi codecs
-
-sudo systemctl enable acpid.service bluez.service bpftune.service cronie.service fail2ban.service fwupd.service haveged.service i2c-dev.service logrotate.timer tuned.service zram-generator.service
-
-systemctl --user enable gnome-keyring-daemon pipewire pipewire-pulse wireplumber
-systemctl --user enable podman.socket
-
-# Create ZRAM configuration directory
-sudo mkdir -p /etc/systemd
-
-# Create ZRAM generator configuration
-sudo tee /etc/systemd/zram-generator.conf >/dev/null <<'EOF'
-[zram0]
-# Use zstd compression (best ratio)
-compression-algorithm = zstd
-# Set ZRAM size to 50% of RAM (adjust as needed)
-zram-size = ram / 2
-# Priority higher than regular swap
-priority = 100
-# Use lz4 for faster (de)compression if zstd is too slow
-# compression-algorithm = lz4
-EOF
-
-sudo systemctl daemon-reload
-sudo systemctl enable systemd-zram-setup@zram0.service
-
-echo "rust pkgs"
-sleep 5
-rustup default stable
-cargo install emacs-lsp-booster texlab pay-respects
-
-echo "piavpn"
-sleep 5
-PIA_INSTALLER=$(mktemp --suffix=.run)
-trap "rm -f '$PIA_INSTALLER'" EXIT
-wget -O "$PIA_INSTALLER" https://installers.privateinternetaccess.com/download/pia-linux-3.6.2-08398.run
-chmod +x "$PIA_INSTALLER"
-bash "$PIA_INSTALLER"
-
-echo "symlink and directory"
-sleep 5
-ln -sv "$HOME/Git/configs/linux-system/dots/bin/" "$HOME/"
-sudo rm -rf ~/.zshrc
-ln -sv "$HOME/Git/configs/linux-system/dots/.zshrc" "$HOME/"
-ln -sv "$HOME/Git/configs/linux-system/dots/.config/atuin/" "$HOME/.config/"
-ln -sv "$HOME/Git/configs/linux-system/dots/.config/bat/" "$HOME/.config/"
-ln -sv "$HOME/Git/configs/linux-system/dots/.config/btop/" "$HOME/.config/"
-ln -sv "$HOME/Git/configs/linux-system/dots/.config/enchant/" "$HOME/.config/"
-ln -sv "$HOME/Git/configs/linux-system/dots/.config/fd/" "$HOME/.config/"
-ln -sv "$HOME/Git/configs/linux-system/dots/.config/gh/" "$HOME/.config/"
-ln -sv "$HOME/Git/configs/linux-system/dots/.config/kitty/" "$HOME/.config/"
-ln -sv "$HOME/Git/configs/linux-system/dots/.config/home-manager/" "$HOME/.config/"
-ln -sv "$HOME/Git/configs/linux-system/dots/.config/hypr/" "$HOME/.config/"
-ln -sv "$HOME/Git/configs/linux-system/dots/.config/imv/" "$HOME/.config/"
-ln -sv "$HOME/Git/configs/linux-system/dots/.config/lazygit/" "$HOME/.config/"
-ln -sv "$HOME/Git/configs/linux-system/dots/.config/nvim/" "$HOME/.config/"
-ln -sv "$HOME/Git/configs/linux-system/dots/.config/pipewire/" "$HOME/.config/"
-ln -sv "$HOME/Git/configs/linux-system/dots/.config/pypr/" "$HOME/.config/"
-ln -sv "$HOME/Git/configs/linux-system/dots/.config/swappy/" "$HOME/.config/"
-ln -sv "$HOME/Git/configs/linux-system/dots/.config/tealdeer/" "$HOME/.config/"
-ln -sv "$HOME/Git/configs/linux-system/dots/.config/tmux/" "$HOME/.config/"
-ln -sv "$HOME/Git/configs/linux-system/dots/.config/xdg-desktop-portal/" "$HOME/.config"
-ln -sv "$HOME/Git/configs/linux-system/dots/.config/yazi/" "$HOME/.config/"
-ln -sv "$HOME/Git/configs/linux-system/dots/.config/zathura/" "$HOME/.config/"
-ln -sv "$HOME/Git/configs/linux-system/dots/.config/chrome-flags.conf" "$HOME/.config/"
-ln -sv "$HOME/Git/configs/linux-system/dots/.config/electron-flags.conf" "$HOME/.config/"
-ln -sv "$HOME/Git/configs/linux-system/dots/.config/mimeapps.list" "$HOME/.config/"
-ln -sv "$HOME/Git/configs/linux-system/dots/.config/starship.toml" "$HOME/.config/"
-sudo rm -rf ~/.config/user-dirs.dirs
-ln -sv "$HOME/Git/configs/linux-system/dots/.config/user-dirs.dirs" "$HOME/.config/"
-ln -sv "$HOME/Git/configs/linux-system/dots/.config/noctalia/" "$HOME/.config/"
-ln -sv "$HOME/Git/configs/linux-system/dots/tmp/" "$HOME/"
-
-# Configure User
-mkdir -p "$HOME/.npm-global"
-npm config set prefix "$HOME/.npm-global"
-
-echo "piavpn"
-sleep 5
-PIA_INSTALLER=$(mktemp --suffix=.run)
-trap "rm -f '$PIA_INSTALLER'" EXIT
-wget -O "$PIA_INSTALLER" https://installers.privateinternetaccess.com/download/pia-linux-3.6.2-08398.run
-chmod +x "$PIA_INSTALLER"
-bash "$PIA_INSTALLER"
-
-systemctl --user enable wireplumber.service pipewire.service pipewire-pulse.service
-systemctl --user enable gnome-keyring-daemon
-sudo systemctl enable --now ananicy-cpp.service
-chsh -s $(which zsh)
+# opi codecs
+#
+# sudo systemctl enable acpid.service bluez.service bpftune.service cronie.service fail2ban.service fwupd.service haveged.service i2c-dev.service logrotate.timer tuned.service zram-generator.service
+#
+# systemctl --user enable gnome-keyring-daemon pipewire pipewire-pulse wireplumber
+# systemctl --user enable podman.socket
+#
+# # Create ZRAM configuration directory
+# sudo mkdir -p /etc/systemd
+#
+# # Create ZRAM generator configuration
+# sudo tee /etc/systemd/zram-generator.conf >/dev/null <<'EOF'
+# [zram0]
+# # Use zstd compression (best ratio)
+# compression-algorithm = zstd
+# # Set ZRAM size to 50% of RAM (adjust as needed)
+# zram-size = ram / 2
+# # Priority higher than regular swap
+# priority = 100
+# # Use lz4 for faster (de)compression if zstd is too slow
+# # compression-algorithm = lz4
+# EOF
+#
+# sudo systemctl daemon-reload
+# sudo systemctl enable systemd-zram-setup@zram0.service
+#
+# echo "rust pkgs"
+# sleep 5
+# rustup default stable
+# cargo install emacs-lsp-booster texlab pay-respects
+#
+# echo "piavpn"
+# sleep 5
+# PIA_INSTALLER=$(mktemp --suffix=.run)
+# trap "rm -f '$PIA_INSTALLER'" EXIT
+# wget -O "$PIA_INSTALLER" https://installers.privateinternetaccess.com/download/pia-linux-3.6.2-08398.run
+# chmod +x "$PIA_INSTALLER"
+# bash "$PIA_INSTALLER"
+#
+# echo "symlink and directory"
+# sleep 5
+# ln -sv "$HOME/Git/configs/linux-system/dots/bin/" "$HOME/"
+# sudo rm -rf ~/.zshrc
+# ln -sv "$HOME/Git/configs/linux-system/dots/.zshrc" "$HOME/"
+# ln -sv "$HOME/Git/configs/linux-system/dots/.config/atuin/" "$HOME/.config/"
+# ln -sv "$HOME/Git/configs/linux-system/dots/.config/bat/" "$HOME/.config/"
+# ln -sv "$HOME/Git/configs/linux-system/dots/.config/btop/" "$HOME/.config/"
+# ln -sv "$HOME/Git/configs/linux-system/dots/.config/enchant/" "$HOME/.config/"
+# ln -sv "$HOME/Git/configs/linux-system/dots/.config/fd/" "$HOME/.config/"
+# ln -sv "$HOME/Git/configs/linux-system/dots/.config/gh/" "$HOME/.config/"
+# ln -sv "$HOME/Git/configs/linux-system/dots/.config/kitty/" "$HOME/.config/"
+# ln -sv "$HOME/Git/configs/linux-system/dots/.config/home-manager/" "$HOME/.config/"
+# ln -sv "$HOME/Git/configs/linux-system/dots/.config/hypr/" "$HOME/.config/"
+# ln -sv "$HOME/Git/configs/linux-system/dots/.config/imv/" "$HOME/.config/"
+# ln -sv "$HOME/Git/configs/linux-system/dots/.config/lazygit/" "$HOME/.config/"
+# ln -sv "$HOME/Git/configs/linux-system/dots/.config/nvim/" "$HOME/.config/"
+# ln -sv "$HOME/Git/configs/linux-system/dots/.config/pipewire/" "$HOME/.config/"
+# ln -sv "$HOME/Git/configs/linux-system/dots/.config/pypr/" "$HOME/.config/"
+# ln -sv "$HOME/Git/configs/linux-system/dots/.config/swappy/" "$HOME/.config/"
+# ln -sv "$HOME/Git/configs/linux-system/dots/.config/tealdeer/" "$HOME/.config/"
+# ln -sv "$HOME/Git/configs/linux-system/dots/.config/tmux/" "$HOME/.config/"
+# ln -sv "$HOME/Git/configs/linux-system/dots/.config/xdg-desktop-portal/" "$HOME/.config"
+# ln -sv "$HOME/Git/configs/linux-system/dots/.config/yazi/" "$HOME/.config/"
+# ln -sv "$HOME/Git/configs/linux-system/dots/.config/zathura/" "$HOME/.config/"
+# ln -sv "$HOME/Git/configs/linux-system/dots/.config/chrome-flags.conf" "$HOME/.config/"
+# ln -sv "$HOME/Git/configs/linux-system/dots/.config/electron-flags.conf" "$HOME/.config/"
+# ln -sv "$HOME/Git/configs/linux-system/dots/.config/mimeapps.list" "$HOME/.config/"
+# ln -sv "$HOME/Git/configs/linux-system/dots/.config/starship.toml" "$HOME/.config/"
+# sudo rm -rf ~/.config/user-dirs.dirs
+# ln -sv "$HOME/Git/configs/linux-system/dots/.config/user-dirs.dirs" "$HOME/.config/"
+# ln -sv "$HOME/Git/configs/linux-system/dots/.config/noctalia/" "$HOME/.config/"
+# ln -sv "$HOME/Git/configs/linux-system/dots/tmp/" "$HOME/"
+#
+# # Configure User
+# mkdir -p "$HOME/.npm-global"
+# npm config set prefix "$HOME/.npm-global"
+#
+# echo "piavpn"
+# sleep 5
+# PIA_INSTALLER=$(mktemp --suffix=.run)
+# trap "rm -f '$PIA_INSTALLER'" EXIT
+# wget -O "$PIA_INSTALLER" https://installers.privateinternetaccess.com/download/pia-linux-3.6.2-08398.run
+# chmod +x "$PIA_INSTALLER"
+# bash "$PIA_INSTALLER"
+#
+# systemctl --user enable wireplumber.service pipewire.service pipewire-pulse.service
+# systemctl --user enable gnome-keyring-daemon
+# sudo systemctl enable --now ananicy-cpp.service
+# chsh -s $(which zsh)
