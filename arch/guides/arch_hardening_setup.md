@@ -1689,7 +1689,6 @@ def main() -> int:
 
     return 0
 
-
 if __name__ == "__main__":
     sys.exit(main())
 ```
@@ -2444,9 +2443,7 @@ install udf /bin/false
 
 ##############################################################
 ## Unused Network Protocols
-## Each of these represents a kernel protocol parser that
-## has historically had memory corruption vulnerabilities.
-## None are used on a modern Linux workstation.
+## Each of these represents a kernel protocol parser that has historically had memory corruption vulnerabilities. None are used on a modern Linux workstation.
 ##############################################################
 
 install dccp /bin/false

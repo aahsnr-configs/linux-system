@@ -464,6 +464,7 @@ app-editors/emacs -X tree-sitter imagemagick mailutils sqlite
 sys-devel/gcc default-stack-clash-protection graphite go
 llvm-runtimes/compiler-rt-sanitizers orc profile
 llvm-core/clang-runtime sanitize
+dev-lang/python -jit
 ```
 
 `nvim /etc/portage/env/clang-lto-env`
@@ -1033,41 +1034,740 @@ BASHRC
 
 ## Part 14 — AppArmor Configuration
 
-```bash
-emerge --ask app-armor/apparmor app-armor/apparmor-utils app-armor/apparmor.d
+### 14.1 — Installation and Kernel Setup
 
-systemctl enable apparmor.service auditd.service
+AppArmor is a Mandatory Access Control (MAC) system implemented upon LSM (Linux Security Modules). It is supported on Gentoo as a first‑class citizen.
+
+#### Kernel Configuration
+
+Ensure the following kernel options are enabled. The cachyos-sources `.config` sets most of these already; verify with `make menuconfig` in Part 7:
+
+```
+General setup --->
+  [*] Auditing support
+Security options --->
+  [*] Enable the securityfs filesystem
+  [*] Socket and Networking Security Hooks
+  [*] Enable different security models
+  [*] AppArmor support
+  [*] Enable introspection of sha1 hashes for loaded profiles
+  [*] Enable policy hash introspection by default
+  First legacy 'major LSM' to be initialized (AppArmor) --->
+  Ordered List of enabled LSMs: "yama,apparmor"
 ```
 
-> **The Arch hardening guide’s AppArmor configuration (Part 3 of `arch_hardening_setup.md`) should be followed in its entirety**: fast caching, `apparmor.d` profile deployment, enforce/complain mode assignments, local override files. The kernel parameters `apparmor=1 security=apparmor` and the LSM stack are already embedded in the UKI cmdline.
+The `CONFIG_LSM="yama,apparmor"` string is the Gentoo‑recommended approach and makes the Arch‑style `lsm=` kernel command‑line parameter unnecessary.
+
+#### Boot Parameters (Already in UKI cmdline)
+
+```
+apparmor=1 security=apparmor
+```
+
+These are already embedded in the UKI cmdline (Part 8). No `lsm=` parameter is needed or should be added.
+
+#### Install Userspace Tools
+
+```bash
+emerge --ask sys-apps/apparmor sys-apps/apparmor-utils
+emerge --ask sec-policy/apparmor-profiles
+
+# Enable AppArmor service
+systemctl enable apparmor.service
+```
+
+`sec-policy/apparmor-profiles` provides the default abstractions shipped by upstream; it is a dependency required by apparmor.d.
 
 ---
 
-## Part 15 — Sysctl Hardening
+### 14.2 — AppArmor Parser Configuration
 
-> **Use the complete sysctl configuration from `arch_hardening_setup.md` Part 5.** The file `/etc/sysctl.d/99-hardening.conf` should contain all 50+ annotated parameters — ASLR, kernel pointer hiding, BPF hardening, ptrace restrictions, network stack hardening, filesystem protections, kernel memory hardening — exactly as documented in the Arch guide. Apply with `sysctl --system`.
+With ~1500 profiles totaling ~100 000 lines, fast caching compression is recommended. Early policy load is also required for UKI‑based systems.
+
+```bash
+echo 'write-cache' | tee -a /etc/apparmor/parser.conf
+echo 'cache-loc /etc/apparmor/earlypolicy/' | tee -a /etc/apparmor/parser.conf
+echo 'Optimize=compress-fast' | tee -a /etc/apparmor/parser.conf
+echo 'early_policy=yes' | tee -a /etc/apparmor/parser.conf
+```
+
+> **UKI note**: `early_policy=yes` requires the `apparmor` dracut module. Add `apparmor` to the `add_dracutmodules+=` line in `/etc/dracut.conf.d/00-base.conf`:
+>
+> ```bash
+> add_dracutmodules+=" tpm2-tss crypt lvm btrfs systemd systemd-initrd apparmor "
+> ```
+
+---
+
+### 14.3 — apparmor.d Integration
+
+The `apparmor.d` project provides a set of over 1500 AppArmor profiles aiming to confine most Linux‑based applications and processes. It confines all root processes such as all systemd tools, bluetooth, dbus, polkit, NetworkManager, OpenVPN, GDM, rtkit, and colord.
+
+#### Installation
+
+The project is not yet packaged in Gentoo's main repository. Install it manually from source:
+
+```bash
+# Install build dependencies. The apparmor.d build uses either
+# 'make' (GNU Make) or 'just' (a modern command runner).
+# The Makefile is the primary build system; 'just' is optional
+# and not required for a basic install.
+emerge --ask dev-build/just
+
+# Clone the repository
+git clone https://github.com/roddhjav/apparmor.d.git
+cd apparmor.d
+
+# Verify the commit signature
+git log --show-signature -1
+
+# Build — the default target installs all profiles in COMPLAIN MODE.
+# This is deliberate: it lets you test the profiles for a week
+# before switching to enforce, as recommended by the project.
+make
+sudo make install
+```
+
+> **Installation philosophy**: The project strongly recommends installing in complain mode first, checking logs for a week, and only then switching to enforce mode. This prevents a broken system on initial installation.
+
+---
+
+### 14.4 — Configure Personal Directories
+
+The profiles heavily use the XDG directory variables. All the variables are lists you can append. This part is vital; failure to configure it correctly will cause breakage.
+
+The apparmor.d project installs tunables in `/etc/apparmor.d/tunables/home.d/`. On Ubuntu the file is named `ubuntu`; on Gentoo the project may not create a distribution‑specific file. Review what was installed:
+
+```bash
+ls /etc/apparmor.d/tunables/home.d/
+```
+
+If no Gentoo‑specific file exists, create your own:
+
+```bash
+cat > /etc/apparmor.d/tunables/home.d/gentoo << 'EOF'
+# Gentoo-specific XDG directory overrides.
+# Append additional paths to the default variables.
+# Default values are defined in /etc/apparmor.d/tunables/home.
+
+@{XDG_DESKTOP_DIR}+="Desktop"
+@{XDG_DOCUMENTS_DIR}+="Documents"
+@{XDG_DOWNLOAD_DIR}+="Downloads"
+@{XDG_MUSIC_DIR}+="Music"
+@{XDG_PICTURES_DIR}+="Pictures"
+@{XDG_VIDEOS_DIR}+="Videos"
+@{XDG_PROJECTS_DIR}+="Projects"
+EOF
+```
+
+Key XDG variables and their defaults (defined in `/etc/apparmor.d/tunables/home`):
+
+| Variable | Default |
+|---|---|
+| `@{XDG_DESKTOP_DIR}` | `Desktop` |
+| `@{XDG_DOCUMENTS_DIR}` | `Documents` |
+| `@{XDG_DOWNLOAD_DIR}` | `Downloads` |
+| `@{XDG_MUSIC_DIR}` | `Music` |
+| `@{XDG_PICTURES_DIR}` | `Pictures` |
+| `@{XDG_VIDEOS_DIR}` | `Videos` |
+| `@{XDG_PROJECTS_DIR}` | `Projects` |
+| `@{XDG_CACHE_DIR}` | `.cache` |
+| `@{XDG_CONFIG_DIR}` | `.config` |
+| `@{XDG_DATA_DIR}` | `.local/share` |
+| `@{XDG_STATE_DIR}` | `.local/state` |
+| `@{XDG_BIN_DIR}` | `.local/bin` |
+
+If your home directory layout differs (e.g., `~/dev` for projects, `~/media` for music), append your paths to the corresponding variables here.
+
+---
+
+### 14.5 — Testing in Complain Mode and Switching to Enforce
+
+After installation, follow this workflow:
+
+1. **Reboot** with all profiles in complain mode.
+2. **Check** AppArmor logs daily:
+   ```bash
+   aa-log
+   ```
+3. **Run** in complain mode for at least a week.
+4. **Report** any raised logs to the project.
+5. **Only if no logs are raised** for your daily usage, switch to enforce mode.
+
+```bash
+cd apparmor.d
+sudo make uninstall
+make clean
+make enforce
+sudo make install
+```
+
+---
+
+### 14.6 — Recommended Enforce/Complain Mode Assignments
+
+**Enforce — these profiles are mature and stable:**
+
+| Profile | Application | Rationale |
+|---|---|---|
+| `systemd` | systemd PID 1 | Extremely well‑tested |
+| `systemd-journald` | Journal daemon | High‑value target |
+| `systemd-logind` | Login session management | Stable profile |
+| `NetworkManager` | Network management | Internet‑facing |
+| `bluetoothd` | Bluetooth daemon | High attack surface |
+| `dbus-system` | System D‑Bus | IPC broker |
+| `dbus-session` | Session D‑Bus | User IPC |
+| `polkit` | Policy kit | Privilege escalation broker |
+| `sshd` | SSH daemon | Internet‑facing |
+| `cups` | Print daemon | Legacy protocol attack surface |
+| `avahi-daemon` | mDNS daemon | Network‑facing |
+| `rtkit-daemon` | Real‑time scheduler | Privilege escalation vector |
+| `colord` | Color management | D‑Bus accessible |
+| `sddm` | Display manager | Authentication boundary |
+
+**Complain mode — needs site‑specific tuning:**
+
+| Profile | Reason |
+|---|---|
+| Firefox, Chromium | Rapidly evolving permissions |
+| Electron apps | Vary per‑app |
+| Code editors (VSCode, etc.) | Plugin system requires broad file access |
+| Python, Node.js interpreters | Too broad to confine without per‑script profiles |
+| Steam, Wine | Game executables have arbitrary permission requirements |
+| Flatpak + bwrap | Conditional on usage |
+
+---
+
+### 14.7 — Handling Profile Conflicts
+
+The `sec-policy/apparmor-profiles` package ships base profiles. apparmor.d ships 1500+ profiles covering the same namespace. When both are installed, apparmor.d profiles take precedence.
+
+```bash
+# Check for conflicts
+find /etc/apparmor.d/ -maxdepth 1 -type f | while read f; do
+    name=$(basename "$f")
+    if ls /etc/apparmor.d/abstractions/ | grep -q "^${name}$" 2>/dev/null; then
+        echo "Potential conflict: $f"
+    fi
+done
+
+# Disable conflicting distro profiles
+mkdir -p /etc/apparmor.d/disable
+ln -sf /dev/null /etc/apparmor.d/disable/usr.sbin.sshd
+```
+
+---
+
+### 14.8 — Local Override Files
+
+For site‑specific adjustments that survive apparmor.d updates:
+
+```bash
+# Allow NetworkManager to access a site-specific VPN plugin
+cat > /etc/apparmor.d/local/NetworkManager << 'EOF'
+# Site-specific NetworkManager overrides
+/etc/vpn/corporate/ r,
+/etc/vpn/corporate/** r,
+EOF
+
+# Allow sshd to read a non-standard authorized_keys location
+cat > /etc/apparmor.d/local/sshd << 'EOF'
+# Site-specific sshd overrides
+/etc/ssh/authorized_keys.d/ r,
+/etc/ssh/authorized_keys.d/** r,
+EOF
+
+# Reload all profiles after changes
+apparmor_parser -r /etc/apparmor.d/
+```
+
+---
+
+### 14.9 — Verification
+
+```bash
+aa-status
+# Expected:
+#   apparmor module is loaded.
+#   N profiles are loaded.
+#   N profiles are in enforce mode.
+#   N profiles are in complain mode.
+#   N processes have profiles defined.
+```
+
+---
+
+## Part 15 — Auditd Hardening
+
+### 15.1 — Installation
+
+Auditd records system‑call events and is required for AppArmor profile generation and security monitoring.
+
+```bash
+emerge --ask sys-process/audit
+
+# Enable the auditd service
+systemctl enable auditd.service
+```
+
+> **No separate `augenrules.service` exists on Gentoo.** Gentoo uses `/etc/conf.d/auditd` to control whether `augenrules` merges component rule files from `/etc/audit/rules.d/` into `/etc/audit/audit.rules` at startup. The default is `USE_AUGENRULES="no"`; we change it below to `"yes"`.
+
+---
+
+### 15.2 — Auditd Configuration
+
+```bash
+cat > /etc/audit/auditd.conf << 'EOF'
+log_file = /var/log/audit/audit.log
+log_format = ENRICHED
+log_group = audit
+priority_boost = 4
+flush = INCREMENTAL_ASYNC
+freq = 50
+max_log_file = 50
+num_logs = 20
+space_left = 75
+space_left_action = SYSLOG
+admin_space_left = 50
+admin_space_left_action = HALT
+disk_full_action = HALT
+disk_error_action = SYSLOG
+max_log_file_action = KEEP_LOGS
+name_format = HOSTNAME
+EOF
+```
+
+---
+
+### 15.3 — Audit Rules
+
+Place custom rules in `/etc/audit/rules.d/`. Files must end with `.rules`. The `augenrules` program (enabled via `/etc/conf.d/auditd`) merges them into `/etc/audit/audit.rules` at service startup.
+
+`nvim /etc/audit/rules.d/99-hardening.rules`
+
+
+```bash
+## ============================================================
+## /etc/audit/rules.d/99-hardening.rules
+## Gentoo Hardened — Auditd Ruleset — April 2026
+## ============================================================
+
+## --- Performance tuning ---
+-b 8192
+-f 1
+
+## ============================================================
+## SECTION 1: FILE INTEGRITY MONITORING
+## ============================================================
+
+-w /etc/ -p wa -k etc_changes
+
+## Critical authentication configs
+-w /etc/passwd -p wa -k identity
+-w /etc/group -p wa -k identity
+-w /etc/shadow -p wa -k identity
+-w /etc/gshadow -p wa -k identity
+
+## PAM configuration
+-w /etc/pam.d/ -p wa -k pam_config
+-w /etc/security/ -p wa -k security_config
+
+## sudoers
+-w /etc/sudoers -p wa -k sudoers_change
+-w /etc/sudoers.d/ -p wa -k sudoers_change
+
+## SSH server configuration
+-w /etc/ssh/sshd_config -p wa -k sshd_config
+-w /etc/ssh/sshd_config.d/ -p wa -k sshd_config
+
+## System binaries and libraries
+-w /usr/bin/ -p wa -k bin_change
+-w /usr/sbin/ -p wa -k sbin_change
+-w /usr/lib/ -p wa -k lib_change
+-w /usr/lib64/ -p wa -k lib_change
+-w /usr/local/bin/ -p wa -k local_bin_change
+-w /usr/local/sbin/ -p wa -k local_sbin_change
+
+## Boot files and ESP
+-w /boot/ -p wa -k boot_change
+-w /efi/ -p wa -k esp_change
+
+## Home directory attribute changes
+-w /home/ -p a -k home_attr_change
+-w /root/ -p wa -k root_home_change
+
+## AppArmor policy files
+-w /etc/apparmor/ -p wa -k apparmor_policy
+-w /etc/apparmor.d/ -p wa -k apparmor_policy
+
+## systemd service files — detect persistence via service installation
+-w /etc/systemd/ -p wa -k systemd_config
+-w /usr/lib/systemd/ -p wa -k systemd_config
+
+## ============================================================
+## SECTION 2: PRIVILEGED COMMAND EXECUTION (setuid/setgid)
+## ============================================================
+
+-a always,exit -F arch=b64 -S execve -C uid!=euid -F euid=0 -k setuid_exec
+-a always,exit -F arch=b64 -S execve -C gid!=egid -F egid=0 -k setgid_exec
+
+-a always,exit -F path=/usr/bin/sudo -F perm=x -k sudo_exec
+-a always,exit -F path=/usr/bin/su -F perm=x -k su_exec
+-a always,exit -F path=/usr/bin/newgrp -F perm=x -k newgrp_exec
+-a always,exit -F path=/usr/bin/chsh -F perm=x -k chsh_exec
+-a always,exit -F path=/usr/bin/chfn -F perm=x -k chfn_exec
+-a always,exit -F path=/usr/bin/passwd -F perm=x -k passwd_change_exec
+-a always,exit -F path=/usr/bin/gpasswd -F perm=x -k passwd_change_exec
+-a always,exit -F path=/usr/bin/chage -F perm=x -k user_mgmt_exec
+-a always,exit -F path=/usr/sbin/usermod -F perm=x -k user_mgmt_exec
+-a always,exit -F path=/usr/sbin/useradd -F perm=x -k user_mgmt_exec
+-a always,exit -F path=/usr/sbin/userdel -F perm=x -k user_mgmt_exec
+-a always,exit -F path=/usr/sbin/groupmod -F perm=x -k user_mgmt_exec
+-a always,exit -F path=/usr/sbin/groupadd -F perm=x -k user_mgmt_exec
+-a always,exit -F path=/usr/sbin/groupdel -F perm=x -k user_mgmt_exec
+
+## ============================================================
+## SECTION 3: AUTHENTICATION AND SESSION EVENTS
+## ============================================================
+
+-w /var/log/wtmp -p wa -k login_logout
+-w /var/log/btmp -p wa -k failed_login
+-w /run/utmp -p wa -k session_tracking
+
+-w /root/.ssh/ -p wa -k root_ssh
+-w /home/ -p wa -k user_ssh
+
+-a always,exit -F arch=b64 -S execve -F path=/usr/bin/sudo -k sudo_cmd
+-a always,exit -F arch=b64 -S execve -F path=/usr/bin/su -k su_cmd
+
+## ============================================================
+## SECTION 4: NETWORK SOCKET CREATION
+## ============================================================
+
+-a always,exit -F arch=b64 -S socket -F a0=2 -F auid>=1000 -F auid!=4294967295 -k socket_ipv4
+-a always,exit -F arch=b64 -S socket -F a0=10 -F auid>=1000 -F auid!=4294967295 -k socket_ipv6
+-a always,exit -F arch=b64 -S socket -F a0=1 -F auid>=1000 -F auid!=4294967295 -k socket_unix
+-a always,exit -F arch=b64 -S connect -F auid>=1000 -F auid!=4294967295 -k network_connect
+
+## ============================================================
+## SECTION 5: KERNEL MODULE LOADING/UNLOADING
+## ============================================================
+
+-a always,exit -F arch=b64 -S init_module -S finit_module -k module_load
+-a always,exit -F arch=b64 -S delete_module -k module_unload
+-w /usr/bin/kmod -p x -k kmod_exec
+-w /usr/sbin/modprobe -p x -k kmod_exec
+
+-w /etc/modprobe.d/ -p wa -k modprobe_config
+
+## ============================================================
+## SECTION 6: USER, GROUP, AND PERMISSION MANAGEMENT
+## ============================================================
+
+-a always,exit -F arch=b64 -S chmod -S fchmod -S fchmodat -F auid>=1000 -k perm_change
+-a always,exit -F arch=b64 -S chown -S fchown -S fchownat -S lchown -F auid>=1000 -k owner_change
+-a always,exit -F arch=b64 -S setuid -S setgid -S setreuid -S setregid -k setuid_syscall
+-a always,exit -F arch=b64 -S setresuid -S setresgid -k setuid_syscall
+
+## ============================================================
+## SECTION 7: PACKAGE MANAGER ACTIVITY (Portage)
+## ============================================================
+
+-a always,exit -F arch=b64 -S execve -F path=/usr/bin/emerge -k emerge_exec
+
+-w /var/db/repos/gentoo/ -p wa -k portage_db_change
+-w /etc/portage/ -p wa -k portage_config
+-w /var/cache/distfiles/ -p wa -k distfiles_change
+
+-a always,exit -F arch=b64 -S execve -F path=/usr/bin/ebuild -k ebuild_exec
+
+-w /etc/portage/env/ -p wa -k portage_env_change
+-w /etc/portage/package.use/ -p wa -k package_use_change
+
+## ============================================================
+## SECTION 8: ADDITIONAL HIGH-VALUE RULES
+## ============================================================
+
+-w /proc/sysrq-trigger -p w -k sysrq
+-w /proc/sys/kernel/ -p w -k kernel_param_change
+
+-a always,exit -F arch=b64 -S sysctl -k sysctl_change
+
+-a always,exit -F arch=b64 -S adjtimex -S settimeofday -S clock_settime -k time_change
+-w /etc/localtime -p wa -k timezone_change
+
+-a always,exit -F arch=b64 -S capset -F auid>=1000 -k capabilities_set
+
+-w /dev/mem -p rwxa -k memory_dev_access
+-w /dev/kmem -p rwxa -k memory_dev_access
+
+-a always,exit -F arch=b64 -S mount -S umount2 -F auid>=1000 -k mount_ops
+
+-a always,exit -F arch=b64 -S ptrace -k ptrace_use
+
+## ============================================================
+## LOCK RULES (uncomment after thorough testing)
+## ============================================================
+-e 2
+```
+
+---
+
+### 15.4 — Enable augenrules and Load Rules
+
+```bash
+# Enable augenrules to merge component rules from /etc/audit/rules.d/
+sed -i 's/USE_AUGENRULES="no"/USE_AUGENRULES="yes"/' /etc/conf.d/auditd
+
+# Restart auditd; augenrules runs automatically at startup
+systemctl restart auditd
+
+# Verify rules are loaded
+auditctl -l | wc -l
+```
+
+> **Locking rules**: After thorough testing (at least one full boot cycle with all services running), uncomment the `-e 2` line at the end of the rules file. This makes the ruleset immutable until next reboot, preventing unauthorized modification of audit rules at runtime.
+
+---
+
+### 15.5 — Log Correlation
+
+AppArmor denial events appear in the audit log with:
+
+```
+type=AVC msg=audit(...): apparmor="DENIED" operation="..." profile="..."
+```
+
+Our auditd rules produce events with `type=SYSCALL` or `type=PATH` plus a key tag. Both types coexist without collision.
+
+```bash
+# Find AppArmor policy file modifications
+ausearch -k apparmor_policy
+
+# Find AppArmor denials
+journalctl -t audit | grep 'apparmor="DENIED"'
+
+# Find kernel module loads
+ausearch -k module_load
+```
 
 ---
 
 ## Part 16 — Kernel Module Blacklisting
 
-> **Use the complete module blacklist from `arch_hardening_setup.md` Part 6.** `/etc/modprobe.d/blacklist-hardening.conf` should blacklist unused filesystems (cramfs, freevxfs, jffs2, hfs, hfsplus, udf), unused network protocol parsers (dccp, sctp, rds, tipc, etc.), Firewire drivers, and legacy modules. Thunderbolt is **not** blacklisted (IOMMU provides compensating control). Rebuild the initramfs after deploying.
+`mkdir -p /etc/modprobe.d/ && nvim /etc/modprobe.d/blacklist-hardening.conf`
+
+```bash
+## Unused / Attack‑Surface Filesystems
+##############################################################
+
+# cramfs — compressed ROM filesystem; has known vulnerabilities
+install cramfs /bin/true
+blacklist cramfs
+
+# freevxfs — Veritas VxFS; no legitimate use on modern Linux workstations
+install freevxfs /bin/true
+blacklist freevxfs
+
+# jffs2 — Journaling Flash File System; multiple CVEs in 2025
+# (CVE‑2025‑38194, CVE‑2025‑38328)
+install jffs2 /bin/true
+blacklist jffs2
+
+# hfs — original Mac filesystem (pre‑HFS+); no modern use
+install hfs /bin/true
+blacklist hfs
+
+# hfsplus — HFS+ (modern Mac filesystem); attack surface, rarely needed
+# EXCEPTION: comment out if you connect macOS‑formatted drives
+install hfsplus /bin/true
+blacklist hfsplus
+
+# squashfs — Read‑only compressed filesystem
+# ACTIVELY EXPLOITED in 2025–2026 (CVE‑2025‑38415, CVE‑2025‑40049,
+# CVE‑2025‑40200).  OVERLAYFS and container runtimes sometimes
+# depend on squashfs.  If you use Flatpak, snap, AppImage, or Docker,
+# comment out the two lines below:
+install squashfs /bin/true
+blacklist squashfs
+
+# udf — DVD/Blu‑ray filesystem; attack surface
+install udf /bin/true
+blacklist udf
+
+## Unused Network Protocols
+##############################################################
+
+# Datagram Congestion Control Protocol
+install dccp /bin/true
+blacklist dccp
+
+# Stream Control Transmission Protocol
+install sctp /bin/true
+blacklist sctp
+
+# Reliable Datagram Sockets
+install rds /bin/true
+blacklist rds
+
+# Transparent Inter‑Process Communication
+install tipc /bin/true
+blacklist tipc
+
+# Amateur radio / legacy serial protocols
+install ax25 /bin/true
+blacklist ax25
+
+install netrom /bin/true
+blacklist netrom
+
+install x25 /bin/true
+blacklist x25
+
+install atm /bin/true
+blacklist atm
+
+# Obsolete LAN protocols
+install ipx /bin/true
+blacklist ipx
+
+install appletalk /bin/true
+blacklist appletalk
+
+# CAN bus (automotive networking — no use on workstations)
+install can /bin/true
+blacklist can
+
+## DMA Attack Surface — Firewire
+##############################################################
+
+install firewire-core /bin/true
+blacklist firewire-core
+
+install firewire-ohci /bin/true
+blacklist firewire-ohci
+
+install firewire-sbp2 /bin/true
+blacklist firewire-sbp2
+
+## Bluetooth
+##############################################################
+
+install bluetooth /bin/true
+blacklist bluetooth
+install btusb /bin/true
+blacklist btusb
+
+## Misc High‑Risk Modules
+##############################################################
+
+# USB storage — if USB drives should not be mounted by non‑root
+# EXCEPTION: required for recovery USB boot.
+# install usb-storage /bin/true
+# blacklist usb-storage
+
+# PCMCIA — legacy card format, no modern use
+install pcmcia /bin/true
+blacklist pcmcia
+install pcmcia_core /bin/true
+blacklist pcmcia_core
+
+# Speakup — screen reader for accessibility
+# Only blacklist if this system has no accessibility needs
+install speakup /bin/true
+blacklist speakup
+
+# CDC‑ACM — USB modem emulation; rarely needed
+install cdc-acm /bin/true
+blacklist cdc-acm
+
+# CD‑ROM / optical drive — if not physically present
+install cdrom /bin/true
+blacklist cdrom
+install sr_mod /bin/true
+blacklist sr_mod
+
+##############################################################
+## Mount tracking and verification
+##############################################################
+
+# To verify a module is blocked:
+#   modprobe <module> && echo "LOADED (should not happen)" || echo "BLOCKED"
+# Rebuild initramfs to apply blacklist in early boot
+```
 
 ---
 
 ## Part 17 — IOMMU and DMA Protection
 
-> **The IOMMU kernel parameters are already embedded in the UKI cmdline**: `intel_iommu=on iommu=force`. Verify in UEFI that **VT‑d is enabled** and **Thunderbolt Security** is set to **User Authorization**. After boot, verify with `dmesg | grep "Intel-IOMMU: enabled"`. Full verification commands are in `arch_hardening_setup.md` Part 7.
+### Required UEFI/BIOS Settings
+
+Before configuring the kernel, verify in UEFI/BIOS firmware (Intel Z790 platform for i9-13900K):
+
+- **VT-d** (Intel Virtualization for Directed I/O): **ENABLED**
+- **Thunderbolt Security**: Set to **User Authorization** or **Secure Connect** (not "No Security")
+- **CSM (Compatibility Support Module)**: **DISABLED** (required for full UEFI Secure Boot)
+- **Secure Boot**: **ENABLED** with custom keys (Part 1.4)
+
+### Kernel Parameters (already embedded in UKI cmdline in Part 1.4)
+
+```
+intel_iommu=on
+iommu=force
+```
+
+**`iommu=pt` vs `iommu=force` trade-off:**
+
+| Parameter | Behavior | Performance | Security |
+|---|---|---|---|
+| `iommu=pt` | Passthrough mode: only devices with explicit IOMMU groups get DMA isolation | Higher (no translation overhead for most devices) | Weaker: untranslated devices can access all physical memory |
+| `iommu=force` | All DMA transactions go through the IOMMU | Lower (~5-10% I/O overhead on heavy workloads) | Stronger: every DMA transaction is validated against the IOMMU page table |
+
+**Decision**: `iommu=force` for this threat model. Nation-state actors with physical access can connect a malicious Thunderbolt/PCIe device specifically to exploit DMA paths that passthrough mode leaves unprotected. The 5-10% I/O performance hit is acceptable on a workstation with NVMe drives (still vastly outperforms any spinning disk).
+
+### Verification After Boot
+
+```bash
+# Verify IOMMU is active and enabled
+dmesg | grep -E "(IOMMU|iommu)"
+# Expected: "DMAR: IOMMU enabled" or similar
+
+# Check Intel DMAR (DMA Remapping) is active
+dmesg | grep "Intel-IOMMU"
+# Expected: "Intel-IOMMU: enabled"
+
+# Verify the i9-13900K's IOMMU groups are properly assigned
+find /sys/kernel/iommu_groups/ -type l | sort -V | head -20
+
+# Check that all PCIe devices are in IOMMU groups (none in the "catch-all" group 0 without isolation)
+for group in $(find /sys/kernel/iommu_groups/ -maxdepth 1 -type d | sort -V); do
+    echo "Group $(basename $group):"
+    ls $group/devices/ 2>/dev/null | while read dev; do
+        lspci -s $dev -nn 2>/dev/null
+    done
+done
+
+# Verify strict mode is active
+cat /sys/class/iommu/dmar*/intel-iommu/cap 2>/dev/null || \
+    dmesg | grep -i "dmar.*passthrough"
+# Absence of "passthrough mode" in output confirms strict mode
+```
+
+### IOMMU + TME Interaction
+
+Both IOMMU and TME operate independently:
+- TME encrypts DRAM contents (protects against physical memory extraction)
+- IOMMU restricts which physical memory addresses each DMA master can access (protects against DMA attacks from malicious PCIe devices)
+
+They are complementary: IOMMU prevents a malicious device from reading arbitrary memory; TME ensures that even if a device could read physical memory (e.g., before IOMMU is initialized), it sees encrypted data.
+
+**Gap**: There is a brief window during early boot (before IOMMU is initialized by the kernel) where DMA attacks are theoretically possible. This window is minimized by:
+1. The i9-13900K's UEFI firmware pre-programming the IOMMU before OS handoff (Intel DMAR tables in ACPI)
+2. The `intel_iommu=on` parameter instructing the kernel to activate IOMMU as early as possible
 
 ---
 
-## Part 18 — Auditd Hardening
-
-> **Deploy the complete auditd ruleset from `arch_hardening_setup.md` Part 4** as `/etc/audit/rules.d/99-hardening.rules`. This covers file integrity monitoring, privileged command execution, authentication events, network socket creation, kernel module loads, package manager activity, and more. Also deploy the matching `/etc/audit/auditd.conf`.
-
----
-
-## Part 19 — Network Hardening
+## Part 18 — Network Hardening
 
 ### 19.1 — Firewalld
 
