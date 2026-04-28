@@ -3028,9 +3028,303 @@ cat /var/log/portage-audit.json 2>/dev/null | tail -3 || echo "No audit entries 
 
 ---
 
-## Part 22 — Ongoing Monitoring and Email Alerting
+## Part 22 — Ongoing Monitoring, Log Review, and Vulnerability Alerting
 
-> **Deploy the complete monitoring infrastructure from `arch_hardening_setup.md` Part 14**: `msmtp` for email relay, daily auditd summary script, weekly CVE report, weekly AppArmor denial digest, all wired to systemd timers. Replace the recipient address with your own.
+### 22.1 — Mail Relay with msmtp
+
+`msmtp` is a lightweight SMTP relay client that forwards local mail to an upstream SMTP server. It is well‑suited for sending automated security reports without running a full MTA, and on Gentoo it lives in `mail-mta/msmtp`.
+
+```bash
+emerge --ask mail-mta/msmtp
+
+# --- Option A: Proton Mail Bridge (requires Proton paid plan) ---
+# The Bridge runs a local SMTP proxy on 127.0.0.1:1025 with end‑to‑end
+# encryption before the message leaves your machine.
+cat > /etc/msmtprc << 'EOF'
+# /etc/msmtprc — msmtp configuration for Proton Mail Bridge
+defaults
+  auth           on
+  tls            on
+  tls_trust_file /etc/ssl/certs/ca-certificates.crt
+  logfile        /var/log/msmtp.log
+
+account        proton
+host           127.0.0.1
+port           1025
+# Pin the Bridge's self‑signed certificate fingerprint.
+# Obtain: openssl s_client -connect 127.0.0.1:1025 </dev/null 2>/dev/null |
+#           openssl x509 -noout -fingerprint -sha256
+tls_fingerprint <BRIDGE_CERT_FINGERPRINT>
+from           your-address@proton.me
+user           your-address@proton.me
+passwordeval   cat /etc/msmtp-password
+
+account default : proton
+EOF
+
+chmod 600 /etc/msmtprc
+echo "<bridge_smtp_password>" > /etc/msmtp-password
+chmod 600 /etc/msmtp-password
+
+# --- Option B: External SMTP relay (Mailgun, Sendgrid, etc.) ---
+# Replace the account block above with your relay's credentials.
+# Always use implicit TLS (tls = on); avoid STARTTLS where possible.
+
+# Test the configuration
+echo "Test mail from $(hostname)" | msmtp your-address@proton.me
+```
+
+> **Note on `tls_fingerprint`**: The Bridge’s self‑signed certificate is pinned by its SHA‑256 fingerprint. If the Bridge daemon is updated or restarted, the certificate may be regenerated, requiring this value to be updated. Schedule a monthly check of the fingerprint.
+
+---
+
+### 22.2 — Daily Auditd Summary
+
+The script below extracts key metrics from the audit log and emails a summary. All audit keys reference the hardened ruleset deployed in Part 18. Recipient addresses and alert thresholds are defined at the top of the script so they can be changed without modifying complex shell logic.
+
+This script uses `ausearch --start today --end now` and `journalctl --since="today"`, both of which are well‑known patterns confirmed in the Red Hat documentation  and the `ausearch` man page reference .
+
+```bash
+cat > /usr/local/bin/daily-audit-summary.sh << 'SCRIPT'
+#!/bin/bash
+# Daily auditd log summary — run via systemd timer
+set -euo pipefail
+
+RECIPIENT="aahsnr041@proton.me"
+HOST=$(hostname)
+DATE=$(date -u +%Y-%m-%d)
+
+# ── Gather statistics from audit log ──
+# Use ausearch -m USER_AUTH for authentication events (the generic message type).
+# The specific key "auth_fail" was used in the original Arch ruleset but does not
+# exist in the Gentoo-adapted rules (Part 18). Searching by message type captures
+# all PAM authentication attempts regardless of key.
+AUTH_FAILURES=$(ausearch -m USER_AUTH --success no \
+                  --start today --end now -i 2>/dev/null | grep -c "type=USER_AUTH" || echo 0)
+
+PRIV_ESCALATIONS=$(ausearch -k sudo_cmd --start today --end now -i 2>/dev/null |
+                     grep -c "type=SYSCALL" || echo 0)
+
+MODULE_LOADS=$(ausearch -k module_load --start today --end now -i 2>/dev/null |
+                 grep -c "type=SYSCALL" || echo 0)
+
+EMERGE_EXEC=$(ausearch -k emerge_exec --start today --end now -i 2>/dev/null |
+                grep -c "type=SYSCALL" || echo 0)
+
+AA_DENIALS=$(journalctl --since="today" -t audit 2>/dev/null |
+               grep -c 'apparmor="DENIED"' || echo 0)
+
+# ── Thresholds for immediate alert ──
+ALERT_THRESHOLD=10
+NEEDS_ALERT=0
+[[ $AUTH_FAILURES -gt $ALERT_THRESHOLD ]] && NEEDS_ALERT=1
+[[ $AA_DENIALS   -gt 50              ]] && NEEDS_ALERT=1
+
+# ── Daily summary ──
+{
+cat << EOF
+Subject: [DAILY AUDIT] ${HOST} — ${DATE}
+
+Daily Security Audit Summary
+==============================
+Host    : ${HOST}
+Date    : ${DATE} UTC
+Kernel  : $(uname -r)
+
+Authentication Events:
+  Failed authentications today : ${AUTH_FAILURES}
+  Privilege escalations (sudo) : ${PRIV_ESCALATIONS}
+
+Package Management:
+  emerge executions today      : ${EMERGE_EXEC}
+
+Kernel Security:
+  Module load events           : ${MODULE_LOADS}
+
+AppArmor:
+  DENIED events today          : ${AA_DENIALS}
+
+--- Recent AppArmor Denials ---
+$(journalctl --since="today" -t audit 2>/dev/null |
+    grep 'apparmor="DENIED"' | tail -20)
+
+--- Recent Authentication Failures ---
+$(ausearch -m USER_AUTH --success no --start today --end now -i 2>/dev/null | tail -10)
+
+--- Recent Privilege Escalations ---
+$(ausearch -k sudo_cmd --start today --end now -i 2>/dev/null | tail -10)
+EOF
+} | msmtp "$RECIPIENT"
+
+# ── Immediate alert if thresholds are exceeded ──
+if [[ $NEEDS_ALERT -eq 1 ]]; then
+  {
+  cat << ALERT
+Subject: [IMMEDIATE ALERT] Security thresholds exceeded on ${HOST}
+
+REAL-TIME SECURITY ALERT
+=========================
+Host: ${HOST}
+Time: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
+THRESHOLDS EXCEEDED:
+  Auth failures today   : ${AUTH_FAILURES} (threshold: ${ALERT_THRESHOLD})
+  AppArmor denials      : ${AA_DENIALS} (threshold: 50)
+
+Immediate investigation recommended.
+Run: ausearch -m USER_AUTH --start today
+     journalctl -t audit | grep 'apparmor="DENIED"'
+ALERT
+  } | msmtp "$RECIPIENT"
+fi
+SCRIPT
+
+chmod +x /usr/local/bin/daily-audit-summary.sh
+```
+
+---
+
+### 22.3 — Weekly Security Report
+
+The weekly GLSA scan and repository integrity check are performed by `/usr/local/bin/weekly-security-scan.sh`, which was already deployed in Part 21. That script already contains its own systemd timer and emails its results directly. No additional wrapper is needed. To verify:
+
+```bash
+systemctl status weekly-security-scan.timer
+```
+
+If the timer is not active, enable it now:
+
+```bash
+systemctl enable --now weekly-security-scan.timer
+```
+
+---
+
+### 22.4 — Weekly AppArmor Denial Digest
+
+Grouping AppArmor denials by profile and operation reveals patterns — a profile that suddenly generates hundreds of denials may indicate a targeted attack or a misconfiguration that needs immediate attention. The `aa-logprof` tool (from `app‑armor/apparmor‑utils`) is the recommended interactive tool for inspecting denials and suggesting profile updates .
+
+```bash
+cat > /usr/local/bin/weekly-apparmor-digest.sh << 'SCRIPT'
+#!/bin/bash
+# Weekly AppArmor denial digest — run via systemd timer
+set -euo pipefail
+
+RECIPIENT="aahsnr041@proton.me"
+HOST=$(hostname)
+WEEK_START=$(date -u -d "7 days ago" +"%Y-%m-%d")
+WEEK_END=$(date -u +"%Y-%m-%d")
+
+# Collect and group denials by profile → operation
+DENIALS=$(journalctl --since="${WEEK_START}" --until="${WEEK_END}" \
+            -t audit 2>/dev/null |
+            grep 'apparmor="DENIED"' |
+            sed 's/.*profile="\([^"]*\)".*operation="\([^"]*\)".*/\1 → \2/' |
+            sort | uniq -c | sort -rn | head -50)
+
+{
+cat << EOF
+Subject: [WEEKLY APPARMOR] Denial Digest — ${HOST} — ${WEEK_END}
+
+Weekly AppArmor Denial Digest
+================================
+Host  : ${HOST}
+Period: ${WEEK_START} to ${WEEK_END}
+
+Denials grouped by profile → operation (count):
+-------------------------------------------------
+${DENIALS}
+
+To investigate a specific profile:
+  journalctl -t audit | grep 'profile="<name>"' | grep DENIED
+  aa-logprof
+
+To view full denial details:
+  ausearch --start week --end now | grep AVC
+EOF
+} | msmtp "$RECIPIENT"
+SCRIPT
+
+chmod +x /usr/local/bin/weekly-apparmor-digest.sh
+```
+
+---
+
+### 22.5 — Systemd Timers for Automated Reports
+
+```bash
+# ── Daily audit report (06:00 UTC) ──
+cat > /etc/systemd/system/daily-audit-report.service << 'EOF'
+[Unit]
+Description=Daily Security Audit Report
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/daily-audit-summary.sh
+User=root
+EOF
+
+cat > /etc/systemd/system/daily-audit-report.timer << 'EOF'
+[Unit]
+Description=Run daily audit report at 06:00 UTC
+
+[Timer]
+OnCalendar=*-*-* 06:00:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+
+# ── Weekly AppArmor digest (Monday 07:30 UTC) ──
+cat > /etc/systemd/system/weekly-apparmor-digest.service << 'EOF'
+[Unit]
+Description=Weekly AppArmor Denial Digest
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/weekly-apparmor-digest.sh
+User=root
+EOF
+
+cat > /etc/systemd/system/weekly-apparmor-digest.timer << 'EOF'
+[Unit]
+Description=Run weekly AppArmor digest every Monday at 07:30 UTC
+
+[Timer]
+OnCalendar=Mon *-*-* 07:30:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+
+systemctl daemon-reload
+systemctl enable --now daily-audit-report.timer
+systemctl enable --now weekly-apparmor-digest.timer
+```
+
+> **Note on `Persistent=true`**: This option ensures that if the system was powered off at the scheduled time, the timer will fire immediately after the next boot . This is the systemd equivalent of `anacron` and is available since systemd 212 .
+
+---
+
+### 22.6 — Verification
+
+```bash
+# List all enabled timers
+systemctl list-timers --all | grep -E "audit|apparmor|security"
+
+# Trigger the daily summary manually (for testing)
+systemctl start daily-audit-report.service
+
+# Verify msmtp works
+echo "Test from $(hostname)" | msmtp -v your-address@proton.me
+
+# Verify AppArmor logging is active
+aa-status | head -5
+```
+
 
 ---
 
