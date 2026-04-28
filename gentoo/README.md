@@ -1876,7 +1876,7 @@ Once you replace the placeholder interface names with the ones actually present 
 
 ---
 
-## 19.2 – DNS over TLS and DNSCrypt
+## 18.2 – DNS over TLS and DNSCrypt
 
 ```bash
 # Emerge dnscrypt‑proxy (systemd‑resolved is included in sys‑apps/systemd)
@@ -1929,10 +1929,9 @@ systemctl enable systemd-resolved
 
 ### dnscrypt‑proxy
 
+`mkdir -p /etc/dnscrypt-proxy && nvim /etc/dnscrypt-proxy/dnscrypt-proxy.toml`
+
 ```bash
-# The configuration file must be owned by root and readable only by the
-# dnscrypt‑proxy group (the ebuild creates the group automatically).
-cat > /etc/dnscrypt-proxy/dnscrypt-proxy.toml << 'EOF'
 ##############################################################
 # dnscrypt‑proxy.toml – Hardened Configuration, April 2026
 ##############################################################
@@ -2004,8 +2003,9 @@ cache_neg_max_ttl = 600
 
 [query_log]
   file = '/var/log/dnscrypt-proxy/query.log'
-EOF
+```
 
+```bash
 # --- Permissions & directories ---
 mkdir -p /var/cache/dnscrypt-proxy /var/log/dnscrypt-proxy
 chown -R dnscrypt-proxy:dnscrypt-proxy /var/cache/dnscrypt-proxy /var/log/dnscrypt-proxy
@@ -2015,6 +2015,7 @@ chmod 640 /etc/dnscrypt-proxy/dnscrypt-proxy.toml
 systemctl enable --now dnscrypt-proxy
 systemctl enable --now systemd-resolved
 ```
+
 
 ### Verification
 
