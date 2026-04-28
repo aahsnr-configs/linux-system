@@ -450,7 +450,7 @@ LC_MESSAGES=C
 `nvim /etc/portage/package.use`
 
 ```bash
-sys-apps/systemd cryptsetup boot
+sys-apps/systemd cryptsetup boot tpm
 sys-kernel/installkernel dracut uki
 sys-kernel/dracut systemd
 sys-fs/cryptsetup static
@@ -2115,9 +2115,10 @@ systemctl enable NetworkManager
 
 ---
 
-### 18.4 — Cockpit Integration (Optional)
+## 18.4 — Cockpit Integration (Optional)
 
 ```bash
+# Enable inode64-overlay (hosts the app-admin/cockpit package)
 eselect repository enable inode64-overlay
 emaint sync -r inode64-overlay
 
@@ -2131,13 +2132,16 @@ mkdir -p /etc/cockpit
 
 cat > /etc/cockpit/cockpit.conf << 'EOF'
 [WebService]
-# Bind only to localhost — never expose on all interfaces
+# Bind only to localhost — never expose Cockpit on external interfaces
 Origins = https://localhost:9090 https://127.0.0.1:9090
-ProtocolHeader = X-Forwarded-Proto
+# ProtocolHeader is only needed when Cockpit is behind a reverse proxy;
+# here it is harmless but unnecessary for direct local connections.
 AllowUnencrypted = false
 
 [Session]
+# Automatically log out after 15 minutes of inactivity
 IdleTimeout = 15
+# Display the warning banner on the login screen
 Banner = /etc/cockpit/banner.txt
 
 [Log]
@@ -2168,7 +2172,6 @@ systemctl enable --now cockpit.socket
 
 > **AppArmor note:** As of April 2026 the apparmor.d project does **not** ship a Cockpit profile.  
 > Compensating controls: Cockpit is bound to localhost only, socket‑activated by systemd, and should be hardened with `svc-harden.py apply cockpit` (see Part 24).
-
 
 ## Part 19 — SSH Hardening
 
