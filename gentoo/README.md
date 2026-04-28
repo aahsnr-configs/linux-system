@@ -595,10 +595,10 @@ eselect profile set <number>
 source /etc/profile
 ```
 
-### 6.3 — Install Core Packages
+### 6.3 — Portage and Its REPOS 
 
 ```bash
-emerge --ask app-eselect/eselect-repository dev-vcs/git
+emerge -aq --jobs=5 app-eselect/eselect-repository dev-vcs/git && eselect repository remove gentoo && eselect repository add gentoo git https://github.com/gentoo-mirror/gentoo.git  && emaint sync -r gentoo && eselect repository enable guru pentoo edgets gentoo-zh CachyOS-kernels xarblu-overlay && eselect repository create custom && emerge --sync
 ```
 
 ### 6.4 — Enable CachyOS‑Kernels Overlay
@@ -2173,15 +2173,365 @@ systemctl enable --now cockpit.socket
 > **AppArmor note:** As of April 2026 the apparmor.d project does **not** ship a Cockpit profile.  
 > Compensating controls: Cockpit is bound to localhost only, socket‑activated by systemd, and should be hardened with `svc-harden.py apply cockpit` (see Part 24).
 
-## Part 19 — SSH Hardening
+---
+
+# Part 19 — SSH Hardening with TPM‑Backed Keys
+
+A TPM can store SSH private keys, making them much harder for an attacker—or malware—to extract: the key never leaves the TPM. This is comparable in security to a YubiKey but uses the TPM already on your motherboard.
+
+The integration uses `app‑crypt/tpm2‑pkcs11`, which provides a PKCS#11 library that OpenSSH can talk to directly.
+
+[NOTE] Will the ssh setup affect my git-setup bash script
+
+### 19.1 — Install Required Packages
 
 ```bash
-emerge --ask net-misc/openssh
+# Install the PKCS#11 interface for TPM2 hardware, the TSS library,
+# and OpenSSH.  dbus is required for the TPM resource manager that
+# allows unprivileged users to access the TPM.
+emerge --ask app-crypt/tpm2-pkcs11 app-crypt/tpm2-tss net-misc/openssh sys-apps/dbus
+
+# The tss group grants unprivileged users access to the TPM.
+# Add your user (replace "ahsan" if different).
+gpasswd -a ahsan tss
 ```
 
-> **Apply the complete SSH server and client hardening from `arch_hardening_setup.md` Part 10**: custom port 2222, Ed25519 and ECDSA P‑521 keys only, Curve25519 Kex, ChaCha20‑Poly1305 and AES‑256‑GCM ciphers, key‑only auth, no root login, `AllowGroups sshusers`, strict idle timeout, all forwarding disabled.
+> **Note:** `app‑crypt/tpm2‑tss` is pulled in automatically by the `tpm` USE flag on `sys‑apps/systemd`, so you may already have it. Re‑running emerge is harmless.
 
 ---
+
+### 19.2 — Create the TPM‑Backed SSH Key (as the user, **not root**)
+
+```bash
+# Initialise the PKCS#11 token store (do this once)
+tpm2_ptool init
+
+# Create a token.  Change --userpin to a PIN of your choice.
+# The PIN provides a second factor: something you know (PIN) +
+# something you have (the TPM chip).
+tpm2_ptool addtoken --pid=1 --label=ssh --userpin=YourPinHere --sopin=AdminPinHere
+
+# Create a key inside that token.
+# ecc256 is an ECDSA P‑256 key; RSA 2048 is also supported.
+tpm2_ptool addkey --label=ssh --userpin=YourPinHere --algorithm=ecc256
+```
+
+The `‑‑userpin` can be empty (`‑‑userpin=""`), but that means physical possession of the computer is sufficient to use the key. Setting a PIN achieves true two‑factor authentication.
+
+---
+
+### 19.3 — Retrieve the Public Key
+
+```bash
+ssh-keygen -D /usr/lib64/libtpm2_pkcs11.so > ~/.ssh/tpm_key.pub
+```
+
+Copy the contents of `~/.ssh/tpm_key.pub` to the `authorized_keys` file on any server you want to connect to. `ssh‑copy‑id` does **not** work with `libtpm2_pkcs11.so` at this time.
+
+---
+
+### 19.4 — SSH Client Configuration (system‑wide)
+
+Add the PKCS#11 provider globally so that SSH will try to use TPM keys by default on every connection:
+
+```bash
+cat >> /etc/ssh/ssh_config << 'EOF'
+
+# Use TPM-backed keys via PKCS#11 by default.
+# The library path is architecture-specific:
+#   /usr/lib64/libtpm2_pkcs11.so  (amd64)
+#   /usr/lib/libtpm2_pkcs11.so    (x86)
+PKCS11Provider /usr/lib64/libtpm2_pkcs11.so
+EOF
+```
+
+You may also limit it to specific hosts:
+
+```
+Host git.example.com
+    PKCS11Provider /usr/lib64/libtpm2_pkcs11.so
+```
+
+---
+
+### 19.5 — Complete `/etc/ssh/ssh_config` (Hardened Client)
+
+```bash
+cat > /etc/ssh/ssh_config << 'EOF'
+##############################################################
+# /etc/ssh/ssh_config — Hardened SSH Client Configuration
+# Gentoo Hardened — April 2026
+##############################################################
+
+Host *
+    # Only Ed25519 and ECDSA P-521 host keys trusted
+    HostKeyAlgorithms ssh-ed25519,ecdsa-sha2-nistp521
+
+    # Key exchange: Curve25519 + post‑quantum hybrids
+    KexAlgorithms sntrup761x25519-sha512,mlkem768x25519-sha256,curve25519-sha256,curve25519-sha256@libssh.org
+
+    # Strong ciphers and MACs
+    Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes256-ctr
+    MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com
+
+    # Prefer Ed25519 keys when authenticating
+    IdentityFile ~/.ssh/id_ed25519
+    IdentityFile ~/.ssh/id_ecdsa
+
+    # Automatically add server to known_hosts but do not silently accept
+    # changed host keys (prevents MITM via re‑key)
+    StrictHostKeyChecking ask
+    UpdateHostKeys ask
+
+    # Do not hash known_hosts (hashing obscures hosts connected to, but
+    # makes it impossible to detect when a host key changes to a known bad key)
+    HashKnownHosts no
+
+    # Disable forwarding client‑side
+    ForwardAgent no
+    ForwardX11 no
+
+    # Connection reuse (ControlMaster) — disabled in high‑security contexts
+    ControlMaster no
+
+    # Server alive settings (matches server‑side ClientAliveInterval)
+    ServerAliveInterval 60
+    ServerAliveCountMax 3
+
+    # Compression
+    Compression yes
+
+    # Visual host key fingerprint (SAS for manual verification)
+    VisualHostKey yes
+
+    # Use TPM‑backed keys via PKCS#11 by default
+    PKCS11Provider /usr/lib64/libtpm2_pkcs11.so
+EOF
+```
+
+---
+
+### 19.6 — ssh-agent Integration (Optional)
+
+To load the TPM key into your running SSH agent (so you are not prompted for the PIN on every connection):
+
+```bash
+ssh-add -s /usr/lib64/libtpm2_pkcs11.so
+```
+
+This command is necessary after every reboot—or whenever the agent session expires.
+
+---
+
+### 19.7 — Hardened sshd Configuration (Server)
+
+```bash
+cat > /etc/ssh/sshd_config << 'EOF'
+##############################################################
+# /etc/ssh/sshd_config
+# Gentoo Hardened — Hardened SSH Server Configuration
+# April 2026 — Against nation-state APT threat model
+#
+# apparmor.d ships a mature sshd profile. After installing
+# apparmor.d, verify it is loaded in enforce mode:
+#   aa-status | grep sshd
+##############################################################
+
+## --- Port and Address Binding ---
+# Non-default port reduces automated scanner noise and blunt-force attempts.
+# Security benefit: eliminates script-kiddie and automated scanning traffic;
+# does NOT stop targeted APT actors who perform port scanning before attack.
+# Limitation: some corporate firewalls block non-22 egress; document this.
+Port 2222
+
+# Listen on all interfaces by default; restrict if management NIC is separate
+# ListenAddress 127.0.0.1  ## Uncomment to restrict to localhost only
+
+## --- Protocol and Key Algorithms ---
+# Permit only Ed25519 (preferred) and ECDSA P-521
+# Rationale: RSA ≤ 3072 is approaching sunset per NIST SP 800-131A Rev 3 (draft).
+# Nation-state actors with quantum capabilities target RSA first.
+# Ed25519 (Curve25519) has no NIST involvement and is not susceptible to
+# the potential NSA backdoor concerns raised about NIST P-curves.
+HostKey /etc/ssh/ssh_host_ed25519_key
+HostKey /etc/ssh/ssh_host_ecdsa_key  # P-521; regenerated below with -b 521
+
+# Key exchange: Curve25519 + post‑quantum hybrids
+# sntrup761x25519-sha512: hybrid post‑quantum (OpenSSH 8.5+)
+# mlkem768x25519-sha256:  NIST-standardised hybrid post‑quantum (OpenSSH 9.9+)
+# This is the default KexAlgorithms list in OpenSSH 10.0+; explicitly
+# listing it ensures the same behaviour on older versions.
+KexAlgorithms sntrup761x25519-sha512,mlkem768x25519-sha256,curve25519-sha256,curve25519-sha256@libssh.org
+
+# Host key algorithms presented to clients
+HostKeyAlgorithms ssh-ed25519,ecdsa-sha2-nistp521
+
+# Ciphers: ChaCha20-Poly1305 and AES-256-GCM (authenticated)
+# Disables all CBC ciphers (CBC padding oracle attacks) and AES-128
+Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes256-ctr
+
+# MACs: ETM (encrypt-then-MAC) only
+# Disables all encrypt-and-MAC patterns (vulnerable to Lucky13 and
+# similar timing attacks)
+MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com
+
+## --- Authentication ---
+# Disable root login — root access must be via sudo from an unprivileged account
+PermitRootLogin no
+
+# Keys only — no password authentication
+# Password auth is vulnerable to brute-force and credential-stuffing attacks
+PasswordAuthentication no
+ChallengeResponseAuthentication no
+KbdInteractiveAuthentication no
+
+# Disable empty passwords
+PermitEmptyPasswords no
+
+# Use PAM stack (for account lockout via pam_faillock)
+UsePAM yes
+
+# Only allow members of the 'sshusers' group to authenticate
+# Create this group and add admin users:
+#   groupadd sshusers; usermod -aG sshusers ahsan
+AllowGroups sshusers
+
+## --- Session and Connection Limits ---
+# Time allowed to authenticate before connection is closed
+# Short window prevents connection-holding resource exhaustion
+# (OpenSSH default is 120 seconds; 30 is stricter)
+LoginGraceTime 30
+
+# Maximum auth attempts per connection (disconnect after 3 failures)
+MaxAuthTries 3
+
+# Maximum concurrent sessions per connection
+MaxSessions 3
+
+# Maximum simultaneous pending (unauthenticated) connections
+# Format: start:rate:full
+# Throttles connection storms from scanners/brute-force
+# (OpenSSH default is 10:30:100; 10:30:60 is stricter at the top end)
+MaxStartups 10:30:60
+
+## --- Session Idle Timeout ---
+# After 10 minutes of inactivity, send a keepalive packet
+ClientAliveInterval 600
+# Disconnect after 1 unanswered keepalive (10 minutes total idle timeout)
+ClientAliveCountMax 1
+
+## --- Forwarding and Tunneling ---
+# X11 forwarding disabled — X11 protocol has exploitable legacy vulns
+X11Forwarding no
+
+# TCP forwarding disabled — prevents use as an anonymous pivot/proxy
+# EXCEPTION: if you genuinely need SSH port-forwarding (e.g., database tunnels),
+# set AllowTcpForwarding local (allows only local forwards, not remote)
+AllowTcpForwarding no
+
+# Disable agent forwarding — prevents agent-forwarding credential theft attacks
+AllowAgentForwarding no
+
+# Disable stream local forwarding (UNIX socket forwarding)
+AllowStreamLocalForwarding no
+
+# Do not permit tunneling
+PermitTunnel no
+
+## --- Miscellaneous ---
+# Hide MOTD (contains OS/version info useful for fingerprinting)
+PrintMotd no
+
+# Legal banner displayed before authentication
+Banner /etc/ssh/banner
+
+# Strict mode — check permissions on key files and home directories
+StrictModes yes
+
+# Log level for authentication — VERBOSE logs accepted/rejected keys
+# Useful for detecting key-based brute force
+LogLevel VERBOSE
+
+# Accept only known environment variables
+# PermitUserEnvironment is explicitly set to its default (no) to ensure
+# user‑controlled environment files (~/.ssh/environment, ~/.ssh/rc)
+# are never sourced.
+PermitUserEnvironment no
+AcceptEnv LANG LC_*
+
+# Compression: delayed (after authentication)
+Compression delayed
+
+# Subsystem for SFTP — internal-sftp is the recommended, distribution‑agnostic
+# approach that avoids needing to know the exact sftp‑server binary path.
+# It was introduced in OpenSSH 4.8 and is available on all modern systems.
+Subsystem sftp internal-sftp
+EOF
+
+# Create legal banner
+cat > /etc/ssh/banner << 'EOF'
+**********************************************************************
+ AUTHORIZED ACCESS ONLY
+ This system is monitored. All connections are logged.
+ Unauthorized access is prohibited and will be prosecuted.
+**********************************************************************
+EOF
+
+# Regenerate host keys — Ed25519 and ECDSA P-521 only
+# Step 1: Remove the old default-generated RSA, DSA, and (weaker) ecdsa keys
+rm -f /etc/ssh/ssh_host_rsa_key* /etc/ssh/ssh_host_dsa_key* /etc/ssh/ssh_host_ecdsa_key*
+# Step 2: Generate fresh Ed25519 and ECDSA P-521 keys
+ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N ""
+ssh-keygen -t ecdsa -b 521 -f /etc/ssh/ssh_host_ecdsa_key -N ""
+
+# Create sshusers group and add admin
+groupadd -f sshusers
+usermod -aG sshusers ahsan
+
+# Restart sshd
+systemctl restart sshd
+
+# Verify AppArmor sshd profile is in enforce mode
+aa-status | grep -E "sshd|enforce"
+```
+
+---
+
+### 19.8 — TPM‑Based Key Usage Cheat Sheet
+
+| Task | Command |
+|------|---------|
+| Initialise store | `tpm2_ptool init` |
+| Create token | `tpm2_ptool addtoken --pid=1 --label=ssh --userpin=… --sopin=…` |
+| Create key (ecc256) | `tpm2_ptool addkey --label=ssh --userpin=… --algorithm=ecc256` |
+| List keys | `tpm2_ptool list` |
+| Show public key | `ssh‑keygen -D /usr/lib64/libtpm2_pkcs11.so` |
+| Connect once | `ssh -I /usr/lib64/libtpm2_pkcs11.so user@host` |
+| Load into agent | `ssh‑add -s /usr/lib64/libtpm2_pkcs11.so` |
+
+---
+
+### 19.9 — Verification
+
+```bash
+# Verify that the TPM PKCS#11 library is present
+ls -l /usr/lib64/libtpm2_pkcs11.so
+
+# Verify your user is in the tss group
+groups ahsan | grep tss
+
+# List the keys stored in the TPM
+tpm2_ptool list
+
+# Display the public key
+ssh-keygen -D /usr/lib64/libtpm2_pkcs11.so
+
+# Test a connection
+ssh -I /usr/lib64/libtpm2_pkcs11.so user@remote.host.tld
+```
+
+---
+
 
 ## Part 20 — PAM Hardening
 
@@ -2254,18 +2604,13 @@ eselect-repository enable guru
 emaint-sync -r guru
 
 emerge --ask \
-  gui-wm/hyprland gui-wm/hyprland-contrib \
-  gui-libs/aquamarine gui-libs/hyprcursor gui-libs/hyprutils \
-  gui-libs/xdg-desktop-portal-hyprland \
-  gui-apps/hyprlock gui-apps/hypridle gui-apps/hyprpaper \
+  gui-wm/hyprland gui-libs/xdg-desktop-portal-hyprland \
   gui-apps/grim gui-apps/slurp gui-apps/wl-clipboard \
-  gui-apps/rofi-wayland \
   x11-misc/sddm x11-base/xwayland \
   app-shells/zsh app-shells/starship app-shells/zoxide \
   app-shells/fzf app-shells/atuin \
   app-editors/neovim app-editors/emacs \
   dev-vcs/git dev-vcs/lazygit \
-  app-containers/docker app-containers/docker-cli \
   app-containers/podman app-containers/distrobox \
   www-client/zen-browser-bin \
   net-im/discord net-im/zoom \
@@ -2518,5 +2863,3 @@ Phase 3 — Post-Boot Hardening:
 ---
 
 *Guide prepared April 2026. Architecture verified against: Gentoo Wiki (Hardened, UKI, Dracut, Installkernel, Secure Boot, systemd‑cryptenroll), Arch Wiki (dm‑crypt, Unified Kernel Image, Secure Boot), CachyOS Wiki (Kernel), and systemd documentation (systemd‑cryptenroll, systemd‑stub).*
-
-```
