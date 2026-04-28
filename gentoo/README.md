@@ -619,6 +619,44 @@ sync-openpgp-key-path = /usr/share/openpgp-keys/gentoo-release.asc
 
 ---
 
+## Section 5.6 — Set Root Password and Create Administrative User
+
+
+```bash
+passwd root
+
+# Lock the root account: prevents all direct root login via console,SSH (already disabled), su, or display manager, while retaining the ability to use sudo.
+passwd -l root
+
+# Create the administrative user “ahsan” that will be used for all
+# daily work.  Groups:
+#   wheel  – sudo access
+#   audio  – sound device nodes
+#   video  – GPU access (including nvidia)
+#   tss    – TPM access (required for tpm2‑pkcs11 SSH keys)
+useradd -m -G users,wheel,audio,video,tss -s /bin/bash ahsan
+passwd ahsan
+EDITOR=nvim visudo
+```
+
+> **Why lock root?**  
+> A locked root account cannot be logged into interactively, which eliminates the most valuable authentication target on the system.  The `passwd -l` command prepends a `!` to the password hash; the password still exists for emergency use (e.g., rescue shell) but direct login is refused.  The `ahsan` user obtains admin privileges via `sudo`.
+
+> **Chroot recovery with a locked root account**  
+> If you need to re‑enter the installed system from a live USB (Part 28), you become root on the live environment and `chroot` without needing the installed system’s root password.  Inside the chroot the root account is still locked, but you can temporarily unlock it:  
+
+> ```bash
+> passwd -u root
+> # ... perform recovery tasks as root ...
+> passwd -l root    # re-lock when done
+> ```  
+> Alternatively, become root via `sudo -i` from the `ahsan` account if it is still accessible.  The locked root account does not hinder offline recovery.
+
+---
+
+
+---
+
 ## Part 7 — Kernel: CachyOS-Sources with Clang + kCFI
 
 ### 7.1 — Install Kernel Sources and Required Packages
@@ -718,6 +756,210 @@ ls -l /var/lib/sbctl/keys/db/db.key /var/lib/sbctl/keys/db/db.pem
 ```
 
 > **Note**: Key **enrollment** into UEFI firmware happens later (Part 9), after the first reboot into Setup Mode. For now, having the keys generated is sufficient for dracut to produce a signed UKI.
+
+---
+
+## Part 7B — NVIDIA Driver Setup
+
+This section covers the installation and configuration of the proprietary NVIDIA driver stack, ensuring it is compatible with Secure Boot, the Wayland compositor, and the system's hardening measures.
+
+### 7B.1 — Kernel Configuration for NVIDIA
+
+The cachyos-sources `.config` already enables most of the required options, but verify the following with `make menuconfig` before building the kernel:
+
+```
+Bus options (PCI etc.) --->
+  [*] PCI Express support
+  [*] VGA Arbitration                                   CONFIG_VGA_ARB
+
+Device Drivers --->
+  Graphics support --->
+    <*/M> Direct Rendering Manager (XFree86 …)          CONFIG_DRM
+    [*]   Enable legacy fbdev support for your …        CONFIG_DRM_FBDEV_EMULATION
+    < >   Nouveau (NVIDIA) cards                        CONFIG_DRM_NOUVEAU
+
+  Firmware Drivers --->
+    [*] Mark VGA/VBE/EFI FB as generic system …         CONFIG_SYSFB_SIMPLEFB
+```
+
+*   `CONFIG_DRM_FBDEV_EMULATION` is essential for `nvidia-drm` to provide a framebuffer console.
+*   `CONFIG_VGA_ARB` ensures correct handoff between multiple GPU drivers (e.g., `simpledrm` and `nvidia-drm`) at boot.
+
+### 7B.2 — Kernel Command Line and Modesetting
+
+For NVIDIA driver versions 560 and later, modesetting is enabled by default for Wayland. No additional kernel command-line parameters are required. The driver will automatically set `modeset=1` and `fbdev=1`. This behavior is confirmed by the Arch Linux wiki and the official NVIDIA documentation for the 580 series.
+
+### 7B.3 — USE Flags
+
+The relevant USE flags for `x11-drivers/nvidia-drivers` are evaluated for this specific desktop setup (RTX 2080 Ti). The key flags are `kernel-open` and `modules-sign`.
+
+*   **`kernel-open`**: This flag is enabled by default and uses the open-source kernel modules. It is recommended for Turing (RTX 20-series) and newer GPUs, and is mandatory for the NVIDIA 50-series "Blackwell" GPUs.
+*   **`modules-sign`**: This flag is critical for Secure Boot. Its role is elaborated in section 7B.4.
+*   **`persistenced`**: Enables the `nvidia-persistenced` daemon, which is useful for keeping the GPU state initialized, reducing latency for CUDA applications.
+*   **`powerd`**: This flag is **not needed** for desktops. It is specifically for laptops with NVIDIA Dynamic Boost technology. The Gentoo package description explicitly states it is "only useful with specific laptops, ignore if unsure".
+
+Configure the necessary flags. If you already have an entry for `x11-drivers/nvidia-drivers` in your file, merge the flags to avoid duplication.
+
+```bash
+# /etc/portage/package.use/nvidia
+x11-drivers/nvidia-drivers modules-sign persistenced
+```
+
+### 7B.4 — Secure Boot and Module Signing
+
+Since this system uses Secure Boot with custom keys, all kernel modules must be signed to load. The `modules-sign` USE flag automates this process in Gentoo, leveraging the same keys used for the kernel and UKI.
+
+1.  **Ensure Keys Exist**: The `sbctl` keys must exist. If you followed Part 9, they are at `/var/lib/sbctl/keys/db/db.key` and `/var/lib/sbctl/keys/db/db.pem`.
+2.  **Module Signing in `make.conf`**: Add the following to `/etc/portage/make.conf` to tell Portage where the signing keys are. These variables are used by the `modules-sign` eclass.
+
+    ```bash
+    # /etc/portage/make.conf
+    MODULES_SIGN_KEY="/var/lib/sbctl/keys/db/db.key"
+    MODULES_SIGN_CERT="/var/lib/sbctl/keys/db/db.pem"
+    ```
+
+3.  **Kernel Configuration**: Ensure `CONFIG_MODULE_SIG=y` is set in the kernel. This is usually already enabled by cachyos-sources.
+4.  **Verification**: After installing the driver, verify the modules are signed.
+
+    ```bash
+    modinfo nvidia | grep '^sig_key'
+    ```
+    Running `modinfo nvidia` should show a signature key, confirming the module has been signed. The output should include the signer and key fingerprint, indicating the module's integrity is protected.
+
+### 7B.5 — Install the Driver
+
+```bash
+emerge --ask x11-drivers/nvidia-drivers
+```
+
+After the emerge completes, verify the key components:
+
+```bash
+# Check that modules are present
+modinfo nvidia nvidia-modeset nvidia-uvm nvidia-drm
+
+# Verify that the modules are signed
+modinfo nvidia | grep -E 'sig_|signer'
+# Expected output should show a signer and signature info, not be empty.
+```
+
+### 7B.6 — Module Parameters and Blacklisting
+
+Create the main NVIDIA module configuration file:
+
+```bash
+cat > /etc/modprobe.d/nvidia.conf << 'EOF'
+# Maintained by: Hardened Gentoo Setup Guide
+# Enable kernel mode setting (required for Wayland)
+options nvidia-drm modeset=1
+# Use the Page Attribute Table for memory allocation (performance)
+options nvidia NVreg_UsePageAttributeTable=1
+# Preserve video memory allocations across suspend/resume
+options nvidia NVreg_PreserveVideoMemoryAllocations=1 NVreg_TemporaryFilePath=/tmp
+EOF
+```
+
+As noted in 7B.2, `modeset=1` is the default for newer drivers. The explicit option is kept as a precaution for older branches and serves as a clear document of the requirement.
+
+Prevent the open-source `nouveau` driver from binding to the GPU:
+
+```bash
+cat > /etc/modprobe.d/blacklist-nouveau.conf << 'EOF'
+# Prevent the nouveau driver from binding to NVIDIA GPUs
+install nouveau /bin/true
+blacklist nouveau
+EOF
+```
+
+### 7B.7 — TPM and NVIDIA
+
+The TPM is used primarily for boot-time integrity verification (PCR sealing of the LUKS key) and for SSH key storage. There is no direct integration between the TPM and the NVIDIA driver. The driver's operation is unaffected by the TPM, and it does not interact with the TPM for functionality. Its security on this system is ensured through module signing (Secure Boot) and confinement via AppArmor.
+
+### 7B.8 — Enable Services
+
+```bash
+# Persistence daemon – keeps GPU state alive (reduces initialization latency)
+systemctl enable nvidia-persistenced.service
+```
+
+### 7B.9 — Rebuild the Initramfs and UKI
+
+The NVIDIA kernel modules must be included in the initramfs to load early enough for a graphical boot and Wayland.
+
+```bash
+KVER=$(ls /lib/modules/ | sort -V | tail -1)
+dracut --force --verbose /efi/EFI/Linux/gentoo-${KVER}.efi ${KVER}
+```
+
+Verify the NVIDIA modules are embedded:
+
+```bash
+lsinitrd /efi/EFI/Linux/gentoo-${KVER}.efi | grep -E "nvidia"
+```
+
+Re-sign the new UKI:
+
+```bash
+sbctl sign -s /efi/EFI/Linux/gentoo-${KVER}.efi
+```
+
+---
+
+### 7B.10 — AppArmor Integration for NVIDIA
+
+The `apparmor.d` project includes an `abstractions/nvidia` file that can be used to mediate access to NVIDIA device files and libraries. This abstraction defines rules for common NVIDIA resources, including device nodes (`/dev/nvidia*`), library paths, and shared memory. To integrate it into your security policy, `#include <abstractions/nvidia>` to the profiles of any application that requires GPU access.
+
+1.  **Identify Profiles**: Start with applications that have existing AppArmor profiles, such as Firefox (in complain mode) or your display manager (SDDM).
+2.  **Add the Abstraction**: Edit the relevant profile in `/etc/apparmor.d/`. For example, to allow SDDM to manage the display, add the include line to its profile:
+
+    ```bash
+    # In /etc/apparmor.d/usr.sbin.sddm
+    profile sddm /usr/bin/sddm {
+      # ... existing rules ...
+      #include <abstractions/nvidia>
+      # ...
+    }
+    ```
+
+3.  **Test**: After making changes, run your system in complain mode for these profiles and monitor the AppArmor logs (`aa-logprof`) to identify any additional rules needed.
+
+### 7B.11 — Hardening `nvidia-persistenced` with `svc-harden.py`
+
+The `nvidia-persistenced` service can be hardened using `svc-harden.py`, as referenced in Part 23 of the main guide. The script applies security directives such as `NoNewPrivileges`, `ProtectSystem=strict`, and `MemoryDenyWriteExecute` to reduce the attack surface of the service.
+
+After ensuring the service runs correctly in its default configuration, apply the hardening:
+
+```bash
+# Analyze the current security posture
+svc-harden.py analyze nvidia-persistenced.service
+
+# Apply hardening directives interactively
+svc-harden.py apply nvidia-persistenced.service
+```
+
+During the `apply` process, you can enable directives such as `ProtectSystem=strict` and `PrivateTmp=true`. It is important to test the GPU's functionality after applying each directive to ensure it does not interfere with driver operations.
+
+---
+
+### 7B.12 — Post-Install Verification
+
+After the first successful boot:
+
+```bash
+# 1. Verify the NVIDIA kernel module is loaded and signed
+lsmod | grep nvidia
+# Expected output should include: nvidia_drm, nvidia_modeset, nvidia_uvm, nvidia
+
+# 2. Check DRM KMS is active
+cat /sys/module/nvidia_drm/parameters/modeset
+# Should print: Y
+
+# 3. Verify GPU status
+nvidia-smi
+```
+
+If `nvidia-smi` reports the GPU and driver version, the setup is complete.
+
 
 ---
 
@@ -962,8 +1204,6 @@ systemctl enable systemd-zram-setup@zram0.service
 ---
 
 ## Part 13 — Snapper Integration
-
-- [ ] `POST INSTALL`
 
 ```bash
 # Install snapper (can be done after first boot)
@@ -1288,6 +1528,236 @@ aa-status
 #   N profiles are in complain mode.
 #   N processes have profiles defined.
 ```
+
+---
+
+## Part 14B — Confining Development Tools and Editors with AppArmor
+
+This section covers how to extend AppArmor confinement to editors, interpreters, build tools, and package managers within a development environment. It assumes the `apparmor.d` profile set has already been installed (Part 14) and provides practical, tested workflows.
+
+### 14B.1 — Understanding the `apparmor.d` Confinement Model
+
+The `apparmor.d` project ships over 1500 profiles with a clear design philosophy: **confine all core system processes and leave non‑core user applications to be sandboxed by other means**. Core processes include all `systemd` tools, `bluetooth`, `dbus`, `polkit`, `NetworkManager`, display managers, and desktop environment components. Non‑core user applications—web browsers, text editors, development tools—are generally out of scope for the project. This means you must build or supplement editor and developer‑tool confinement yourself.
+
+### 14B.2 — Profile Availability for Development Tools
+
+A systematic review of the `apparmor.d` repository as of April 2026 reveals the following coverage:
+
+| Tool | Pre‑built Profile? | Location | Notes |
+|------|--------------------|----------|-------|
+| `git` | ✅ Yes | `apparmor.d/profiles-g-l/` | Mature profile; ready for enforce after testing |
+| `gcc` | ✅ Yes | `apparmor.d/profiles-g-l/` | Covers the C compiler; C++ is handled by the same binary |
+| `make` | ✅ Yes | `apparmor.d/profiles-m-r/` | Covers GNU Make; other build tools (ninja, cmake) are not profiled |
+| `python3` | ✅ Yes | `apparmor.d/profiles-m-r/` | Confines the interpreter itself; see §14B.3 for scripting limitations |
+| `npm` | ✅ Yes | `apparmor.d/profiles-m-r/` | Covers the Node.js package manager |
+| `emacs` | ❌ No | — | Must be generated from scratch; see §14B.6 |
+| `neovim` | ❌ No | — | Must be generated from scratch; see §14B.5 |
+| `cargo` | ❌ No | — | Rust package manager is not yet profiled |
+| `cmake` | ❌ No | — | Must be generated if needed |
+| `ninja` | ❌ No | — | Must be generated if needed |
+
+The profiles that do exist are installed in `/etc/apparmor.d` when you run `make install` from the `apparmor.d` source tree. Verify their presence:
+
+```bash
+ls /etc/apparmor.d/usr.bin.git
+ls /etc/apparmor.d/usr.bin.make
+ls /etc/apparmor.d/usr.bin.gcc
+ls /etc/apparmor.d/usr.bin.python3*
+ls /etc/apparmor.d/usr.bin.npm
+```
+
+### 14B.3 — The Interpreter Problem
+
+This is the single most important technical limitation to understand before confining development tools. AppArmor attaches profiles to **executable files by path**. When you run `./script.sh` and that file has a profile at `/path/to/script.sh`, the profile attaches. When you run `python3 ./script.py`, AppArmor sees only the interpreter (`/usr/bin/python3`) being executed and attaches **its** profile—not any profile that may exist for the script file.
+
+This has two consequences:
+1. Confining `python3` globally affects every Python script on the system—including package managers, build scripts, and system services—and will almost certainly break functionality.
+2. It is **not possible to provide a per‑script profile** when scripts are invoked through an interpreter.
+
+The practical implication is that you should **not** enforce a broad `python3` profile on a development machine. The `apparmor.d` project ships a `python3` profile, but it should be used only in complain mode or not at all unless you are prepared to extensively customise it.
+
+### 14B.4 — Workflow: Deploying Existing Profiles
+
+For tools that _do_ have pre‑built profiles from `apparmor.d`, the deployment workflow is standard:
+
+```bash
+# 1. Set the profile to complain mode — it will log violations but not block anything
+sudo aa-complain git
+sudo aa-complain make
+sudo aa-complain gcc
+sudo aa-complain npm
+
+# 2. Use the tools normally for at least one week. Exercise all common operations:
+#    - git clone, push, pull, rebase
+#    - make with various targets
+#    - gcc across C and C++ compilation units
+#    - npm install, npm run, npm test
+
+# 3. After the testing period, scan the logs and interactively build allow rules
+sudo aa-logprof
+# aa-logprof will prompt you for each access violation and offer options
+# (Allow, Deny, Glob, etc.). Answer based on your understanding of the tool.
+
+# 4. Once aa-logprof reports no new violations, switch to enforce mode
+sudo aa-enforce git
+sudo aa-enforce make
+sudo aa-enforce gcc
+sudo aa-enforce npm
+```
+
+If a profile breaks your workflow after enforcement, switch it back to complain mode and re‑run `aa-logprof`:
+
+```bash
+sudo aa-complain git
+# ... exercise the broken workflow ...
+sudo aa-logprof
+sudo aa-enforce git
+```
+
+### 14B.5 — Creating a Profile for Neovim
+
+Neovim is the more straightforward editor to confine. Its runtime dependencies are relatively predictable, and it does not use the unusual bootstrap architecture Emacs does.
+
+Neovim locates its runtime files under `/usr/share/nvim/runtime/` (system‑wide) and `~/.local/share/nvim/` (user plugins). LSP servers are launched as sub‑processes and must be allowed to execute.
+
+```bash
+# 1. Start profile generation
+sudo aa-genprof /usr/bin/nvim
+
+# 2. aa-genprof creates a minimal baseline profile using aa-autodep
+#    and sets it to complain mode. It then prompts you to exercise the program.
+#    Open a second terminal and run nvim through its normal workflows:
+#    - Open and edit files in various directories (/etc, /home, /tmp)
+#    - Install/update plugins (:Lazy sync)
+#    - Use LSP features (completion, go-to-definition)
+#    - Execute :terminal and run shell commands
+
+# 3. Return to the first terminal. At the (S)can prompt, press Enter.
+#    aa-genprof will iterate through violations using aa-logprof.
+#    Answer each prompt. Common accesses include:
+#    - /usr/share/nvim/runtime/** (read)
+#    - ~/.local/share/nvim/** (read, write)
+#    - ~/.config/nvim/** (read, write)
+#    - ~/.cache/nvim/** (read, write)
+#    - LSP server binaries (execute permissions for each server)
+
+# 4. Repeat the (S)can cycle until no new violations appear.
+#    Then press (F)inish. aa-genprof will switch the profile to enforce mode.
+```
+
+The generated profile lives at `/etc/apparmor.d/usr.bin.nvim`. After testing, you may want to add local overrides in `/etc/apparmor.d/local/usr.bin.nvim` to survive `apparmor.d` updates.
+
+### 14B.6 — The Challenge of Confining Emacs
+
+Emacs is significantly harder to confine than Neovim for several architectural reasons:
+
+1. **Pre‑dump binary generation**: During the Gentoo build, a bare Emacs binary (`temacs`) is created, bootstrapped, and then dumped into the final `emacs` binary. This unique lifecycle means the binary on disk does not directly correspond to the running process in the way AppArmor expects.
+
+2. **Extensive runtime dependencies**: Emacs can act as a mail client (`mu4e`, `notmuch`), a web browser (`eww`, `xwidget-webkit`), an image viewer and editor, a terminal emulator (`vterm`, `eat`), an IRC client, a file manager, and a development environment. A single profile that covers all these use cases is impossible to write generically.
+
+3. **Native compilation**: Emacs 28+ can natively compile Elisp into shared libraries. This requires write access to the eln cache (`~/.emacs.d/eln-cache/`) and execution of compiled `.so` files, which AppArmor treats as code execution from a user directory.
+
+4. **Sub‑process model**: Emacs spawns external tools extensively—`git`, `make`, `grep`, `find`, `aspell`, language servers, formatters—each of which may or may not have its own AppArmor profile. Stacking and nesting profiles correctly is challenging.
+
+**Recommendation**: Rather than attempting AppArmor confinement, use a **dedicated sandbox** for Emacs when processing untrusted content:
+* Run Emacs inside `bubblewrap` (`bwrap`) with a restricted view of the filesystem.
+* Use `distrobox` or `podman` to isolate a development environment that includes Emacs.
+* For MUA (mail) workflows, use the already‑profiled `thunderbird` or `evolution` instead of Emacs‑based mail clients.
+
+### 14B.7 — Confining Language‑Specific Package Managers
+
+Package managers are high‑value targets: they download untrusted code and execute it. The `apparmor.d` project profiles `npm` but not `cargo`, `pip`, or `go`. Where no profile exists, generate one:
+
+```bash
+# Example: generate a profile for cargo (Rust package manager)
+sudo aa-genprof /usr/bin/cargo
+
+# Exercise in a second terminal:
+#   cargo new test-project && cd test-project
+#   cargo build
+#   cargo run
+#   cargo test
+#   cargo install some-crate
+#   cargo update
+
+# Then scan and finish as usual.
+```
+
+For `pip`, the interpreter problem (§14B.3) applies: `pip` is a Python script. If you confine `/usr/bin/python3`, every Python invocation is constrained. The safer approach is to use a dedicated virtual environment or container for Python development and confine the virtual environment's specific binaries rather than the system interpreter.
+
+### 14B.8 — Sandboxing Untrusted Code with Bubblewrap
+
+For one‑off scripts, experimental code, or debugging untrusted binaries, a full AppArmor profile is overkill. `bubblewrap` (`bwrap`) provides lightweight, ephemeral confinement using Linux namespaces:
+
+```bash
+# Install bubblewrap
+emerge --ask sys-apps/bubblewrap
+
+# Sandbox a command: network blocked, filesystem read-only, only cwd writable
+bwrap \
+  --ro-bind /usr /usr \
+  --ro-bind /etc /etc \
+  --ro-bind /lib64 /lib64 \
+  --bind /tmp /tmp \
+  --dev /dev \
+  --proc /proc \
+  --unshare-net \
+  --unshare-pid \
+  --die-with-parent \
+  /bin/bash -c "cd $(pwd) && ./untrusted-binary"
+```
+
+`bwrapwrap` (a Python wrapper) simplifies this to a one‑liner:
+
+```bash
+pip install bwrapwrap
+bwrapwrap ./untrusted-binary
+```
+
+### 14B.9 — Practical Integration into the Workflow
+
+The tables below summarise the recommended approach for each category of development tool.
+
+**Tools with existing `apparmor.d` profiles — deploy directly:**
+
+| Tool | Command | Initial Mode |
+|------|---------|-------------|
+| `git` | `sudo aa-complain git` | complain → test → `aa-logprof` → enforce |
+| `make` | `sudo aa-complain make` | complain → test → `aa-logprof` → enforce |
+| `gcc` | `sudo aa-complain gcc` | complain → test → `aa-logprof` → enforce |
+| `npm` | `sudo aa-complain npm` | complain → test → `aa-logprof` → enforce |
+
+**Tools without profiles — generate first:**
+
+| Tool | Command |
+|------|---------|
+| `neovim` | `sudo aa-genprof /usr/bin/nvim` |
+| `cargo` | `sudo aa-genprof /usr/bin/cargo` |
+| `cmake` | `sudo aa-genprof /usr/bin/cmake` |
+
+**Tools where confinement is not recommended:**
+
+| Tool | Reason | Alternative |
+|------|--------|-------------|
+| `python3` | Interpreter problem — affects all scripts | Use `bwrap`, containers, or virtual environments |
+| `node` | Same interpreter problem | Use `npm` profile + per‑project `bwrap` |
+| `emacs` | Architectural complexity | Use `bwrap`, `distrobox`, or `podman` |
+
+### 14B.10 — Ongoing Maintenance
+
+AppArmor profiles are not static. After each system update, re‑check logs:
+
+```bash
+# After a major Portage upgrade:
+sudo aa-logprof
+
+# If a tool has been updated (new features, new paths), re‑run aa-logprof
+# for that specific tool:
+sudo aa-logprof -d /etc/apparmor.d/ /usr/bin/git
+```
+
+For profiles you generated yourself, periodically review the local override files in `/etc/apparmor.d/local/`. The `apparmor.d` project updates its upstream profiles regularly; your local overrides ensure your modifications survive those updates.
+
 
 ---
 
@@ -3330,7 +3800,212 @@ aa-status | head -5
 
 ## Part 23 — systemd Service Hardening
 
-> **Deploy `svc-harden.py` from `arch_hardening_setup.md` Part 12.** This Python tool provides `analyze`, `apply`, `test`, `revert`, and `bisect` subcommands for per‑service systemd hardening. It applies directives like `NoNewPrivileges`, `PrivateTmp`, `ProtectSystem=strict`, `MemoryDenyWriteExecute`, and `SystemCallFilter` interactively, one service at a time.
+> **Deploy `svc-harden.py` from `arch_hardening_setup.md` Part 12.** This Python tool provides `analyze`, `apply`, `test`, `revert`, aThe NVIDIA driver setup has been thoroughly updated based on the latest information from the Gentoo wiki and package documentation. The key changes are: removal of the now-unnecessary `nvidia_drm.modeset=1` kernel parameter, emphasis on the `modules-sign` mechanism and its integration with Secure Boot, clarification on `powerd`, and expanded guidance on AppArmor and `svc-harden.py`.
+
+The following is the complete, rewritten "Part 7B — NVIDIA Driver Setup" section, designed to be placed between Part 7 (Kernel) and Part 8 (Dracut) in your `README.md`.
+
+---
+
+## Part 7B — NVIDIA Driver Setup
+
+This section covers the installation and configuration of the proprietary NVIDIA driver stack, ensuring it is compatible with Secure Boot, the Wayland compositor, and the system's hardening measures.
+
+### 7B.1 — Kernel Configuration for NVIDIA
+
+The cachyos-sources `.config` already enables most of the required options, but verify the following with `make menuconfig` before building the kernel:
+
+```
+Bus options (PCI etc.) --->
+  [*] PCI Express support
+  [*] VGA Arbitration                                   CONFIG_VGA_ARB
+
+Device Drivers --->
+  Graphics support --->
+    <*/M> Direct Rendering Manager (XFree86 …)          CONFIG_DRM
+    [*]   Enable legacy fbdev support for your …        CONFIG_DRM_FBDEV_EMULATION
+    < >   Nouveau (NVIDIA) cards                        CONFIG_DRM_NOUVEAU
+
+  Firmware Drivers --->
+    [*] Mark VGA/VBE/EFI FB as generic system …         CONFIG_SYSFB_SIMPLEFB
+```
+
+*   `CONFIG_DRM_FBDEV_EMULATION` is essential for `nvidia-drm` to provide a framebuffer console.
+*   `CONFIG_VGA_ARB` ensures correct handoff between multiple GPU drivers (e.g., `simpledrm` and `nvidia-drm`) at boot.
+
+### 7B.2 — Kernel Command Line and Modesetting
+
+For NVIDIA driver versions 560 and later, modesetting is enabled by default for Wayland. No additional kernel command-line parameters are required. The driver will automatically set `modeset=1` and `fbdev=1`. This behavior is confirmed by the Arch Linux wiki and the official NVIDIA documentation for the 580 series.
+
+### 7B.3 — USE Flags
+
+The relevant USE flags for `x11-drivers/nvidia-drivers` are evaluated for this specific desktop setup (RTX 2080 Ti). The key flags are `kernel-open` and `modules-sign`.
+
+*   **`kernel-open`**: This flag is enabled by default and uses the open-source kernel modules. It is recommended for Turing (RTX 20-series) and newer GPUs, and is mandatory for the NVIDIA 50-series "Blackwell" GPUs.
+*   **`modules-sign`**: This flag is critical for Secure Boot. Its role is elaborated in section 7B.4.
+*   **`persistenced`**: Enables the `nvidia-persistenced` daemon, which is useful for keeping the GPU state initialized, reducing latency for CUDA applications.
+*   **`powerd`**: This flag is **not needed** for desktops. It is specifically for laptops with NVIDIA Dynamic Boost technology. The Gentoo package description explicitly states it is "only useful with specific laptops, ignore if unsure".
+
+Configure the necessary flags. If you already have an entry for `x11-drivers/nvidia-drivers` in your file, merge the flags to avoid duplication.
+
+```bash
+# /etc/portage/package.use/nvidia
+x11-drivers/nvidia-drivers modules-sign persistenced
+```
+
+### 7B.4 — Secure Boot and Module Signing
+
+Since this system uses Secure Boot with custom keys, all kernel modules must be signed to load. The `modules-sign` USE flag automates this process in Gentoo, leveraging the same keys used for the kernel and UKI.
+
+1.  **Ensure Keys Exist**: The `sbctl` keys must exist. If you followed Part 9, they are at `/var/lib/sbctl/keys/db/db.key` and `/var/lib/sbctl/keys/db/db.pem`.
+2.  **Module Signing in `make.conf`**: Add the following to `/etc/portage/make.conf` to tell Portage where the signing keys are. These variables are used by the `modules-sign` eclass.
+
+    ```bash
+    # /etc/portage/make.conf
+    MODULES_SIGN_KEY="/var/lib/sbctl/keys/db/db.key"
+    MODULES_SIGN_CERT="/var/lib/sbctl/keys/db/db.pem"
+    ```
+
+3.  **Kernel Configuration**: Ensure `CONFIG_MODULE_SIG=y` is set in the kernel. This is usually already enabled by cachyos-sources.
+4.  **Verification**: After installing the driver, verify the modules are signed.
+
+    ```bash
+    modinfo nvidia | grep '^sig_key'
+    ```
+    Running `modinfo nvidia` should show a signature key, confirming the module has been signed. The output should include the signer and key fingerprint, indicating the module's integrity is protected.
+
+### 7B.5 — Install the Driver
+
+```bash
+emerge --ask x11-drivers/nvidia-drivers
+```
+
+After the emerge completes, verify the key components:
+
+```bash
+# Check that modules are present
+modinfo nvidia nvidia-modeset nvidia-uvm nvidia-drm
+
+# Verify that the modules are signed
+modinfo nvidia | grep -E 'sig_|signer'
+# Expected output should show a signer and signature info, not be empty.
+```
+
+### 7B.6 — Module Parameters and Blacklisting
+
+Create the main NVIDIA module configuration file:
+
+```bash
+cat > /etc/modprobe.d/nvidia.conf << 'EOF'
+# Maintained by: Hardened Gentoo Setup Guide
+# Enable kernel mode setting (required for Wayland)
+options nvidia-drm modeset=1
+# Use the Page Attribute Table for memory allocation (performance)
+options nvidia NVreg_UsePageAttributeTable=1
+# Preserve video memory allocations across suspend/resume
+options nvidia NVreg_PreserveVideoMemoryAllocations=1 NVreg_TemporaryFilePath=/tmp
+EOF
+```
+
+As noted in 7B.2, `modeset=1` is the default for newer drivers. The explicit option is kept as a precaution for older branches and serves as a clear document of the requirement.
+
+Prevent the open-source `nouveau` driver from binding to the GPU:
+
+```bash
+cat > /etc/modprobe.d/blacklist-nouveau.conf << 'EOF'
+# Prevent the nouveau driver from binding to NVIDIA GPUs
+install nouveau /bin/true
+blacklist nouveau
+EOF
+```
+
+### 7B.7 — TPM and NVIDIA
+
+The TPM is used primarily for boot-time integrity verification (PCR sealing of the LUKS key) and for SSH key storage. There is no direct integration between the TPM and the NVIDIA driver. The driver's operation is unaffected by the TPM, and it does not interact with the TPM for functionality. Its security on this system is ensured through module signing (Secure Boot) and confinement via AppArmor.
+
+### 7B.8 — Enable Services
+
+```bash
+# Persistence daemon – keeps GPU state alive (reduces initialization latency)
+systemctl enable nvidia-persistenced.service
+```
+
+### 7B.9 — Rebuild the Initramfs and UKI
+
+The NVIDIA kernel modules must be included in the initramfs to load early enough for a graphical boot and Wayland.
+
+```bash
+KVER=$(ls /lib/modules/ | sort -V | tail -1)
+dracut --force --verbose /efi/EFI/Linux/gentoo-${KVER}.efi ${KVER}
+```
+
+Verify the NVIDIA modules are embedded:
+
+```bash
+lsinitrd /efi/EFI/Linux/gentoo-${KVER}.efi | grep -E "nvidia"
+```
+
+Re-sign the new UKI:
+
+```bash
+sbctl sign -s /efi/EFI/Linux/gentoo-${KVER}.efi
+```
+
+---
+
+### 7B.10 — AppArmor Integration for NVIDIA
+
+The `apparmor.d` project includes an `abstractions/nvidia` file that can be used to mediate access to NVIDIA device files and libraries. This abstraction defines rules for common NVIDIA resources, including device nodes (`/dev/nvidia*`), library paths, and shared memory. To integrate it into your security policy, `#include <abstractions/nvidia>` to the profiles of any application that requires GPU access.
+
+1.  **Identify Profiles**: Start with applications that have existing AppArmor profiles, such as Firefox (in complain mode) or your display manager (SDDM).
+2.  **Add the Abstraction**: Edit the relevant profile in `/etc/apparmor.d/`. For example, to allow SDDM to manage the display, add the include line to its profile:
+
+    ```bash
+    # In /etc/apparmor.d/usr.sbin.sddm
+    profile sddm /usr/bin/sddm {
+      # ... existing rules ...
+      #include <abstractions/nvidia>
+      # ...
+    }
+    ```
+
+3.  **Test**: After making changes, run your system in complain mode for these profiles and monitor the AppArmor logs (`aa-logprof`) to identify any additional rules needed.
+
+### 7B.11 — Hardening `nvidia-persistenced` with `svc-harden.py`
+
+The `nvidia-persistenced` service can be hardened using `svc-harden.py`, as referenced in Part 23 of the main guide. The script applies security directives such as `NoNewPrivileges`, `ProtectSystem=strict`, and `MemoryDenyWriteExecute` to reduce the attack surface of the service.
+
+After ensuring the service runs correctly in its default configuration, apply the hardening:
+
+```bash
+# Analyze the current security posture
+svc-harden.py analyze nvidia-persistenced.service
+
+# Apply hardening directives interactively
+svc-harden.py apply nvidia-persistenced.service
+```
+
+During the `apply` process, you can enable directives such as `ProtectSystem=strict` and `PrivateTmp=true`. It is important to test the GPU's functionality after applying each directive to ensure it does not interfere with driver operations.
+
+---
+
+### 7B.12 — Post-Install Verification
+
+After the first successful boot:
+
+```bash
+# 1. Verify the NVIDIA kernel module is loaded and signed
+lsmod | grep nvidia
+# Expected output should include: nvidia_drm, nvidia_modeset, nvidia_uvm, nvidia
+
+# 2. Check DRM KMS is active
+cat /sys/module/nvidia_drm/parameters/modeset
+# Should print: Y
+
+# 3. Verify GPU status
+nvidia-smi
+```
+
+If `nvidia-smi` reports the GPU and driver version, the setup is complete.nd `bisect` subcommands for per‑service systemd hardening. It applies directives like `NoNewPrivileges`, `PrivateTmp`, `ProtectSystem=strict`, `MemoryDenyWriteExecute`, and `SystemCallFilter` interactively, one service at a time.
 
 ---
 
@@ -3375,12 +4050,14 @@ cp /etc/issue /etc/issue.net
 
 ## Part 26 — Final System Setup and First Boot
 
-### 26.1 — Set Root Password and Create User
+### 26.1 — User Account (already configured)
+
+The root password was set and locked, and the `ahsan` user was created in Section 5.6. No further action is needed here.
 
 ```bash
-passwd
-useradd -m -G users,wheel,audio,video -s /bin/bash ahsan
-passwd ahsan
+# Verify the user exists and groups are correct
+id ahsan
+# Should show: uid=…(ahsan) gid=…(ahsan) groups=…(ahsan),…wheel,audio,video,tss
 ```
 
 ### 26.2 — Enable Essential Services

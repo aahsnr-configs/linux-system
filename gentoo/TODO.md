@@ -1,0 +1,2 @@
+- [ ] Where to utilize tpm2
+- [ ] Secureboot questions - read the whole README.md
