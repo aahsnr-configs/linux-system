@@ -433,7 +433,7 @@ USE="systemd -cups -elogind -fips -gnome -handbook gtk4 \
      apparmor appindicator -bluetooth firmware lvm gstreamer \
      gui keyring libnotify lto pgo jit nvenc nvidia pipewire \
      qt5 qt6 udisks upower wayland zstd X -accessibility \
-     cryptsetup device-mapper audit"
+     cryptsetup device-mapper audit policykit"
 L10N="en"
 LINGUAS="en"
 ABI_X86="64"
@@ -465,6 +465,8 @@ sys-devel/gcc default-stack-clash-protection graphite go
 llvm-runtimes/compiler-rt-sanitizers orc profile
 llvm-core/clang-runtime sanitize
 dev-lang/python -jit
+net-misc/networkmanager nftables gnutls -resolvconf
+app-admin/cockpit firewalld pcp udisks
 ```
 
 `nvim /etc/portage/env/clang-lto-env`
@@ -2028,28 +2030,26 @@ Both `dnscrypt-proxy` and `systemd-resolved` should be `active (running)`. Check
 
 ---
 
-### 19.3 — Hardened NetworkManager
+## 18.3 — Hardened NetworkManager
+
+`emerge --ask net-misc/networkmanager && mkdir -p /etc/NetworkManager/conf.d/ && nvim /etc/NetworkManager/conf.d/00-hardening.conf`
 
 ```bash
-# Install NetworkManager (the 'tools' USE flag pulls in nmtui/nmlci)
-emerge --ask net-misc/networkmanager
-
-mkdir -p /etc/NetworkManager/conf.d/
-
-cat > /etc/NetworkManager/conf.d/00-hardening.conf << 'EOF'
 [main]
 plugins = keyfile
 # Never touch /etc/resolv.conf — systemd‑resolved manages it
 dns = none
 systemd-resolved = true
-rc-manager = unmanaged
+# Note: dns=none implies rc-manager=unmanaged, so rc-manager is not set separately.
 
 [connection]
 # MAC address randomisation
+# Supported globally for both Ethernet and Wi‑Fi (see NetworkManager.conf(5))
 ethernet.cloned-mac-address = random
 wifi.cloned-mac-address     = stable-ssid
 
 [device]
+# Randomise the MAC address used during Wi‑Fi scanning (per‑device setting)
 wifi.scan-rand-mac-address = yes
 
 [connectivity]
@@ -2059,16 +2059,47 @@ uri=
 [logging]
 level  = INFO
 domains = ALL
-EOF
+```
 
-cat > /etc/NetworkManager/conf.d/01-wifi-security.conf << 'EOF'
-[connection]
-# Prefer WPA3‑SAE; fall back to WPA2‑PSK if the AP does not support it.
-# WPS is disabled (WPS PIN attack is a known APT TTP).
-wifi-sec.key-mgmt    = sae
-wifi-sec.wps-method  = disabled
-wifi-sec.pmf         = 1
-EOF
+`mkdir -p /etc/NetworkManager/dispatcher.d && nvim /etc/NetworkManager/dispatcher.d/99-wifi-security` 
+
+```bash
+#!/bin/bash
+# /etc/NetworkManager/dispatcher.d/99-wifi-security
+# Enforce Wi‑Fi security defaults on every connection activation.
+
+# --- Apply Wi‑Fi security defaults via a dispatcher script ---
+# wifi-sec.key-mgmt, wifi-sec.wps-method, and wifi-sec.pmf cannot be set as global defaults in NetworkManager.conf; they are only valid as per‑profile settings. The official NetworkManager documentation recommends using a dispatcher script to enforce them on every new Wi‑Fi connection activation
+
+
+# This script is called by NetworkManager-dispatcher on every network event.
+# It applies wifi-sec settings to all Wi‑Fi connections that are being brought up.
+#
+# Variables provided by NetworkManager:
+#   DEVICE_IFACE  – interface name (e.g. wlan0)
+#   ACTION        – event type ("up", "down", etc.)
+#   CONNECTION_UUID – unique identifier of the connection profile
+
+INTERFACE="$1"
+ACTION="$2"
+
+# Only act when a Wi‑Fi interface comes up
+if [[ "$ACTION" == "up" ]]; then
+    CONNECTION_TYPE="$CONNECTION_TYPE"
+
+    if [[ "$CONNECTION_TYPE" == "802-11-wireless" ]]; then
+        nmcli connection modify uuid "$CONNECTION_UUID" \
+            wifi-sec.pmf        1 \
+            wifi-sec.wps-method disabled \
+            wifi-sec.key-mgmt   sae 2>/dev/null
+    fi
+fi
+exit 0
+```
+
+```bash
+chown root:root /etc/NetworkManager/dispatcher.d/99-wifi-security
+chmod 755 /etc/NetworkManager/dispatcher.d/99-wifi-security
 
 systemctl restart NetworkManager
 systemctl enable NetworkManager
@@ -2077,28 +2108,20 @@ systemctl enable NetworkManager
 > **PMF (Protected Management Frames):** Setting `pmf = 1` enables PMF when the AP supports it.  
 > `pmf = 2` (required) is stronger but may cause connectivity issues with older access points; evaluate after testing.
 
+> **WPA3‑SAE:** The dispatcher script enforces `sae` (WPA3) for all Wi‑Fi connections.  
+> Connections to WPA2‑only access points will require manual adjustment—use `nmcli connection modify <con‑name> wifi-sec.key-mgmt wpa-psk` to fall back.
+
+> **Dispatcher script note:** The `99-wifi-security` script runs as root on every connection state change and enforces the Wi‑Fi security settings that are not valid as global defaults in `NetworkManager.conf`.
+
 ---
 
-### 19.4 — Cockpit Integration (Optional)
-
-Cockpit is **not yet packaged in the main Gentoo repository**.  
-A community installation guide is available on the Gentoo Forums and requires building from source alongside Performance Co‑Pilot (PCP).  
-If you choose to install it, follow these steps:
+### 18.4 — Cockpit Integration (Optional)
 
 ```bash
-# Install build dependencies
-emerge --ask dev-vcs/git net-libs/libssh2 dev-qt/qtprintsupport
+eselect repository enable inode64-overlay
+emaint sync -r inode64-overlay
 
-# Build and install Performance Co‑Pilot (PCP)
-git clone https://github.com/performancecopilot/pcp.git /opt/git_builds/pcp
-cd /opt/git_builds/pcp
-# … follow the upstream build instructions …
-
-# Build and install Cockpit
-git clone https://github.com/cockpit-project/cockpit.git /opt/git_builds/cockpit
-cd /opt/git_builds/cockpit
-make
-sudo make install
+emerge --ask app-admin/cockpit
 ```
 
 Once installed, harden Cockpit with the following configuration:
@@ -2122,8 +2145,7 @@ Fatal = criticals-and-warnings
 EOF
 
 cat > /etc/cockpit/banner.txt << 'EOF'
-WARNING: This system is monitored. Unauthorized access is prohibited.
-All actions are logged and subject to security review.
+WARNING: This system is monitored. Unauthorized access is prohibited. All actions are logged and subject to security review.
 EOF
 
 # Generate a self‑signed certificate for TLS
@@ -2148,7 +2170,7 @@ systemctl enable --now cockpit.socket
 > Compensating controls: Cockpit is bound to localhost only, socket‑activated by systemd, and should be hardened with `svc-harden.py apply cockpit` (see Part 24).
 
 
-## Part 20 — SSH Hardening
+## Part 19 — SSH Hardening
 
 ```bash
 emerge --ask net-misc/openssh
@@ -2158,7 +2180,7 @@ emerge --ask net-misc/openssh
 
 ---
 
-## Part 21 — PAM Hardening
+## Part 20 — PAM Hardening
 
 ```bash
 emerge --ask sys-libs/pam sys-libs/libpwquality
@@ -2168,9 +2190,9 @@ emerge --ask sys-libs/pam sys-libs/libpwquality
 
 ---
 
-## Part 22 — Supply Chain Monitoring
+## Part 21 — Supply Chain Monitoring
 
-### 22.1 — Portage Post‑Transaction Audit Logging
+### 21.1 — Portage Post‑Transaction Audit Logging
 
 ```bash
 cat > /etc/portage/bashrc.d/audit-log.sh << 'SCRIPT'
@@ -2191,7 +2213,7 @@ post_pkg_postinst() {
 SCRIPT
 ```
 
-### 22.2 — CVE Scanning
+### 21.2 — CVE Scanning
 
 ```bash
 # Gentoo provides GLSA (Gentoo Linux Security Advisories) via glsa-check
@@ -2225,6 +2247,9 @@ chmod +x /usr/local/bin/weekly-cve-scan.sh
 > **Install all packages listed in `README.md` sections for desktop, development, containers, and scientific computing.** The full emerge list from the personal runbook includes:
 
 ```bash
+eselect-repository enable guru
+emaint-sync -r guru
+
 emerge --ask \
   gui-wm/hyprland gui-wm/hyprland-contrib \
   gui-libs/aquamarine gui-libs/hyprcursor gui-libs/hyprutils \
@@ -2256,13 +2281,7 @@ emerge --ask \
 
 ```bash
 cat > /etc/issue << 'EOF'
--- WARNING -- This system is for the use of authorized users only. Individuals
-using this computer system without authority or in excess of their authority
-are subject to having all their activities on this system monitored and
-recorded by system personnel. Anyone using this system expressly consents to
-such monitoring and is advised that if such monitoring reveals possible
-evidence of criminal activity system personal may provide the evidence of
-such monitoring to law enforcement officials.
+-- WARNING -- This system is for the use of authorized users only. Individuals using this computer system without authority or in excess of their authority are subject to having all their activities on this system monitored and recorded by system personnel. Anyone using this system expressly consents to such monitoring and is advised that if such monitoring reveals possible evidence of criminal activity system personal may provide the evidence of such monitoring to law enforcement officials.
 EOF
 
 cp /etc/issue /etc/issue.net
