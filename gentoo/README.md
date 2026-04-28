@@ -2,15 +2,6 @@
 
 ## Against Nation-State Advanced Persistent Threats — April 2026
 
-> **Corrections from the previous version (see Appendix C for details):**
-> – ESP is mounted at `/efi` (modern `systemd` standard) instead of `/boot/efi`.
-> – `sys-kernel/installkernel` USE flags corrected to `dracut uki` (removed `efistub`);
-> the `efistub` flag is experimental and unnecessary; its use for UEFI boot entry
-> creation has been removed from the description.
-> – Added the missing creation of `@/var/log`, `@/var/log/audit`, and `@/var/cache`
-> subvolumes that are required by the mount table.
-> – All paths now consistently use `/efi` for the EFI System Partition.
-
 > **Threat Model**: Chinese and Russian state‑sponsored actors (APT10, APT29, APT41, Sandworm, Cozy Bear, Fancy Bear). Documented TTPs include supply‑chain compromise, kernel exploits, LUKS brute‑force against weak KDFs, cold‑boot attacks against unencrypted RAM, DMA‑over‑Thunderbolt/PCIe, SSH credential harvesting, and persistence via kernel modules or systemd service hijacking.
 
 > **Hardware**: Intel i9‑13900K (Raptor Lake) with two NVMe drives — 500 GB (nvme0n1) and 1 TB (nvme1n1). TPM 2.0, Intel TME, VT‑d, CET hardware present. NVIDIA GPU from the personal runbook is **not** assumed; if present, adjust the kernel config accordingly.
@@ -467,6 +458,7 @@ llvm-core/clang-runtime sanitize
 dev-lang/python -jit
 net-misc/networkmanager nftables gnutls -resolvconf
 app-admin/cockpit firewalld pcp udisks
+sys-auth/pambase pwquality
 ```
 
 `nvim /etc/portage/env/clang-lto-env`
@@ -2532,77 +2524,527 @@ ssh -I /usr/lib64/libtpm2_pkcs11.so user@remote.host.tld
 
 ---
 
+## Part 20 — PAM and Authentication Hardening
 
-## Part 20 — PAM Hardening
+### Gentoo‑Specific PAM Notes
+
+Gentoo, like Arch, does not use a PAM configuration manager. PAM stack files in `/etc/pam.d/` must be edited directly. However, Gentoo has a unique architecture: the central file is `/etc/pam.d/system-auth`, which is **included** by `/etc/pam.d/system-login` (used by `login`, `sshd`, display managers) rather than being a standalone login stack. This means modifications to `system-auth` automatically affect all PAM‑aware services.
+
+Additionally, Gentoo provides `sys-auth/pambase`, which ships the default PAM configuration. Its `pwquality` USE flag controls whether `pam_pwquality.so` is integrated into the system auth stack for password quality validation.
+
+The key files are:
+* `/etc/pam.d/system-auth` — core PAM stack, included by most services
+* `/etc/pam.d/system-login` — login‑specific stack (includes `system-auth`)
+* `/etc/security/faillock.conf` — `pam_faillock` configuration (preferred method over inline arguments)
+* `/etc/security/pwquality.conf` — `pam_pwquality` configuration
+* `/etc/security/limits.conf` — resource limits
+
+### Installation
 
 ```bash
-emerge --ask sys-libs/pam sys-libs/libpwquality
+# Install PAM (part of base system) and libpwquality for password strength checking. Enable the pwquality USE flag on pambase to integrate pam_pwquality.so into system-auth.
+emerge sys-auth/pambase sys-libs/libpwquality
+
+# pam_faillock is included with sys-libs/pam (no separate package needed). Verify the module is present:
+ls /lib64/security/pam_faillock.so
 ```
 
-> **Apply the PAM configuration from `arch_hardening_setup.md` Part 11**: `pam_faillock` (5 failures → 15‑minute lockout), `pam_pwquality` (16‑char minimum, 3+ character classes, dictionary check), hardened `/etc/pam.d/system-auth`, resource limits in `/etc/security/limits.conf`.
+> **Note on `pam_umask.so`:** As of April 2026, `pam_umask.so` is not yet part of the default Gentoo `pambase` package (tracked in [Bug 938574](https://bugs.gentoo.org/938574)). To set a default umask, add `session optional pam_umask.so umask=0027` to `/etc/pam.d/system-login` in the `session` block.
+
+### pam_faillock Configuration
+
+`pam_faillock` locks accounts after repeated authentication failures. Since PAM 1.4.0, the preferred method is to configure it via `/etc/security/faillock.conf` rather than inline module arguments — this avoids duplication across multiple service files and provides a single source of truth.
+
+```bash
+cat > /etc/security/faillock.conf << 'EOF'
+# /etc/security/faillock.conf
+# Account lockout after repeated authentication failures.
+# This file is read by pam_faillock.so and is the preferred method
+# over configuring pam_faillock directly.
+
+# Lock account after 5 consecutive failures (default: 3)
+deny = 5
+
+# Failure window: count failures within 10 minutes (default: 900)
+fail_interval = 600
+
+# Lock duration: 15 minutes. 0 means "never" (requires manual reset).
+# Default: 600 (10 minutes).
+unlock_time = 900
+
+# Even root can be locked out — prevents targeted root brute-force
+even_deny_root = true
+root_unlock_time = 60
+
+# Store failure data in /var/run/faillock/ (tmpfs — cleared on reboot).
+# For persistent lockout across reboots, change to /var/lib/faillock/.
+# Default: /var/run/faillock.
+dir = /var/run/faillock
+
+# Audit all authentication events to the system log
+audit = true
+
+# Track only local users (ignore centralized AD, LDAP, etc.).
+# Set to true if using a centralized authentication service.
+local_users_only = false
+
+# When 'true', suppresses informative messages to the user.
+# Set to 'false' so administrators can read failure details in logs.
+silent = false
+EOF
+```
+
+> **Note on `silent`:** When `silent = false`, `pam_faillock` reports whether the user exists or not (a slight information leak). For maximum stealth, set `silent = true`, but this makes debugging authentication failures harder. The `audit` option logs to the system log regardless of the `silent` setting.
+
+### pam_pwquality Configuration
+
+`pam_pwquality.so` (successor to the deprecated `pam_cracklib`) enforces password complexity rules. It reads its settings from `/etc/security/pwquality.conf` by default.
+
+```bash
+cat > /etc/security/pwquality.conf << 'EOF'
+# /etc/security/pwquality.conf
+# Password quality requirements for local accounts.
+# SSH uses key‑only auth (Part 19); these requirements apply to
+# local console login, sudo password changes, and passwd.
+
+# Minimum length: 16 characters
+minlen = 16
+
+# Require at least N characters of each class.
+# Negative numbers mean "at least this many".
+# 0 means "no requirement".
+ucredit = -1   # at least 1 uppercase
+lcredit = -1   # at least 1 lowercase
+dcredit = -1   # at least 1 digit
+ocredit = -1   # at least 1 special character
+
+# Maximum consecutive same characters
+maxrepeat = 3
+
+# Maximum consecutive characters from the same class
+maxclassrepeat = 4
+
+# Minimum number of character classes required
+# (uppercase, lowercase, digit, special)
+minclass = 3
+
+# Reject passwords containing the username
+usercheck = 1
+
+# Number of characters in the new password that must not be
+# present in the old password
+difok = 8
+
+# Dictionary check — reject common/dictionary words
+dictcheck = 1
+
+# Reject simple sequences (abc, 123, etc.)
+enforcing = 1
+
+# Number of retries before giving up
+retry = 3
+
+# Reject passwords containing these words.
+# This is a space‑separated list; each word longer than 3 characters
+# is individually searched for and forbidden in new passwords.
+badwords = password passwd letmein qwerty
+EOF
+```
+
+> **Note on `badwords`:** The `pwquality.conf` file uses `name = value` syntax and accepts a space‑separated list. This differs from the inline PAM argument format, which uses a different quoting model. The upstream issue tracker confirms that inline PAM arguments do not handle multi‑word values well, but the dedicated config file does.
+
+### Hardened `/etc/pam.d/system-auth`
+
+This is the core PAM stack included by `system-login`, `sshd`, `sudo`, `su`, and most other services. The `pam_faillock` lines use the `faillock.conf` file (via no extra arguments), which is the modern, maintainable approach.
+
+```bash
+cat > /etc/pam.d/system-auth << 'EOF'
+#%PAM-1.0
+# /etc/pam.d/system-auth
+# Hardened PAM stack for Gentoo — April 2026
+#
+# Included by: /etc/pam.d/system-login, sshd, sudo, su, and most other services.
+# Modifications here affect all PAM‑aware authentication on the system.
+
+## AUTH STACK
+# pam_faillock: preauth — check if account is locked BEFORE password prompt.
+# This prevents timing attacks that reveal account existence.
+auth      required  pam_faillock.so preauth
+
+# pam_unix: authenticate via /etc/shadow (sha512, try_first_pass avoids a
+# second prompt if a password was already entered by a previous module).
+auth      [success=1 default=bad] pam_unix.so try_first_pass nullok
+
+# pam_faillock: authfail — record failure if pam_unix above failed
+auth      [default=die] pam_faillock.so authfail
+
+# pam_faillock: authsucc — record success if pam_unix above succeeded
+auth      sufficient pam_faillock.so authsucc
+
+# Deny if none of the above succeeded
+auth      required  pam_deny.so
+
+## ACCOUNT STACK
+# pam_faillock: check account lockout status
+account   required  pam_faillock.so
+
+# pam_unix: standard account checks (expiry, validity)
+account   required  pam_unix.so
+
+## PASSWORD STACK
+# pam_pwquality: enforce password quality on changes
+password  required  pam_pwquality.so
+
+# pam_unix: update the password with sha512.
+# rounds=65536 makes offline brute-force 65536× more expensive.
+# use_authtok passes the password from pam_pwquality without re‑prompting.
+password  required  pam_unix.so sha512 shadow rounds=65536 use_authtok
+
+## SESSION STACK
+# pam_limits: enforce resource limits (prevents fork bombs, etc.)
+session   required  pam_limits.so
+
+# pam_unix: standard session setup
+session   required  pam_unix.so
+
+# pam_env: set environment variables from /etc/security/pam_env.conf
+session   required  pam_env.so
+
+# pam_umask: set default umask for login sessions
+# Note: this may need to be added to /etc/pam.d/system-login as well
+# if not already included there. See Gentoo Bug 938574.
+session   optional  pam_umask.so umask=0027
+
+# systemd-logind session tracking
+session   optional  pam_systemd.so
+EOF
+```
+
+> **SHA512 rounds note:** Starting with Linux‑PAM 1.6.0, the `rounds` option can also be configured globally via `SHA_CRYPT_MAX_ROUNDS` in `/etc/login.defs` instead of (or in addition to) the PAM `rounds=` argument. If both are set, the PAM argument takes precedence. The value 65536 was chosen to balance security and login latency on modern hardware.
+
+### pam_limits Configuration
+
+```bash
+cat > /etc/security/limits.conf << 'EOF'
+# /etc/security/limits.conf
+# Resource limits to constrain fork-bomb and resource exhaustion attacks.
+# See limits.conf(5) for syntax details.
+
+# Defaults for all users
+*        soft    nproc           4096
+*        hard    nproc           8192
+*        soft    nofile          65536
+*        hard    nofile          1048576
+*        soft    stack           8192
+*        hard    stack           65536
+*        soft    core            0
+*        hard    core            0
+
+# Root: slightly higher limits for administrative tasks
+root     soft    nproc           unlimited
+root     hard    nproc           unlimited
+root     soft    nofile          1048576
+root     hard    nofile          1048576
+EOF
+```
+
+### Unlocking a Locked Account
+
+```bash
+# Reset faillock counters for a user
+faillock --user ahsan --reset
+
+# Check current lockout status
+faillock --user ahsan
+
+# To unlock manually (if faillock is not available):
+rm -f /var/run/faillock/ahsan
+```
+
+### Verification
+
+```bash
+# Verify all PAM modules are available
+for mod in pam_faillock.so pam_pwquality.so pam_limits.so pam_umask.so pam_systemd.so; do
+    ls /lib64/security/$mod 2>/dev/null && echo "  ✓ $mod" || echo "  ✗ $mod MISSING"
+done
+
+# Test password quality enforcement (as a regular user)
+passwd
+# Should reject weak passwords per pwquality.conf
+
+# Test faillock after deliberate failure (as root, monitor another TTY)
+faillock --user ahsan
+```
 
 ---
 
 ## Part 21 — Supply Chain Monitoring
 
-### 21.1 — Portage Post‑Transaction Audit Logging
+A nation-state supply-chain adversary targets the package distribution pipeline — tampered ebuilds, malicious source tarballs, or compromised repository metadata — to inject code before it ever reaches the compiler. The controls below make every link in that chain cryptographically verifiable and auditable.
+
+---
+
+### 21.1 — Portage ELOG: Build and Post‑Install Logging
+
+Portage’s native **ELOG** framework captures every `einfo`, `ewarn`, and `eerror` message emitted by ebuilds and saves them to a structured, machine‑parseable log. Enable it in `/etc/portage/make.conf`:
 
 ```bash
-cat > /etc/portage/bashrc.d/audit-log.sh << 'SCRIPT'
-#!/bin/bash
-# Log all package transactions to structured JSON audit log
+# Per‑ebuild build logs (full stdout/stderr of the build process)
+PORT_LOGDIR="/var/log/portage"
 
-post_pkg_postinst() {
-    local AUDIT_LOG="/var/log/portage-audit.json"
-    local TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-    local ENTRY=$(python3 -c "import json; print(json.dumps({
-        'timestamp': '$TS',
-        'action': 'emerge',
-        'package': '${CATEGORY}/${PF}',
-        'status': 'COMPLETED'
-    }))")
-    echo "$ENTRY" >> "$AUDIT_LOG" 2>/dev/null || true
-}
-SCRIPT
+# Automatically delete build logs older than 30 days
+FEATURES="clean-logs"
+
+# ELOG saves important messages to /var/log/portage/elog/
+PORTAGE_ELOG_SYSTEM="save"
+PORTAGE_ELOG_CLASSES="warn info error log qa"
 ```
 
-### 21.2 — CVE Scanning
+After applying these settings, every `emerge` produces:
+* A full build log at `/var/log/portage/<category>:<package>:<timestamp>.log`.
+* An ELOG summary at `/var/log/portage/elog/<category>:<package>:<timestamp>.log`.
+
+The `PORTAGE_ELOG_SYSTEM` variable accepts any space‑separated combination of `save`, `custom`, `syslog`, `mail`, `save_summary`, and `mail_summary`; `save` is the minimum required to write these logs to disk. The ELOG logs can be browsed with `app-portage/elogv`.
+
+---
+
+### 21.2 — Repository Integrity Verification
+
+Portage verifies all Manifest checksums by default. Two additional layers guarantee that the ebuild repository itself has not been tampered with.
+
+#### 21.2.1 — Git Commit Signature Verification
+
+Already configured in Section 6.7. The `repos.conf` entry for `::gentoo` includes:
+
+```ini
+sync-git-verify-commit-signature = yes
+sync-openpgp-key-path = /usr/share/openpgp-keys/gentoo-release.asc
+```
+
+Every `emerge --sync` verifies a valid OpenPGP signature from a Gentoo developer before accepting new commits.
+
+#### 21.2.2 — Full‑Tree Manifest Verification with Gemato
+
+`app-portage/gemato` (Gentoo Manifest Tool) recursively verifies the entire repository tree against the top‑level `Manifest`, which is itself OpenPGP‑signed. This catches any tampering at the file level that a git‑commit signature might miss.
 
 ```bash
-# Gentoo provides GLSA (Gentoo Linux Security Advisories) via glsa-check
+emerge --ask app-portage/gemato
+
+# Manual verification of the current repository state:
+gemato verify -K /usr/share/openpgp-keys/gentoo-release.asc \
+  "$(portageq get_repo_path / gentoo)"
+```
+
+A successful verification ends with `INFO:root:<repo_path> verified in <N> seconds`. If the command exits non‑zero or reports signature mismatches, the repository must be re‑synced immediately.
+
+> **Note:** The `sync-rsync-verify-metamanifest` directive was proposed but is not a supported Portage configuration option as of April 2026. For rsync‑based repos, use `gemato verify` manually or via the weekly timer below. For git‑based repos (as in this guide), git‑commit verification provides equivalent integrity guarantees.
+
+---
+
+### 21.3 — Package Transaction Audit Logging
+
+This hook writes a structured JSON record to `/var/log/portage-audit.json` for every successfully merged package and every failure. It uses the `register_success_hook` and `register_die_hook` mechanism documented in the Gentoo wiki.
+
+```bash
+# Append the audit hook to the existing bashrc (preserves Snapper hooks)
+cat >> /etc/portage/bashrc << 'BASHRC'
+
+# --- Supply‑chain audit logging ---
+# Logs every emerge operation as a newline‑delimited JSON record.
+# Requires python3 (always present on a Gentoo installation).
+register_success_hook audit_emerge_success
+register_die_hook    audit_emerge_failure
+
+audit_emerge_success() {
+    local AUDIT_LOG="/var/log/portage-audit.json"
+    python3 -c "
+import json, os, datetime
+entry = {
+    'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    'action': 'emerge',
+    'package': '${CATEGORY}/${PF}',
+    'status': 'SUCCESS',
+    'uid': os.getuid(),
+    'pid': os.getpid()
+}
+print(json.dumps(entry))
+" >> "$AUDIT_LOG" 2>/dev/null || true
+}
+
+audit_emerge_failure() {
+    local AUDIT_LOG="/var/log/portage-audit.json"
+    python3 -c "
+import json, os, datetime
+entry = {
+    'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    'action': 'emerge',
+    'package': '${CATEGORY}/${PF}',
+    'status': 'FAILED',
+    'uid': os.getuid(),
+    'pid': os.getpid()
+}
+print(json.dumps(entry))
+" >> "$AUDIT_LOG" 2>/dev/null || true
+}
+BASHRC
+```
+
+> **Important caveat:** `register_success_hook` fires only when an ebuild is merged without any error — a file collision or a QA warning is sufficient for the hook **not** to fire. The corresponding `register_die_hook` captures failures that would otherwise be silent.
+
+---
+
+### 21.4 — GLSA Vulnerability Scanning
+
+Gentoo publishes **Gentoo Linux Security Advisories (GLSAs)** through the `app-portage/gentoolkit` package. The `glsa-check` tool compares installed packages against published advisories and can automatically remediate affected packages.
+
+```bash
 emerge --ask app-portage/gentoolkit
 
-# Weekly scan script
-cat > /usr/local/bin/weekly-cve-scan.sh << 'SCRIPT'
-#!/bin/bash
-# Run: glsa-check -l affected
-glsa-check -l affected 2>&1
-SCRIPT
-chmod +x /usr/local/bin/weekly-cve-scan.sh
+# List all installed packages affected by any GLSA
+glsa-check --list affected
+
+# Show what would be done to fix affected packages (dry‑run)
+glsa-check --pretend affected
+
+# Apply fixes for all affected packages
+glsa-check --fix affected
+```
+
+The `--fix` flag is marked **experimental** in the GLSA‑CHECK man page and should be used with caution. Always run `--pretend` first.
+
+---
+
+### 21.5 — Log Rotation for the Audit Log
+
+```bash
+cat > /etc/logrotate.d/portage-audit << 'EOF'
+/var/log/portage-audit.json {
+    monthly
+    rotate 6
+    compress
+    missingok
+    notifempty
+    create 0640 root audit
+}
+EOF
 ```
 
 ---
 
-## Part 23 — Ongoing Monitoring and Email Alerting
+### 21.6 — Weekly Security Automation
+
+A systemd timer runs GLSA scanning, repository integrity verification, and reports results to the monitoring pipeline (Part 23).
+
+#### 21.6.1 — Weekly Security Scan Script
+
+```bash
+cat > /usr/local/bin/weekly-security-scan.sh << 'SCRIPT'
+#!/bin/bash
+# /usr/local/bin/weekly-security-scan.sh
+# Weekly GLSA scan + repository integrity check.
+# Designed to run as a systemd oneshot service.
+
+set -euo pipefail
+HOSTNAME=$(hostname)
+DATE=$(date -u +"%Y-%m-%d")
+
+echo "[${DATE}] Weekly security scan for ${HOSTNAME}"
+echo ""
+
+# 1. GLSA scan
+echo "--- GLSA: affected packages ---"
+if command -v glsa-check &>/dev/null; then
+    glsa-check --list affected 2>&1 || echo "(glsa-check completed)"
+else
+    echo "glsa-check not installed; emerge app-portage/gentoolkit"
+fi
+
+# 2. Repository integrity
+echo ""
+echo "--- Repository integrity (gemato) ---"
+if command -v gemato &>/dev/null; then
+    gemato verify -K /usr/share/openpgp-keys/gentoo-release.asc \
+      "$(portageq get_repo_path / gentoo)" 2>&1
+else
+    echo "gemato not installed; emerge app-portage/gemato"
+fi
+
+# 3. Kernel and boot state
+echo ""
+echo "--- Boot chain ---"
+echo "Running kernel: $(uname -r)"
+echo "Last UKI: $(stat -c %y /efi/EFI/Linux/*.efi 2>/dev/null | head -1 || echo 'unknown')"
+SCRIPT
+
+chmod +x /usr/local/bin/weekly-security-scan.sh
+```
+
+#### 21.6.2 — Weekly Timer and Service Units
+
+```bash
+cat > /etc/systemd/system/weekly-security-scan.service << 'EOF'
+[Unit]
+Description=Weekly GLSA and Repository Integrity Scan
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/weekly-security-scan.sh
+User=root
+EOF
+
+cat > /etc/systemd/system/weekly-security-scan.timer << 'EOF'
+[Unit]
+Description=Run weekly security scan every Monday at 07:00 UTC
+
+[Timer]
+OnCalendar=Mon *-*-* 07:00:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+
+systemctl daemon-reload
+systemctl enable --now weekly-security-scan.timer
+```
+
+---
+
+### 21.7 — Verification
+
+```bash
+# Confirm ELOG is active
+ls /var/log/portage/elog/*.log 2>/dev/null | head -5 || echo "No ELOG files yet (run an emerge to generate them)"
+
+# Confirm the timer is active
+systemctl is-active weekly-security-scan.timer
+
+# Check the audit log after an emerge
+cat /var/log/portage-audit.json 2>/dev/null | tail -3 || echo "No audit entries yet (run an emerge to generate them)"
+```
+
+
+---
+
+## Part 22 — Ongoing Monitoring and Email Alerting
 
 > **Deploy the complete monitoring infrastructure from `arch_hardening_setup.md` Part 14**: `msmtp` for email relay, daily auditd summary script, weekly CVE report, weekly AppArmor denial digest, all wired to systemd timers. Replace the recipient address with your own.
 
 ---
 
-## Part 24 — systemd Service Hardening
+## Part 23 — systemd Service Hardening
 
 > **Deploy `svc-harden.py` from `arch_hardening_setup.md` Part 12.** This Python tool provides `analyze`, `apply`, `test`, `revert`, and `bisect` subcommands for per‑service systemd hardening. It applies directives like `NoNewPrivileges`, `PrivateTmp`, `ProtectSystem=strict`, `MemoryDenyWriteExecute`, and `SystemCallFilter` interactively, one service at a time.
 
 ---
 
-## Part 25 — System Packages (Desktop)
+## Part 24 — System Packages (Desktop)
 
 > **Install all packages listed in `README.md` sections for desktop, development, containers, and scientific computing.** The full emerge list from the personal runbook includes:
 
 ```bash
-eselect-repository enable guru
-emaint-sync -r guru
-
 emerge --ask \
   gui-wm/hyprland gui-libs/xdg-desktop-portal-hyprland \
   gui-apps/grim gui-apps/slurp gui-apps/wl-clipboard \
@@ -2625,7 +3067,7 @@ emerge --ask \
 
 ---
 
-## Part 26 — Login Banner
+## Part 25 — Login Banner
 
 ```bash
 cat > /etc/issue << 'EOF'
@@ -2637,9 +3079,9 @@ cp /etc/issue /etc/issue.net
 
 ---
 
-## Part 27 — Final System Setup and First Boot
+## Part 26 — Final System Setup and First Boot
 
-### 27.1 — Set Root Password and Create User
+### 26.1 — Set Root Password and Create User
 
 ```bash
 passwd
@@ -2647,7 +3089,7 @@ useradd -m -G users,wheel,audio,video -s /bin/bash ahsan
 passwd ahsan
 ```
 
-### 27.2 — Enable Essential Services
+### 26.2 — Enable Essential Services
 
 ```bash
 systemctl enable NetworkManager
@@ -2663,7 +3105,7 @@ systemctl enable dnscrypt-proxy
 systemctl enable cockpit.socket
 ```
 
-### 27.3 — Regenerate UKI (First Time Manually)
+### 26.3 — Regenerate UKI (First Time Manually)
 
 ```bash
 KVER=$(ls /lib/modules/ | sort -V | tail -1)
@@ -2671,7 +3113,7 @@ dracut --force --verbose /efi/EFI/Linux/gentoo-${KVER}.efi ${KVER}
 sbctl sign --save /efi/EFI/Linux/gentoo-${KVER}.efi
 ```
 
-### 27.4 — Exit Chroot and Reboot
+### 26.4 — Exit Chroot and Reboot
 
 ```bash
 exit
@@ -2681,7 +3123,7 @@ reboot
 
 ---
 
-## Part 28 — Post‑Install: TPM2 Enrollment and Verification
+## Part 27 — Post‑Install: TPM2 Enrollment and Verification
 
 After first boot (you will be prompted for the LUKS passphrase):
 
@@ -2704,7 +3146,7 @@ cat /sys/kernel/security/lsm
 
 ---
 
-## Part 29 — Post‑Install Chroot Re‑Entry
+## Part 28 — Post‑Install Chroot Re‑Entry
 
 If you need to re‑enter the installed system from a live environment (e.g., for recovery):
 
@@ -2763,9 +3205,9 @@ export PS1="(chroot) ${PS1}"
 
 ---
 
-## Part 30 — TPM2 Key Recovery
+## Part 29 — TPM2 Key Recovery
 
-### 30.1 — After UEFI Firmware Update or Secure Boot Key Rotation
+### 29.1 — After UEFI Firmware Update or Secure Boot Key Rotation
 
 ```bash
 # PCR[0] or PCR[7] will have changed → TPM2 unsealing fails
@@ -2795,7 +3237,7 @@ systemd-cryptenroll --recovery-key /dev/nvme0n1p2
 systemd-cryptenroll --recovery-key /dev/nvme1n1p1
 ```
 
-### 30.2 — Complete TPM Failure
+### 29.2 — Complete TPM Failure
 
 ```bash
 # Fall back to recovery-key-only boot:
@@ -2805,59 +3247,6 @@ systemd-cryptenroll --recovery-key /dev/nvme1n1p1
 # If TPM is permanently damaged, enroll a strong passphrase:
 systemd-cryptenroll --password /dev/nvme0n1p2
 systemd-cryptenroll --password /dev/nvme1n1p1
-```
-
----
-
-## Appendix A — Installation Order Checklist
-
-```
-Phase 1 — Live Environment:
-  1.1  Partition both drives (gdisk)
-  1.2  Format ESP (mkfs.vfat)
-  1.3  LUKS2 format both PV partitions (Argon2id)
-  1.4  Open LUKS containers
-  1.5  LUKS header backups
-  1.6  Create LVM PVs, VG, and linear LV
-  1.7  Format LV as Btrfs
-  1.8  Create all subvolumes, set default snapshot
-  1.9  Mount all subvolumes and ESP (at /efi)
-  1.10 Extract stage3, chroot
-
-Phase 2 — Base System (chroot):
-  2.1  Timezone, locale, hostname
-  2.2  Sync Portage, select hardened profile
-  2.3  Install core packages, enable overlays
-  2.4  Configure make.conf and package.use
-  2.5  Install cachyos-sources
-  2.6  Configure kernel (menuconfig: enable kCFI)
-  2.7  Build and install kernel (make LLVM=1)
-  2.8  Configure dracut for UKI (uefi_dir=/efi/EFI/Linux)
-  2.9  Install sbctl, generate and enroll keys
-  2.10 Configure crypttab (initramfs + running system)
-  2.11 Write fstab (ESP mount point /efi)
-  2.12 Configure zram
-  2.13 Set root password, create user
-  2.14 Exit chroot, reboot
-
-Phase 3 — Post-Boot Hardening:
-  3.1  Enroll TPM2+PIN (must be done on running system)
-  3.2  Deploy and configure AppArmor + apparmor.d
-  3.3  Deploy sysctl hardening
-  3.4  Deploy module blacklist, rebuild UKI
-  3.5  Verify IOMMU
-  3.6  Configure firewalld
-  3.7  Configure dnscrypt-proxy + systemd-resolved
-  3.8  Harden NetworkManager
-  3.9  Harden SSH
-  3.10 Harden PAM
-  3.11 Deploy auditd rules
-  3.12 Configure Snapper + Portage hooks
-  3.13 Deploy svc-harden.py
-  3.14 Configure monitoring timers + msmtp
-  3.15 Install desktop packages (README.md list)
-  3.16 Set login banner
-  3.17 Full system audit pass
 ```
 
 ---
