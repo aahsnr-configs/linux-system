@@ -1,4 +1,0 @@
-# Compilers and development tools.
-sys-devel/gcc default-stack-clash-protection graphite go
-llvm-runtimes/compiler-rt-sanitizers orc profile
-llvm-core/clang-runtime sanitize

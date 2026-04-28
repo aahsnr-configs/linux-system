@@ -472,6 +472,7 @@
         "allowPasswordWithFprintd": false,
         "animationDisabled": false,
         "animationSpeed": 1,
+        "autoNetworkEnabled": true,
         "autoStartAuth": false,
         "avatarImage": "/home/ahsan/.face",
         "boxRadiusRatio": 1,
@@ -588,7 +589,7 @@
         "autoSchedule": true,
         "dayTemp": "5544",
         "enabled": true,
-        "forced": false,
+        "forced": true,
         "manualSunrise": "06:30",
         "manualSunset": "18:30",
         "nightTemp": "4572"

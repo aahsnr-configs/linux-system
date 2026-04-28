@@ -1,4 +1,0 @@
-# Audio server (PipeWire) and multimedia packages.
-media-video/pipewire sound-server extra gstreamer gsettings pipewire-alsa ffmpeg
-media-video/ffmpeg x264
-media-sound/mpg123 -pulseaudio

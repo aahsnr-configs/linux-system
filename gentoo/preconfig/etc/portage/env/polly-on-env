@@ -1,7 +1,0 @@
-# /etc/portage/env/polly-on-env
-# Enables Polly loop optimizations. Only for packages with heavy computational loops.
-# Modern Polly flags. Removed outdated plugin method and risky auto-parallelization.
-
-POLLY_FLAGS="-mllvm -polly -mllvm -polly-vectorizer=stripmine"
-CFLAGS="${CFLAGS} ${POLLY_FLAGS}"
-CXXFLAGS="${CXXFLAGS} ${POLLY_FLAGS}"

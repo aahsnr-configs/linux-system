@@ -1,9 +1,0 @@
-# General desktop applications and services.
-app-admin/sysstat lm-sensors
-net-firewall/firewalld -iptables
-sys-apps/apparmor doc
-net-wireless/wpa_supplicant dbus
-sys-auth/polkit gtk daemon
-gnome-base/gvfs udisks
-app-crypt/gcr gtk
-app-editors/emacs -X tree-sitter imagemagick mailutils sqlite
