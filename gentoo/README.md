@@ -1769,33 +1769,383 @@ They are complementary: IOMMU prevents a malicious device from reading arbitrary
 
 ## Part 18 — Network Hardening
 
-### 19.1 — Firewalld
+### 18.1 — Hardened Firewalld Configuration
 
 ```bash
+# Install firewalld (nftables backend is the default on Gentoo)
 emerge --ask net-firewall/firewalld
-systemctl enable --now firewalld
+
+# Enable the service and start it immediately
+systemctl enable --now firewalld.service
+
+# Set the default zone to 'drop' – all unsolicited incoming packets are
+# silently discarded.  Outbound traffic is unaffected; the drop zone only
+# controls the INPUT chain.
+firewall-cmd --set-default-zone=drop
+firewall-cmd --get-default-zone   # must return "drop"
+
+# Move all active physical interfaces to the drop zone.
+# Replace 'eno1' and 'wlan0' with the names shown by `ip link` or `nmcli device`.
+for iface in eno1 wlan0; do
+    firewall-cmd --zone=drop --change-interface=$iface --permanent 2>/dev/null || true
+done
+
+# --- Inbound rules (drop zone targets DROP; explicit accepts below) ---
+
+# DNS‑over‑TLS (DoT) – required by dnscrypt‑proxy and systemd‑resolved
+firewall-cmd --zone=drop --add-rich-rule='rule family="ipv4" port port="853" protocol="tcp" accept' --permanent
+firewall-cmd --zone=drop --add-rich-rule='rule family="ipv6" port port="853" protocol="tcp" accept' --permanent
+
+# HTTPS – DoH / QUIC fallback for dnscrypt‑proxy
+firewall-cmd --zone=drop --add-rich-rule='rule family="ipv4" port port="443" protocol="tcp" accept' --permanent
+firewall-cmd --zone=drop --add-rich-rule='rule family="ipv4" port port="443" protocol="udp" accept' --permanent
+
+# Block cleartext DNS (port 53) to any external host.
+# dnscrypt‑proxy listens on 127.0.0.1:5300; systemd‑resolved stub on 127.0.0.53.
+# Applications must never send raw DNS to the outside.
+firewall-cmd --zone=drop --add-rich-rule='rule family="ipv4" destination NOT address="127.0.0.0/8" port port="53" protocol="udp" drop' --permanent
+firewall-cmd --zone=drop --add-rich-rule='rule family="ipv4" destination NOT address="127.0.0.0/8" port port="53" protocol="tcp" drop' --permanent
+
+# SSH on non‑default port (see Part 20)
+firewall-cmd --zone=drop --add-rich-rule='rule family="ipv4" port port="2222" protocol="tcp" accept' --permanent
+
+# Cockpit – localhost only (see Section 19.4)
+firewall-cmd --zone=drop --add-rich-rule='rule family="ipv4" source address="127.0.0.1" port port="9090" protocol="tcp" accept' --permanent
+
+# --- Apply the permanent configuration ---
+firewall-cmd --reload
+
+# --- Verification ---
+echo "=== Default zone ==="
+firewall-cmd --get-default-zone
+echo
+echo "=== Rich rules (drop zone) ==="
+firewall-cmd --zone=drop --list-rich-rules
+echo
+echo "=== Active zones ==="
+firewall-cmd --get-active-zones
 ```
 
-> **Apply the complete firewalld configuration from `arch_hardening_setup.md` Part 9.1**: default `drop` zone, explicit rules for DNS‑over‑TLS (853/tcp), DoH (443), SSH (custom port), Cockpit (localhost only), and outbound port 53 blocking.
+> **Note on backends:** On Gentoo, firewalld uses **nftables** as its default backend.  
+> No additional USE flags are required unless you explicitly need the legacy iptables backend.
 
-### 19.2 — DNS‑over‑TLS with DNSCrypt‑Proxy
+`NOTES`
+
+---
+
+You only need to adjust the **interface identifiers** used in the firewalld configuration. The rules and the `drop` zone policy itself are hardware-agnostic, but we must tell firewalld which of *your* network cards those rules should apply to.
+
+## What to change (two items)
+
+### ① Ethernet interface name
+The configuration currently mentions `eno1` as a placeholder. On your MSI Pro Z790‑P motherboard, the onboard Ethernet controller will have a predictable name such as `eno1`, `enp3s0`, or `enp4s0`.
+
+**What to do:**
+Run `ip link show` or `nmcli device status` and note the exact name of the wired interface. Replace `eno1` in the firewalld script with that name.
 
 ```bash
+# Check your interface names
+ip link show
+```
+
+The line to change:
+```bash
+for iface in eno1 wlan0; do   # ← change eno1 to your actual Ethernet interface
+```
+
+### ② Wi‑Fi interface name (if you have a wireless card)
+The configuration includes `wlan0` as a placeholder. Modern systems use the predictable naming scheme, so your Wi‑Fi interface is likely named something like `wlp2s0`, `wlp1s0`, or similar.
+
+**What to do:**
+Use `ip link show` as above and replace `wlan0` with your actual Wi‑Fi interface name if you have a wireless adapter.
+
+> **If you have no Wi‑Fi card**, simply remove `wlan0` from the loop. Nothing breaks — the `2>/dev/null || true` supplies a silent no‑op for any non‑existent interface.
+
+---
+
+## Nothing else needs to change
+
+| Configuration object | Hardware‑specific? | Action required |
+|----------------------|--------------------|-----------------|
+| `--set-default-zone=drop` | No | None |
+| Rich rules (port 853, 443, 53, 2222, 9090) | No | None |
+| Interface assignment | **Yes** | Replace the placeholder names with those from `ip link` |
+| `--reload` / verification commands | No | None |
+
+Once you replace the placeholder interface names with the ones actually present on your machine, the firewalld configuration is fully ready for your hardened Gentoo system.
+
+---
+
+## 19.2 – DNS over TLS and DNSCrypt
+
+```bash
+# Emerge dnscrypt‑proxy (systemd‑resolved is included in sys‑apps/systemd)
 emerge --ask net-dns/dnscrypt-proxy
 ```
 
-> **Apply the complete DNSCrypt and systemd‑resolved configuration from `arch_hardening_setup.md` Part 9.2**: `dnscrypt‑proxy` on 127.0.0.1:5300, `systemd‑resolved` stub on 127.0.0.53, DoT‑only forwarding, anonymized relay routes, `require_dnssec`, `require_nolog`, `require_nofilter`.
+### Architecture
 
-### 19.3 — NetworkManager Hardening
-
-```bash
-emerge --ask net-misc/networkmanager
-systemctl enable --now NetworkManager
+```
+Application
+  └─► systemd‑resolved stub (127.0.0.53:53)
+        └─► dnscrypt‑proxy (127.0.0.1:5300)
+              └─► Anonymized relay (optional, DNSCrypt‑only)
+                    └─► Encrypted resolver (DNSCrypt / DoH)
+                          └─► Authoritative DNS
 ```
 
-> **Apply the NetworkManager hardening from `arch_hardening_setup.md` Part 9.3**: MAC address randomisation (ethernet: random, WiFi: stable‑ssid), connectivity checking disabled, WiFi WPS disabled, WPA3‑SAE preferred.
+* `dnscrypt‑proxy` listens on `127.0.0.1:5300` (not port 53, so it never competes with systemd‑resolved).
+* `systemd‑resolved` listens on `127.0.0.53:53` (the standard stub address).
+* `systemd‑resolved` forwards every upstream query to `dnscrypt‑proxy`.
+* Applications use `127.0.0.53` via the `/etc/resolv.conf` symlink.
+
+### systemd‑resolved
+
+```bash
+cat > /etc/systemd/resolved.conf << 'EOF'
+[Resolve]
+# Forward every query to the local dnscrypt‑proxy
+DNS=127.0.0.1:5300
+FallbackDNS=
+# Disable mDNS and LLMNR – privacy leak + attack surface
+LLMNR=no
+MulticastDNS=no
+# DNSSEC validation is delegated to dnscrypt‑proxy
+DNSSEC=no
+# Never fall back to cleartext DNS
+DNSOverTLS=no
+# Cache responses locally
+Cache=yes
+CacheFromLocalhost=no
+ReadEtcHosts=yes
+EOF
+
+# Point the system resolver to the systemd‑resolved stub
+ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
+
+systemctl restart systemd-resolved
+systemctl enable systemd-resolved
+```
+
+### dnscrypt‑proxy
+
+```bash
+# The configuration file must be owned by root and readable only by the
+# dnscrypt‑proxy group (the ebuild creates the group automatically).
+cat > /etc/dnscrypt-proxy/dnscrypt-proxy.toml << 'EOF'
+##############################################################
+# dnscrypt‑proxy.toml – Hardened Configuration, April 2026
+##############################################################
+
+# Listen on localhost port 5300 (systemd‑resolved uses 53)
+listen_addresses = ['127.0.0.1:5300', '[::1]:5300']
+
+max_clients = 250
+
+# Protocol support
+ipv4_servers      = true
+ipv6_servers      = false
+dnscrypt_servers  = true
+doh_servers       = true
+
+# Only use resolvers that validate DNSSEC, commit to no logging,
+# and do not filter content.
+require_dnssec   = true
+require_nolog    = true
+require_nofilter = true
+
+disabled_server_names = []
+
+timeout   = 2500
+keepalive = 30
+
+# Cache
+cache            = true
+cache_size       = 4096
+cache_min_ttl    = 2400
+cache_max_ttl    = 86400
+cache_neg_min_ttl = 60
+cache_neg_max_ttl = 600
+
+# Anonymised DNS – prevents the resolver from seeing the client IP.
+# Only works with the DNSCrypt protocol.
+[anonymized_dns]
+  skip_incompatible = true
+
+  routes = [
+    { server_name='*', via=['anon-ams-dnscrypt-nl', 'anon-cs-fr', 'anon-dnscrypt-ch-ipv4'] },
+  ]
+
+# Resolver and relay lists (downloaded and verified on first start)
+[sources]
+  [sources.public-resolvers]
+    urls = [
+      'https://raw.githubusercontent.com/DNSCrypt/dnscrypt-resolvers/master/v3/public-resolvers.md',
+      'https://download.dnscrypt.info/resolvers-list/v3/public-resolvers.md'
+    ]
+    cache_file    = '/var/cache/dnscrypt-proxy/public-resolvers.md'
+    minisign_key  = 'RWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3'
+    refresh_delay = 72
+    prefix        = ''
+
+  [sources.relays]
+    urls = [
+      'https://raw.githubusercontent.com/DNSCrypt/dnscrypt-resolvers/master/v3/relays.md',
+      'https://download.dnscrypt.info/resolvers-list/v3/relays.md'
+    ]
+    cache_file    = '/var/cache/dnscrypt-proxy/relays.md'
+    minisign_key  = 'RWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3'
+    refresh_delay = 72
+    prefix        = ''
+
+# Logging
+[log]
+  level = 2
+
+[query_log]
+  file = '/var/log/dnscrypt-proxy/query.log'
+EOF
+
+# --- Permissions & directories ---
+mkdir -p /var/cache/dnscrypt-proxy /var/log/dnscrypt-proxy
+chown -R dnscrypt-proxy:dnscrypt-proxy /var/cache/dnscrypt-proxy /var/log/dnscrypt-proxy
+chmod 750 /var/cache/dnscrypt-proxy /var/log/dnscrypt-proxy
+chmod 640 /etc/dnscrypt-proxy/dnscrypt-proxy.toml
+
+systemctl enable --now dnscrypt-proxy
+systemctl enable --now systemd-resolved
+```
+
+### Verification
+
+```bash
+resolvectl status
+resolvectl query gentoo.org
+```
+
+Both `dnscrypt-proxy` and `systemd-resolved` should be `active (running)`. Check the initial boot log of dnscrypt‑proxy; it should report `Source [public-resolvers] loaded` and `Source [relays] loaded`. If you see `[ERROR]` lines about file permissions or missing cache directories, re‑run the `chown` and `chmod` lines above.
 
 ---
+
+### 19.3 — Hardened NetworkManager
+
+```bash
+# Install NetworkManager (the 'tools' USE flag pulls in nmtui/nmlci)
+emerge --ask net-misc/networkmanager
+
+mkdir -p /etc/NetworkManager/conf.d/
+
+cat > /etc/NetworkManager/conf.d/00-hardening.conf << 'EOF'
+[main]
+plugins = keyfile
+# Never touch /etc/resolv.conf — systemd‑resolved manages it
+dns = none
+systemd-resolved = true
+rc-manager = unmanaged
+
+[connection]
+# MAC address randomisation
+ethernet.cloned-mac-address = random
+wifi.cloned-mac-address     = stable-ssid
+
+[device]
+wifi.scan-rand-mac-address = yes
+
+[connectivity]
+# Disable connectivity checking (phone‑home requests leak metadata)
+uri=
+
+[logging]
+level  = INFO
+domains = ALL
+EOF
+
+cat > /etc/NetworkManager/conf.d/01-wifi-security.conf << 'EOF'
+[connection]
+# Prefer WPA3‑SAE; fall back to WPA2‑PSK if the AP does not support it.
+# WPS is disabled (WPS PIN attack is a known APT TTP).
+wifi-sec.key-mgmt    = sae
+wifi-sec.wps-method  = disabled
+wifi-sec.pmf         = 1
+EOF
+
+systemctl restart NetworkManager
+systemctl enable NetworkManager
+```
+
+> **PMF (Protected Management Frames):** Setting `pmf = 1` enables PMF when the AP supports it.  
+> `pmf = 2` (required) is stronger but may cause connectivity issues with older access points; evaluate after testing.
+
+---
+
+### 19.4 — Cockpit Integration (Optional)
+
+Cockpit is **not yet packaged in the main Gentoo repository**.  
+A community installation guide is available on the Gentoo Forums and requires building from source alongside Performance Co‑Pilot (PCP).  
+If you choose to install it, follow these steps:
+
+```bash
+# Install build dependencies
+emerge --ask dev-vcs/git net-libs/libssh2 dev-qt/qtprintsupport
+
+# Build and install Performance Co‑Pilot (PCP)
+git clone https://github.com/performancecopilot/pcp.git /opt/git_builds/pcp
+cd /opt/git_builds/pcp
+# … follow the upstream build instructions …
+
+# Build and install Cockpit
+git clone https://github.com/cockpit-project/cockpit.git /opt/git_builds/cockpit
+cd /opt/git_builds/cockpit
+make
+sudo make install
+```
+
+Once installed, harden Cockpit with the following configuration:
+
+```bash
+mkdir -p /etc/cockpit
+
+cat > /etc/cockpit/cockpit.conf << 'EOF'
+[WebService]
+# Bind only to localhost — never expose on all interfaces
+Origins = https://localhost:9090 https://127.0.0.1:9090
+ProtocolHeader = X-Forwarded-Proto
+AllowUnencrypted = false
+
+[Session]
+IdleTimeout = 15
+Banner = /etc/cockpit/banner.txt
+
+[Log]
+Fatal = criticals-and-warnings
+EOF
+
+cat > /etc/cockpit/banner.txt << 'EOF'
+WARNING: This system is monitored. Unauthorized access is prohibited.
+All actions are logged and subject to security review.
+EOF
+
+# Generate a self‑signed certificate for TLS
+mkdir -p /etc/cockpit/ws-certs.d
+
+openssl req -x509 -newkey rsa:4096 \
+  -keyout /etc/cockpit/ws-certs.d/cockpit.key \
+  -out /etc/cockpit/ws-certs.d/cockpit.crt \
+  -days 3650 -nodes \
+  -subj "/C=BD/ST=Dhaka/L=Dhaka/O=Workstation/CN=localhost" \
+  -addext "subjectAltName = IP:127.0.0.1,DNS:localhost"
+
+chmod 600 /etc/cockpit/ws-certs.d/cockpit.key
+chmod 644 /etc/cockpit/ws-certs.d/cockpit.crt
+
+systemctl enable --now cockpit.socket
+```
+
+> **Certificate pinning:** After the first login to `https://localhost:9090`, export the certificate’s SHA‑256 fingerprint and pin it in your browser for an additional layer of trust.
+
+> **AppArmor note:** As of April 2026 the apparmor.d project does **not** ship a Cockpit profile.  
+> Compensating controls: Cockpit is bound to localhost only, socket‑activated by systemd, and should be hardened with `svc-harden.py apply cockpit` (see Part 24).
+
 
 ## Part 20 — SSH Hardening
 
