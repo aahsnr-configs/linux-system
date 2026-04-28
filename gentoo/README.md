@@ -402,7 +402,7 @@ cp /root/luks-uuids.txt /mnt/gentoo/root/luks-uuids.txt
 [nvim /etc/portage/make.conf]
 
 ```bash
-COMMON_FLAGS="-O2 -march=native -pipe -flto -fno-plt -fno-semantic-interposition"
+COMMON_FLAGS="-O3 -march=native -pipe -flto -fno-plt -fno-semantic-interposition"
 CPU_FLAGS_X86="aes avx avx2 f16c fma3 mmx mmxext pclmul popcnt rdrand sha sse sse2 sse3 sse4_1 sse4_2 sse4a ssse3 vpclmulqdq"
 CFLAGS="${COMMON_FLAGS}"
 CXXFLAGS="${COMMON_FLAGS}"
@@ -416,7 +416,7 @@ LDFLAGS="${LDFLAGS} -Wl,-O2 -Wl,--as-needed"
 MAKEOPTS="-j22"
 NOCOMMON_OVERRIDE_LIBTOOL="yes"
 EMERGE_DEFAULT_OPTS="--jobs=10 --keep-going=y --ask"
-ACCEPT_KEYWORDS="~amd64"
+#ACCEPT_KEYWORDS="~amd64"
 ACCEPT_LICENSE="*"
 VIDEO_CARDS="nvidia"
 USE="systemd -cups -elogind -fips -gnome -handbook gtk4 \
@@ -451,14 +451,23 @@ media-gfx/imv -X gif heif icu jpeg jpegxl png svg tiff
 gui-wm/hyprland hyprpm -uwsm
 sys-kernel/cachyos-sources kcfi
 media-video/pipewire sound-server extra gstreamer gsettings pipewire-alsa ffmpeg
-app-editors/emacs -X tree-sitter imagemagick mailutils sqlite
+app-editors/emacs -X tree-sitter imagemagick mailutils jit dynamic-loading gtk gui
 sys-devel/gcc default-stack-clash-protection graphite go
 llvm-runtimes/compiler-rt-sanitizers orc profile
 llvm-core/clang-runtime sanitize
-dev-lang/python -jit
+dev-lang/python -jit tk
 net-misc/networkmanager nftables gnutls -resolvconf
 app-admin/cockpit firewalld pcp udisks
 sys-auth/pambase pwquality
+app-text/aspell unicode l10n_en
+app-shells/atuin server system-sqlite
+sys-apps/rng-tools jitterentropy
+gnome-base/gvfs keyring
+x11-terms/kitty -X wayland
+app-office/obsidian appindicator
+app-text/papers djvu gnome-keyring nautilus
+app-editors/neovim lua_single_target_luajit
+app-text/enchant aspell nuspell voikko
 ```
 
 `nvim /etc/portage/env/clang-lto-env`
@@ -526,6 +535,7 @@ dev-util/git-delta clang-lto-env
 ```bash
 #dev-lang/python-3.13.2::gentoo
 sys-kernel/cachyos-sources::gentoo-zh
+
 #>=app-editors/neovim-0.11
 #>=dev-libs/glib-2.84
 #>=sys-kernel/cachyos-sources-6.14
@@ -545,6 +555,215 @@ sys-kernel/cachyos-sources::gentoo-zh
 #>=llvm-runtimes/libunwind-20
 #>=dev-util/spirv-llvm-translator-20
 ```
+
+`nvim /etc/portage/package.accept_keywords`
+
+```bash
+##/etc/portage/package.accept_keywords
+=gui-apps/noctalia-shell-9999 ** ~amd64
+=gui-apps/noctalia-qs-9999 ** ~amd64
+app-admin/bitwarden-desktop-bin ~amd64
+app-admin/sysstat ~amd64
+app-arch/7zip ~amd64
+app-arch/unzip ~amd64
+app-arch/unrar ~amd64
+app-arch/zip ~amd64
+app-backup/btrfs-assistant ~amd64
+app-backup/snapper ~amd64
+app-backup/snapper-gui ~amd64
+app-containers/* ~amd64
+app-containers/distrobox ~amd64
+app-containers/docker ~amd64
+app-containers/docker-cli ~amd64
+app-containers/docker-compose ~amd64
+app-containers/docker-credential-helpers ~amd64
+app-containers/lxc ~amd64
+app-containers/lxd ~amd64
+app-containers/podman ~amd64
+app-containers/podman-compose ~amd64
+app-containers/podman-tui ~amd64
+app-containers/pods ~amd64
+dev-cpp/sdbus-c++ ~amd64
+app-crypt/johntheripper ~amd64
+app-editors/emacs ~amd64
+app-editors/neovim ~amd64
+app-emacs/* ~amd64
+app-emacs/all-the-icons ~amd64
+app-emacs/emacs-common ~amd64
+app-emacs/nerd-icons ~amd64
+app-emacs/nerd-icons-corfu ~amd64
+app-emacs/org-mode ~amd64
+app-eselect/eselect-repository ~amd64
+app-forensics/aide ~amd64
+app-forensics/lynis ~amd64
+app-misc/brightnessctl ~amd64
+app-misc/yazi ~amd64
+app-office/obsidian ~amd64
+app-portage/gemato ~amd64
+app-portage/gentoolkit ~amd64
+app-portage/smart-live-rebuild ~amd64
+app-shells/fzf ~amd64
+app-shells/fzf-tab ~amd64
+app-shells/gentoo-zsh-completions ~amd64
+app-shells/gitstatus ~amd64
+app-shells/zoxide ~amd64
+app-shells/zsh ~amd64
+app-text/fzy ~amd64
+app-text/texlab ~amd64
+app-text/xournalpp ~amd64
+app-text/zathura ~amd64
+app-text/zathura-meta ~amd64
+app-text/zotero-bin ~amd64
+dev-build/meson ~amd64
+dev-lang/sassc ~amd64
+dev-lang/typescript ~amd64
+dev-libs/girara ~amd64
+dev-libs/libutf8proc ~amd64
+dev-libs/mmtf-cpp ~amd64
+dev-libs/nss ~amd64
+dev-libs/tree-sitter ~amd64
+dev-libs/tree-sitter-lua ~amd64
+dev-libs/tree-sitter-markdown ~amd64
+dev-libs/tree-sitter-query ~amd64
+dev-libs/tree-sitter-vim ~amd64
+dev-libs/unibilium ~amd64
+dev-libs/wayland-protocols ~amd64
+dev-lua/luv ~amd64
+dev-python/* ~amd64
+dev-python/black ~amd64
+dev-python/gpep517 ~amd64
+dev-python/isort ~amd64
+dev-python/matplotlib ~amd64
+dev-python/pandas ~amd64
+dev-python/pipx ~amd64
+dev-python/python-pam ~amd64
+dev-python/pynvim ~amd64
+dev-python/scipy ~amd64
+dev-python/userpath ~amd64
+dev-util/dart-sass ~amd64
+dev-util/git-delta ~amd64
+dev-util/lua-language-server ~amd64
+dev-util/pkgdev ~amd64
+dev-util/glslang ~amd64
+dev-util/tree-sitter-cli ~amd64
+dev-util/spirv-headers ~amd64
+dev-util/spirv-tools ~amd64
+dev-util/vulkan-headers ~amd64
+dev-util/vulkan-tools ~amd64
+dev-util/vulkan-utility-libraries ~amd64
+dev-vcs/git ~amd64
+dev-vcs/lazygit ~amd64
+dev-vcs/git-lfs ~amd64
+dev-tex/texlab ~amd64
+gui-apps/anyrun ~amd64
+gui-apps/alacritty-graphics ~amd64
+gui-apps/foot ~amd64
+gui-apps/foot-terminfo ~amd64
+gui-apps/grim ~amd64
+gui-apps/qt6ct ~amd64
+gui-apps/rofi-wayland ~amd64
+gui-apps/slurp ~amd64
+gui-apps/tuigreet ~amd64
+gui-apps/wf-recorder ~amd64
+gui-apps/wl-clipboard ~amd64
+gui-libs/egl-gbm
+gui-libs/egl-x11
+gui-libs/egl-wayland ~amd64
+gui-libs/greetd ~amd64
+gui-libs/gtk ~amd64
+gui-libs/libadwaita ~amd64
+gui-libs/wlroots ~amd64
+media-fonts/jetbrains-mono ~amd64
+media-fonts/ubuntu-font-family ~amd64
+media-fonts/nerdfonts ~amd64
+media-gfx/maim ~amd64
+media-libs/fcft ~amd64
+media-libs/gst-plugins-bad ~amd64
+media-libs/gst-plugins-base ~amd64
+media-libs/gst-plugins-good ~amd64
+media-libs/gst-plugins-ugly ~amd64
+media-libs/mesa ~amd64
+media-libs/nvidia-vaapi-driver ~amd64
+media-libs/libpulse ~amd64
+media-libs/vulkan-layers ~amd64
+media-libs/vulkan-loader ~amd64
+media-plugins/gst-plugins-meta  ~amd64
+media-plugins/gst-plugins-oss ~amd64
+media-sound/spotify ~amd64
+media-video/ffmpeg ~amd64
+media-video/mpv ~amd64
+media-video/pipewire ~amd64
+media-video/wireplumber ~amd64
+net-analyzer/nmap ~amd64
+net-analyzer/wireshark ~amd64
+net-firewall/firewalld ~amd64
+net-im/discord ~amd64
+net-im/zoom ~amd64
+net-misc/curl ~amd64
+net-misc/dhcpcd ~amd64
+net-misc/dhcpcd-ui ~amd64
+net-misc/dropbox ~amd64
+net-misc/wget ~amd64
+net-wireless/aircrack-ng ~amd64
+net-wireless/wpa_supplicant ~amd64
+sci-biology/biopython ~amd64
+sci-chemistry/pymol ~amd64
+sec-keys/* ~amd64
+sec-policy/apparmor-profiles ~amd64
+sys-apps/apparmor ~amd64
+sys-apps/apparmor-utils ~amd64
+sys-apps/bat ~amd64
+sys-apps/eza ~amd64
+sys-apps/fd ~amd64
+sys-apps/fwupd ~amd64
+sys-apps/grep ~amd64
+sys-apps/haveged ~amd64
+sys-apps/mlocate ~amd64
+sys-apps/ripgrep ~amd64
+sys-apps/rng-tools ~amd64
+sys-apps/portage ~amd64
+sys-apps/systemd ~amd64
+sys-apps/zram-generator ~amd64
+sys-auth/seatd ~amd64
+sys-firmware/sof-firmware ~amd64
+sys-fs/btrfs-progs ~amd64
+sys-fs/dosfstools ~amd64
+sys-kernel/cachyos-sources ~amd64
+sys-kernel/dracut ~amd64
+sys-kernel/installkernel ~amd64
+sys-kernel/linux-firmware ~amd64
+sys-kernel/linux-headers ~amd64
+sys-kernel/modprobed-db ~amd64
+sys-libs/libapparmor ~amd64
+sys-power/upower ~amd64
+sys-process/acct ~amd64
+sys-process/audit ~amd64
+sys-process/bottom ~amd64
+sys-process/btop ~amd64
+sys-process/nvtop ~amd64
+x11-base/xwayland ~amd64
+x11-drivers/nvidia-drivers ~amd64
+x11-drivers/xf86-video-amdgpu ~amd64
+x11-libs/libnotify ~amd64
+x11-misc/qt5ct ~amd64
+x11-themes/kvantum ~amd64
+xfce-base/thunar ~amd64
+xfce-base/thunar-volman ~amd64
+xfce-base/tumbler ~amd64
+xfce-extra/thunar-archive-plugin ~amd64
+xfce-extra/thunar-media-tags-plugin ~amd64
+www-apps/element ~amd64
+www-apps/beef ~amd64
+www-client/zen-browser ~amd64
+www-client/firefox ~amd64
+#gnome-base/gvfs ~amd64
+#sys-fs/genfstab ~amd64
+#sys-fs/cryptsetup ~amd64
+#sys-apps/file ~amd64
+#net-misc/networkmanager ~amd64
+```
+
+
 
 
 ### 5.5 — Enter Chroot
@@ -590,7 +809,7 @@ source /etc/profile
 ### 6.3 — Portage and Its REPOS 
 
 ```bash
-emerge -aq --jobs=5 app-eselect/eselect-repository dev-vcs/git && eselect repository remove gentoo && eselect repository add gentoo git https://github.com/gentoo-mirror/gentoo.git  && emaint sync -r gentoo && eselect repository enable guru pentoo edgets gentoo-zh CachyOS-kernels xarblu-overlay && eselect repository create custom && emerge --sync
+emerge -aq --jobs=5 app-eselect/eselect-repository dev-vcs/git app-admin/sudo && eselect repository remove gentoo && eselect repository add gentoo git https://github.com/gentoo-mirror/gentoo.git  && emaint sync -r gentoo && eselect repository enable guru hyproverlay CachyOS-kernels xarblu-overlay && eselect repository create custom && emerge --sync
 ```
 
 ### 6.4 — Enable CachyOS‑Kernels Overlay
@@ -653,19 +872,23 @@ EDITOR=nvim visudo
 > Alternatively, become root via `sudo -i` from the `ahsan` account if it is still accessible.  The locked root account does not hinder offline recovery.
 
 ---
+## Section 5.7 — Rebuild gcc and then @world
 
+```bash
+emerge gcc && emerge -ev @world
 
----
+```
+
 
 ## Part 7 — Kernel: CachyOS-Sources with Clang + kCFI
 
 ### 7.1 — Install Kernel Sources and Required Packages
+[NOTE:] All ananicy packages must be installed from xarblu-overlay
+[NOTE:] Mask ananicy-cpp from mask from CachyOS-kernels, guru
 
 ```bash
-# Install the kernel sources, firmware, and sbctl for Secure Boot signing.
-# sbctl must be emerged BEFORE the kernel build so that signing keys exist
-# when dracut generates the first UKI.
-emerge --ask sys-kernel/cachyos-sources sys-kernel/linux-firmware app-crypt/sbctl
+# Install the kernel sources, firmware, and sbctl for Secure Boot signing. sbctl must be emerged BEFORE the kernel build so that signing keys exist when dracut generates the first UKI.
+emerge --ask sys-kernel/cachyos-sources sys-kernel/linux-firmware app-crypt/sbctl sys-firmware/intel-microcode sys-fs/btrfs-progs sys-auth/cachyos-ananicy-rules sys-auth/ananicy-cpp
 eselect kernel set 1
 cd /usr/src/linux
 ```
@@ -3798,218 +4021,1081 @@ aa-status | head -5
 
 ---
 
-## Part 23 — systemd Service Hardening
+## Part 23 – systemd Service Hardening
 
-> **Deploy `svc-harden.py` from `arch_hardening_setup.md` Part 12.** This Python tool provides `analyze`, `apply`, `test`, `revert`, aThe NVIDIA driver setup has been thoroughly updated based on the latest information from the Gentoo wiki and package documentation. The key changes are: removal of the now-unnecessary `nvidia_drm.modeset=1` kernel parameter, emphasis on the `modules-sign` mechanism and its integration with Secure Boot, clarification on `powerd`, and expanded guidance on AppArmor and `svc-harden.py`.
+System‑level service confinement complements AppArmor and bubblewrap by restricting daemons at the service‑manager level, before the binary even starts. This tool automates analysis, interactive hardening, SHH‑based profiling, testing, rollback, and bisection.
 
-The following is the complete, rewritten "Part 7B — NVIDIA Driver Setup" section, designed to be placed between Part 7 (Kernel) and Part 8 (Dracut) in your `README.md`.
+### 24.1 – Prerequisites
 
----
+| Component | Package / Install Command | Purpose |
+|-----------|--------------------------|---------|
+| Python 3.11+ | already present | Runtime for the script |
+| `systemd‑analyze` | part of `sys‑apps/systemd` | Security analysis |
+| `strace` ≥ 6.6 | `emerge --ask dev-util/strace` | Required by SHH |
+| SHH (optional) | `cargo install --root /usr/local systemd-hardening-helper` | Behaviour‑based profiler |
 
-## Part 7B — NVIDIA Driver Setup
-
-This section covers the installation and configuration of the proprietary NVIDIA driver stack, ensuring it is compatible with Secure Boot, the Wayland compositor, and the system's hardening measures.
-
-### 7B.1 — Kernel Configuration for NVIDIA
-
-The cachyos-sources `.config` already enables most of the required options, but verify the following with `make menuconfig` before building the kernel:
-
-```
-Bus options (PCI etc.) --->
-  [*] PCI Express support
-  [*] VGA Arbitration                                   CONFIG_VGA_ARB
-
-Device Drivers --->
-  Graphics support --->
-    <*/M> Direct Rendering Manager (XFree86 …)          CONFIG_DRM
-    [*]   Enable legacy fbdev support for your …        CONFIG_DRM_FBDEV_EMULATION
-    < >   Nouveau (NVIDIA) cards                        CONFIG_DRM_NOUVEAU
-
-  Firmware Drivers --->
-    [*] Mark VGA/VBE/EFI FB as generic system …         CONFIG_SYSFB_SIMPLEFB
-```
-
-*   `CONFIG_DRM_FBDEV_EMULATION` is essential for `nvidia-drm` to provide a framebuffer console.
-*   `CONFIG_VGA_ARB` ensures correct handoff between multiple GPU drivers (e.g., `simpledrm` and `nvidia-drm`) at boot.
-
-### 7B.2 — Kernel Command Line and Modesetting
-
-For NVIDIA driver versions 560 and later, modesetting is enabled by default for Wayland. No additional kernel command-line parameters are required. The driver will automatically set `modeset=1` and `fbdev=1`. This behavior is confirmed by the Arch Linux wiki and the official NVIDIA documentation for the 580 series.
-
-### 7B.3 — USE Flags
-
-The relevant USE flags for `x11-drivers/nvidia-drivers` are evaluated for this specific desktop setup (RTX 2080 Ti). The key flags are `kernel-open` and `modules-sign`.
-
-*   **`kernel-open`**: This flag is enabled by default and uses the open-source kernel modules. It is recommended for Turing (RTX 20-series) and newer GPUs, and is mandatory for the NVIDIA 50-series "Blackwell" GPUs.
-*   **`modules-sign`**: This flag is critical for Secure Boot. Its role is elaborated in section 7B.4.
-*   **`persistenced`**: Enables the `nvidia-persistenced` daemon, which is useful for keeping the GPU state initialized, reducing latency for CUDA applications.
-*   **`powerd`**: This flag is **not needed** for desktops. It is specifically for laptops with NVIDIA Dynamic Boost technology. The Gentoo package description explicitly states it is "only useful with specific laptops, ignore if unsure".
-
-Configure the necessary flags. If you already have an entry for `x11-drivers/nvidia-drivers` in your file, merge the flags to avoid duplication.
-
-```bash
-# /etc/portage/package.use/nvidia
-x11-drivers/nvidia-drivers modules-sign persistenced
-```
-
-### 7B.4 — Secure Boot and Module Signing
-
-Since this system uses Secure Boot with custom keys, all kernel modules must be signed to load. The `modules-sign` USE flag automates this process in Gentoo, leveraging the same keys used for the kernel and UKI.
-
-1.  **Ensure Keys Exist**: The `sbctl` keys must exist. If you followed Part 9, they are at `/var/lib/sbctl/keys/db/db.key` and `/var/lib/sbctl/keys/db/db.pem`.
-2.  **Module Signing in `make.conf`**: Add the following to `/etc/portage/make.conf` to tell Portage where the signing keys are. These variables are used by the `modules-sign` eclass.
-
-    ```bash
-    # /etc/portage/make.conf
-    MODULES_SIGN_KEY="/var/lib/sbctl/keys/db/db.key"
-    MODULES_SIGN_CERT="/var/lib/sbctl/keys/db/db.pem"
-    ```
-
-3.  **Kernel Configuration**: Ensure `CONFIG_MODULE_SIG=y` is set in the kernel. This is usually already enabled by cachyos-sources.
-4.  **Verification**: After installing the driver, verify the modules are signed.
-
-    ```bash
-    modinfo nvidia | grep '^sig_key'
-    ```
-    Running `modinfo nvidia` should show a signature key, confirming the module has been signed. The output should include the signer and key fingerprint, indicating the module's integrity is protected.
-
-### 7B.5 — Install the Driver
-
-```bash
-emerge --ask x11-drivers/nvidia-drivers
-```
-
-After the emerge completes, verify the key components:
-
-```bash
-# Check that modules are present
-modinfo nvidia nvidia-modeset nvidia-uvm nvidia-drm
-
-# Verify that the modules are signed
-modinfo nvidia | grep -E 'sig_|signer'
-# Expected output should show a signer and signature info, not be empty.
-```
-
-### 7B.6 — Module Parameters and Blacklisting
-
-Create the main NVIDIA module configuration file:
-
-```bash
-cat > /etc/modprobe.d/nvidia.conf << 'EOF'
-# Maintained by: Hardened Gentoo Setup Guide
-# Enable kernel mode setting (required for Wayland)
-options nvidia-drm modeset=1
-# Use the Page Attribute Table for memory allocation (performance)
-options nvidia NVreg_UsePageAttributeTable=1
-# Preserve video memory allocations across suspend/resume
-options nvidia NVreg_PreserveVideoMemoryAllocations=1 NVreg_TemporaryFilePath=/tmp
-EOF
-```
-
-As noted in 7B.2, `modeset=1` is the default for newer drivers. The explicit option is kept as a precaution for older branches and serves as a clear document of the requirement.
-
-Prevent the open-source `nouveau` driver from binding to the GPU:
-
-```bash
-cat > /etc/modprobe.d/blacklist-nouveau.conf << 'EOF'
-# Prevent the nouveau driver from binding to NVIDIA GPUs
-install nouveau /bin/true
-blacklist nouveau
-EOF
-```
-
-### 7B.7 — TPM and NVIDIA
-
-The TPM is used primarily for boot-time integrity verification (PCR sealing of the LUKS key) and for SSH key storage. There is no direct integration between the TPM and the NVIDIA driver. The driver's operation is unaffected by the TPM, and it does not interact with the TPM for functionality. Its security on this system is ensured through module signing (Secure Boot) and confinement via AppArmor.
-
-### 7B.8 — Enable Services
-
-```bash
-# Persistence daemon – keeps GPU state alive (reduces initialization latency)
-systemctl enable nvidia-persistenced.service
-```
-
-### 7B.9 — Rebuild the Initramfs and UKI
-
-The NVIDIA kernel modules must be included in the initramfs to load early enough for a graphical boot and Wayland.
-
-```bash
-KVER=$(ls /lib/modules/ | sort -V | tail -1)
-dracut --force --verbose /efi/EFI/Linux/gentoo-${KVER}.efi ${KVER}
-```
-
-Verify the NVIDIA modules are embedded:
-
-```bash
-lsinitrd /efi/EFI/Linux/gentoo-${KVER}.efi | grep -E "nvidia"
-```
-
-Re-sign the new UKI:
-
-```bash
-sbctl sign -s /efi/EFI/Linux/gentoo-${KVER}.efi
-```
+If SHH is not installed, the `profile` subcommand will print an error with the exact installation instructions and exit.
 
 ---
 
-### 7B.10 — AppArmor Integration for NVIDIA
+### 24.2 – The Integrated `svc‑harden.py` Script
 
-The `apparmor.d` project includes an `abstractions/nvidia` file that can be used to mediate access to NVIDIA device files and libraries. This abstraction defines rules for common NVIDIA resources, including device nodes (`/dev/nvidia*`), library paths, and shared memory. To integrate it into your security policy, `#include <abstractions/nvidia>` to the profiles of any application that requires GPU access.
+Save to `/usr/local/bin/svc‑harden.py` and make it executable:
 
-1.  **Identify Profiles**: Start with applications that have existing AppArmor profiles, such as Firefox (in complain mode) or your display manager (SDDM).
-2.  **Add the Abstraction**: Edit the relevant profile in `/etc/apparmor.d/`. For example, to allow SDDM to manage the display, add the include line to its profile:
+```bash
+nano /usr/local/bin/svc‑harden.py
+chmod +x /usr/local/bin/svc‑harden.py
+```
 
-    ```bash
-    # In /etc/apparmor.d/usr.sbin.sddm
-    profile sddm /usr/bin/sddm {
-      # ... existing rules ...
-      #include <abstractions/nvidia>
-      # ...
+```python
+#!/usr/bin/env python3
+"""
+svc‑harden.py – systemd Service Security Hardening Tool
+Gentoo Hardened – APT‑Level Hardening Guide, April 2026
+
+Subcommands
+───────────
+  analyze <service>    Print exposure score and missing directives.
+  apply <service>      Interactively apply hardening directives via a drop‑in.
+  profile <service>    Profile the running service with SHH (Systemd Hardening
+                       Helper) and review the generated recommendations.
+  test <service>       Restart the service and (optionally) run a validation
+                       command to verify functionality.
+  revert <service>     Remove the hardening drop‑in and restore the service.
+  bisect <service>     Identify which directive broke a service.
+  log                  Show the NDJSON audit log of all changes.
+
+Examples
+────────
+  svc‑harden.py analyze sshd.service
+  svc‑harden.py apply cockpit.service
+  svc‑harden.py profile nginx.service --apply
+  svc‑harden.py test cockpit.service --test‑cmd "curl ‑k https://localhost:9090"
+  svc‑harden.py revert NetworkManager.service
+  svc‑harden.py bisect sshd.service
+  svc‑harden.py log
+
+Important
+─────────
+  This tool REFUSES to operate on ‘all’ or wildcard service patterns.
+  Hardening directives are service‑specific; blanket application causes
+  breakage.  All changes are recorded in an NDJSON audit log at
+  /var/log/svc‑harden‑audit.json.
+"""
+
+from __future__ import annotations
+
+import argparse
+import datetime
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import textwrap
+import time
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Optional
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Data structures
+# ──────────────────────────────────────────────────────────────────────────────
+
+@dataclass(frozen=True)
+class HardeningDirective:
+    """One systemd hardening directive with compatibility hints.
+
+    Attributes:
+        name:             systemd.exec(5) directive name
+        default_value:    suggested value (both ‘yes’ and ‘true’ are valid
+                          booleans per systemd.syntax(7))
+        description:      human‑readable purpose
+        incompatible_with: categories of services that may break if this
+                          directive is applied
+    """
+    name: str
+    default_value: str
+    description: str
+    incompatible_with: list[str] = field(default_factory=list)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Configuration
+# ──────────────────────────────────────────────────────────────────────────────
+
+DROPIN_BASE: Path = Path("/etc/systemd/system")
+AUDIT_LOG: Path = Path("/var/log/svc‑harden‑audit.json")
+SHH_BINARY: str = "shh"
+
+# All directives are documented in systemd.exec(5).
+# Boolean values ‘yes’/‘no’ (preferred) and ‘true’/‘false’ are both valid;
+# we normalise to ‘yes’/‘no’ in the drop‑in because systemd‑analyze displays
+# them that way and gentoo systemd uses the same convention.
+HARDENING_DIRECTIVES: list[HardeningDirective] = [
+    HardeningDirective("NoNewPrivileges", "yes",
+                       "Prevent gaining new privileges via setuid/setgid/capabilities"),
+    HardeningDirective("PrivateTmp", "yes",
+                       "Give the service a private /tmp and /var/tmp"),
+    HardeningDirective("PrivateDevices", "yes",
+                       "Restrict /dev access",
+                       ["bluetooth", "audio", "video", "gpu"]),
+    HardeningDirective("PrivateNetwork", "yes",
+                       "Disconnect from all network interfaces",
+                       ["network", "dns", "web", "mail"]),
+    HardeningDirective("PrivateUsers", "yes",
+                       "Separate UID namespace",
+                       ["setuid", "chown", "CAP_SETUID"]),
+    HardeningDirective("ProtectSystem", "strict",
+                       "Mount /usr, /boot, /efi read‑only; /etc read‑only"),
+    HardeningDirective("ProtectHome", "yes",
+                       "Make /home, /root, /run/user inaccessible",
+                       ["home_access", "user_data"]),
+    HardeningDirective("ProtectHostname", "yes",
+                       "Prevent hostname changes"),
+    HardeningDirective("ProtectClock", "yes",
+                       "Prevent clock changes",
+                       ["ntp", "time_sync"]),
+    HardeningDirective("ProtectKernelTunables", "yes",
+                       "Make /proc/sys read‑only"),
+    HardeningDirective("ProtectKernelModules", "yes",
+                       "Prevent loading/unloading kernel modules"),
+    HardeningDirective("ProtectKernelLogs", "yes",
+                       "Prevent access to /proc/kmsg and /dev/kmsg"),
+    HardeningDirective("ProtectControlGroups", "yes",
+                       "Make cgroup filesystem read‑only"),
+    HardeningDirective("RestrictAddressFamilies", "AF_UNIX AF_INET AF_INET6",
+                       "Restrict socket address families"),
+    HardeningDirective("RestrictNamespaces", "yes",
+                       "Prevent creation of new namespaces",
+                       ["containers", "bubblewrap"]),
+    HardeningDirective("RestrictRealtime", "yes",
+                       "Prevent real‑time scheduling",
+                       ["realtime", "audio_pro", "pipewire"]),
+    HardeningDirective("RestrictSUIDSGID", "yes",
+                       "Prevent creation of setuid/setgid files"),
+    HardeningDirective("LockPersonality", "yes",
+                       "Prevent changing ABI personality"),
+    HardeningDirective("MemoryDenyWriteExecute", "yes",
+                       "Prevent W^X memory",
+                       ["jit", "mono", "java", "llvm_jit"]),
+    HardeningDirective("RemoveIPC", "yes",
+                       "Remove SysV IPC objects when service stops"),
+    HardeningDirective("SystemCallArchitectures", "native",
+                       "Only allow native‑architecture syscalls",
+                       ["wine", "32bit_compat"]),
+    HardeningDirective("SystemCallFilter", "@system‑service",
+                       "Whitelist only standard service syscalls"),
+    HardeningDirective("CapabilityBoundingSet", "",
+                       "Drop ALL capabilities",
+                       ["caps_needed"]),
+    HardeningDirective("AmbientCapabilities", "",
+                       "Clear ambient capabilities"),
+    HardeningDirective("UMask", "0077",
+                       "Owner‑only new files/dirs"),
+    HardeningDirective("IPAddressDeny", "any",
+                       "Block all IP communication",
+                       ["network", "dns"]),
+    HardeningDirective("ProtectProc", "invisible",
+                       "Hide other processes’ /proc entries"),
+    HardeningDirective("ProcSubset", "pid",
+                       "Only expose PID subtree of /proc"),
+]
+
+# Mapping of SHH output keys to canonical directive names (for the ‘profile’
+# subcommand).  Keys not in this mapping are displayed in an ‘additional
+# recommendations’ block for manual review.
+SHH_KEY_MAP: dict[str, str] = {
+    "ProtectSystem":           "ProtectSystem",
+    "ProtectHome":             "ProtectHome",
+    "PrivateTmp":              "PrivateTmp",
+    "PrivateDevices":          "PrivateDevices",
+    "PrivateNetwork":          "PrivateNetwork",
+    "ProtectKernelTunables":   "ProtectKernelTunables",
+    "ProtectKernelModules":    "ProtectKernelModules",
+    "ProtectKernelLogs":       "ProtectKernelLogs",
+    "ProtectControlGroups":    "ProtectControlGroups",
+    "ProtectClock":            "ProtectClock",
+    "ProtectProc":             "ProtectProc",
+    "LockPersonality":         "LockPersonality",
+    "RestrictRealtime":        "RestrictRealtime",
+    "MemoryDenyWriteExecute":  "MemoryDenyWriteExecute",
+    "RestrictAddressFamilies": "RestrictAddressFamilies",
+    "SystemCallFilter":        "SystemCallFilter",
+    "SystemCallArchitectures": "SystemCallArchitectures",
+    "CapabilityBoundingSet":   "CapabilityBoundingSet",
+    "NoNewPrivileges":         "NoNewPrivileges",
+    "UMask":                   "UMask",
+    "IPAddressDeny":           "IPAddressDeny",
+    "ProcSubset":              "ProcSubset",
+}
+
+# Patterns refused by all subcommands that accept a service name.
+BULK_PATTERNS: frozenset[str] = frozenset({"all", "*", "*.service",
+                                           "everything"})
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Utility helpers
+# ──────────────────────────────────────────────────────────────────────────────
+
+def log_action(action: str, service: str, details: dict[str, object],
+               *, dry_run: bool = False) -> None:
+    """Append a single NDJSON record to the audit log.
+
+    *dry_run* being True suppresses writing and only prints what would be
+    recorded.
+    """
+    if dry_run:
+        print(f"[DRY‑RUN] Would log: action={action} service={service}")
+        return
+    entry = {
+        "timestamp": datetime.datetime.now(tz=datetime.timezone.utc).isoformat(),
+        "action": action,
+        "service": service,
+        "uid": os.getuid(),
+        "pid": os.getpid(),
+        "details": details,
     }
-    ```
+    try:
+        AUDIT_LOG.parent.mkdir(parents=True, exist_ok=True)
+        with open(AUDIT_LOG, "a", encoding="utf‑8") as fh:
+            fh.write(json.dumps(entry) + "\n")
+    except OSError as exc:
+        print(f"[WARN] Cannot write audit log: {exc}", file=sys.stderr)
 
-3.  **Test**: After making changes, run your system in complain mode for these profiles and monitor the AppArmor logs (`aa-logprof`) to identify any additional rules needed.
 
-### 7B.11 — Hardening `nvidia-persistenced` with `svc-harden.py`
+def _resolve_service(service: str) -> str:
+    """Ensure *service* ends with a recognised systemd unit suffix."""
+    if not service.endswith((".service", ".socket", ".timer", ".mount")):
+        return service + ".service"
+    return service
 
-The `nvidia-persistenced` service can be hardened using `svc-harden.py`, as referenced in Part 23 of the main guide. The script applies security directives such as `NoNewPrivileges`, `ProtectSystem=strict`, and `MemoryDenyWriteExecute` to reduce the attack surface of the service.
 
-After ensuring the service runs correctly in its default configuration, apply the hardening:
+def dropin_path(service: str) -> Path:
+    """Return the filesystem path to the hardening drop‑in for *service*."""
+    return DROPIN_BASE / f"{_resolve_service(service)}.d" / "hardening.conf"
 
-```bash
-# Analyze the current security posture
-svc-harden.py analyze nvidia-persistenced.service
 
-# Apply hardening directives interactively
-svc-harden.py apply nvidia-persistenced.service
+def run(cmd: list[str], *, check: bool = True,
+        capture: bool = False,
+        timeout: int | None = None) -> subprocess.CompletedProcess[str]:
+    """Thin wrapper around subprocess.run with default text=True and
+    shell=False (security best practice)."""
+    print(f"  $ {' '.join(cmd)}")
+    return subprocess.run(cmd, check=check, capture_output=capture,
+                          text=True, timeout=timeout)
+
+
+def reload_systemd() -> None:
+    """Tell systemd to reload its unit database."""
+    run(["systemctl", "daemon‑reload"])
+
+
+def service_status(service: str) -> str:
+    """Return the current ActiveState of *service*."""
+    res = subprocess.run(
+        ["systemctl", "is‑active", service],
+        capture_output=True, text=True, check=False,
+    )
+    return res.stdout.strip()
+
+
+def restart_service(service: str) -> bool:
+    """Restart *service* and return True if it came back ‘active’."""
+    run(["systemctl", "restart", service], check=False)
+    time.sleep(2)
+    state = service_status(service)
+    if state == "active":
+        print(f"  ✅  {service} is active after restart")
+        return True
+    print(f"  ❌  {service} is {state} after restart")
+    return False
+
+
+def _read_choice(prompt: str) -> str:
+    """Read a single line of user input, handling EOF and SIGINT."""
+    try:
+        return input(prompt).strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        print("\n  Aborted.")
+        return ""
+
+
+def _parse_exposure_score(text: str) -> str | None:
+    """Extract the numeric exposure score from systemd‑analyze output.
+
+    The output format is explicitly documented as *not* stable
+    (systemd‑analyze(1)), so we use a robust regex that matches several
+    observed patterns:
+        → 5.2 EXPOSED
+        → 1.4 OK
+        → 7.8 MEDIUM
+    """
+    m = re.search(r"→\s*([\d]+(?:\.[\d]+)?)\s+(EXPOSED|OK|MEDIUM|UNSAFE|SAFE)",
+                  text, re.IGNORECASE)
+    if m is None:
+        return None
+    return m.group(1)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# SHH helpers (used by the ‘profile’ subcommand)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _shh_available() -> bool:
+    """Return True if the shh binary can be found on PATH."""
+    return shutil.which(SHH_BINARY) is not None
+
+
+def _parse_shh_output(text: str) -> dict[str, str]:
+    """Extract SHH recommendations from its stdout/stderr.
+
+    SHH emits recommendations between two markers:
+        -------- Start of suggested service options --------
+        ProtectSystem=strict
+        ProtectHome=true
+        ...
+        -------- End of suggested service options --------
+
+    The marker text may include an invocation ID in newer versions:
+        -------- Start of suggested service options for a1b2c3d4... --------
+    We therefore use a substring match on ``"Start of suggested"``.
+    """
+    recs: dict[str, str] = {}
+    in_block = False
+    for line in text.splitlines():
+        stripped = line.strip()
+        if "Start of suggested" in stripped:
+            in_block = True
+            continue
+        if "End of suggested" in stripped:
+            break
+        if in_block and "=" in stripped:
+            key, _, value = stripped.partition("=")
+            recs[key.strip()] = value.strip()
+    return recs
+
+
+def _run_shh_profile(service: str, mode: str, *, filesystem: bool,
+                     network: bool) -> dict[str, str]:
+    """Profile *service* with SHH and return the parsed recommendations.
+
+    The service is restarted twice: once to begin profiling and once to
+    finish profiling and generate the recommended options.
+    """
+    service = _resolve_service(service)
+
+    if not _shh_available():
+        print("ERROR: SHH (Systemd Hardening Helper) is not installed.",
+              file=sys.stderr)
+        print("  Install Rust toolchain and then:", file=sys.stderr)
+        print("  cargo install --root /usr/local systemd‑hardening‑helper",
+              file=sys.stderr)
+        print("  Ensure dev‑util/strace is emerged (≥ 6.6).",
+              file=sys.stderr)
+        sys.exit(1)
+
+    print(f"\n  Starting SHH profiling for {service} …")
+    run(["shh", "service", "start‑profile", service])
+
+    print("\n  ═══ PROFILING ACTIVE ═══")
+    print(f"  {service} is now being traced with strace.")
+    print("  Please exercise the service – perform all its normal operations.")
+    _ = input("  Press ENTER when you are finished …")
+
+    finish_cmd = ["shh", "service", "finish‑profile", service]
+    if mode == "aggressive":
+        finish_cmd += ["‑‑mode", "aggressive"]
+    if filesystem:
+        finish_cmd.append("‑‑filesystem‑whitelisting")
+    if network:
+        finish_cmd.append("‑‑network‑firewalling")
+
+    print(f"\n  Finishing profiling …")
+    result = run(finish_cmd, check=False, capture=True)
+    combined = (result.stdout or "") + (result.stderr or "")
+
+    recs = _parse_shh_output(combined)
+    if not recs:
+        print("  WARNING: SHH did not produce any recommendations.")
+    else:
+        print(f"  SHH produced {len(recs)} recommendation(s).")
+    return recs
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Subcommand: analyze
+# ──────────────────────────────────────────────────────────────────────────────
+
+def cmd_analyze(service: str, *, dry_run: bool = False) -> int:
+    """Show current exposure score and list missing directives."""
+    service = _resolve_service(service)
+    print(f"\n{'═'*70}\n  SECURITY ANALYSIS: {service}\n{'═'*70}\n")
+
+    res = subprocess.run(
+        ["systemd‑analyze", "security", "‑‑no‑pager", service],
+        capture_output=True, text=True, check=False,
+    )
+    print(res.stdout)
+    if res.returncode != 0:
+        print(res.stderr, file=sys.stderr)
+
+    score = _parse_exposure_score(res.stdout)
+    if score is not None:
+        print(f"\n  Current exposure score: {score}/10.0")
+
+    print(f"\n  {'─'*66}")
+    print("  RECOMMENDED HARDENING DIRECTIVES (in priority order)")
+    print(f"  {'─'*66}\n")
+
+    for i, d in enumerate(HARDENING_DIRECTIVES, 1):
+        check = subprocess.run(
+            ["systemctl", "show", service, f"‑‑property={d.name}"],
+            capture_output=True, text=True, check=False,
+        )
+        current = check.stdout.strip().partition("=")[2] \
+                  if "=" in check.stdout else ""
+        if current in ("", "(not set)") \
+           or current.lower() in ("no", "false", "0"):
+            compat = ""
+            if d.incompatible_with:
+                compat = (f" [CAUTION: may break "
+                          f"{', '.join(d.incompatible_with)}]")
+            print(f"  {i:2d}. {d.name}={d.default_value}")
+            print(f"      {d.description}{compat}\n")
+
+    log_action("analyze", service, {}, dry_run=dry_run)
+    return 0
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Shared commit logic
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _write_and_restart(service: str, dropin: Path,
+                       selected: dict[str, str], *, dry_run: bool) -> int:
+    """Write the drop‑in file, reload systemd, and restart the service."""
+    ts = datetime.datetime.now().isoformat()
+    header = textwrap.dedent(f"""\
+        # {dropin}
+        # Generated by svc‑harden.py at {ts}
+        # Remove with: svc‑harden.py revert {service}
+
+        [Service]
+    """)
+    content = header + "".join(f"{k}={v}\n" for k, v in selected.items())
+
+    print(f"\n  {'─'*66}")
+    print("  PREVIEW OF DROP‑IN CONTENT")
+    print(f"  {'─'*66}")
+    print(content)
+
+    confirm = _read_choice(
+        "  Write this drop‑in and restart the service? [y/N]: ")
+    if confirm != "y":
+        print("  Aborted – nothing written.")
+        return 0
+
+    if dry_run:
+        print(f"  [DRY‑RUN] Would write {dropin} and restart {service}")
+        log_action("apply_dry_run", service, {"directives": selected},
+                   dry_run=True)
+        return 0
+
+    dropin.parent.mkdir(parents=True, exist_ok=True)
+    dropin.write_text(content, encoding="utf‑8")
+    print(f"  ✅  Written: {dropin}")
+
+    reload_systemd()
+    success = restart_service(service)
+
+    log_action("apply", service, {
+        "directives": selected,
+        "dropin": str(dropin),
+        "restart_success": success,
+    })
+
+    if not success:
+        print(f"\n  ⚠️  Service failed after hardening.")
+        print(f"  Run: svc‑harden.py bisect {service}")
+        return 1
+
+    print("\n  Running post‑apply security analysis …")
+    run(["systemd‑analyze", "security", "‑‑no‑pager", service], check=False)
+    return 0
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Subcommand: apply
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _interactive_select(service: str) -> dict[str, str]:
+    """Run the interactive prompt loop and return selected directives."""
+    selected: dict[str, str] = {}
+    for d in HARDENING_DIRECTIVES:
+        compat = ""
+        if d.incompatible_with:
+            compat = (f"\n  ⚠️  May break: "
+                      f"{', '.join(d.incompatible_with)}")
+        print(f"\n  Directive : {d.name}")
+        print(f"  Value     : {d.default_value}")
+        print(f"  Purpose   : {d.description}{compat}")
+
+        choice = _read_choice("  Apply? [y/N/e(dit)]: ")
+        if choice == "y":
+            selected[d.name] = d.default_value
+            print(f"  ✅  {d.name}={d.default_value}")
+        elif choice == "e":
+            custom = _read_choice(f"  Enter value for {d.name}: ")
+            if custom:
+                selected[d.name] = custom
+                print(f"  ✅  {d.name}={custom} (custom)")
+            else:
+                print("  ⏭   Skipped")
+        else:
+            print("  ⏭   Skipped")
+    return selected
+
+
+def cmd_apply(service: str, *, dry_run: bool = False) -> int:
+    """Interactively apply hardening directives via a drop‑in file."""
+    service = _resolve_service(service)
+    dropin = dropin_path(service)
+
+    print(f"\n{'═'*70}\n  APPLY HARDENING: {service}\n{'═'*70}")
+    print(f"\n  Drop‑in: {dropin}")
+    print("  Review each directive.  [y] apply  [N] skip  [e] edit value.\n")
+
+    selected = _interactive_select(service)
+    if not selected:
+        print("\n  No directives selected. Nothing to write.")
+        return 0
+
+    return _write_and_restart(service, dropin, selected, dry_run=dry_run)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Subcommand: profile  (SHH‑based)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def cmd_profile(service: str, *, apply: bool = False,
+                mode: str = "safe", filesystem: bool = False,
+                network: bool = False, dry_run: bool = False) -> int:
+    """Profile a service with SHH and review the generated recommendations
+    before applying."""
+    service = _resolve_service(service)
+
+    if dry_run:
+        print(f"[DRY‑RUN] Would profile {service} with SHH")
+        return 0
+
+    recs = _run_shh_profile(service, mode, filesystem=filesystem,
+                            network=network)
+    if not recs:
+        return 1
+
+    # Separate recognised (matched) SHH keys from unrecognised ones.
+    matched: dict[str, str] = {}
+    unmatched: dict[str, str] = {}
+    for key, val in recs.items():
+        canonical = SHH_KEY_MAP.get(key)
+        if canonical is not None:
+            matched[canonical] = val
+        else:
+            unmatched[key] = val
+
+    # Display SHH recommendations.
+    print(f"\n  {'─'*66}")
+    print("  SHH RECOMMENDATIONS (automatically pre‑selected)")
+    print(f"  {'─'*66}")
+    for name in sorted(matched):
+        print(f"  ✅  {name} = {matched[name]}")
+
+    if unmatched:
+        print(f"\n  {'─'*66}")
+        print("  ADDITIONAL SHH DIRECTIVES (review carefully)")
+        print(f"  {'─'*66}")
+        for key in sorted(unmatched):
+            print(f"  ⬜  {key} = {unmatched[key]}")
+        print("\n  These advanced path / socket directives are not part of")
+        print("  the standard interactive list but can be applied as‑is.")
+
+    # Allow the user to edit the final set before applying.
+    print(f"\n  {'─'*66}")
+    print("  REVIEW AND EDIT BEFORE APPLYING")
+    print(f"  {'─'*66}")
+
+    final: dict[str, str] = dict(matched)
+
+    while True:
+        print("\n  Current selection:")
+        if not final:
+            print("    (none)")
+        else:
+            for k, v in sorted(final.items()):
+                print(f"    {k} = {v}")
+
+        print("\n  [a]pply   [t]oggle a directive   "
+              "[r]eset to SHH defaults   [q]uit")
+        choice = _read_choice("  Choice: ")
+        if choice == "a":
+            break
+        elif choice == "t":
+            target = input("  Directive name (or unmatched key): ").strip()
+            if target in final:
+                print(f"  Removing {target}")
+                del final[target]
+            elif target in matched:
+                final[target] = matched[target]
+                print(f"  Added {target} = {matched[target]}")
+            elif target in unmatched:
+                val = unmatched[target]
+                final[target] = val
+                print(f"  Added {target} = {val}")
+            else:
+                print(f"  Unknown directive ‘{target}’")
+        elif choice == "r":
+            final = dict(matched)
+            print("  Reset to SHH defaults.")
+        elif choice == "q":
+            print("  Aborted.")
+            return 0
+        else:
+            print("  Unknown choice.")
+
+    if not final:
+        print("\n  No directives selected. Nothing to write.")
+        return 0
+
+    if not apply:
+        print("\n  Use ‑‑apply to write this configuration.")
+        return 0
+
+    dropin = dropin_path(service)
+    return _write_and_restart(service, dropin, final, dry_run=dry_run)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Subcommand: test
+# ──────────────────────────────────────────────────────────────────────────────
+
+def cmd_test(service: str, test_cmd: str | None = None,
+             *, dry_run: bool = False) -> int:
+    """Restart the service and optionally run a validation command."""
+    service = _resolve_service(service)
+    print(f"\n{'═'*70}\n  TESTING: {service}\n{'═'*70}\n")
+
+    if dry_run:
+        print(f"  [DRY‑RUN] Would restart {service} and check status")
+        return 0
+
+    if not restart_service(service):
+        log_action("test", service, {"status": "failed",
+                                      "test_cmd": test_cmd})
+        return 1
+
+    print(f"\n  Recent journal entries for {service}:")
+    run(["journalctl", "‑u", service, "‑‑no‑pager", "‑n", "20"],
+        check=False)
+
+    if test_cmd:
+        print(f"\n  Running test command: {test_cmd}")
+        success = False
+        try:
+            res = subprocess.run(test_cmd, shell=True, check=False,
+                                 timeout=30)
+            success = res.returncode == 0
+            if success:
+                print("  ✅  Test command succeeded")
+            else:
+                print(f"  ❌  Test command failed (rc={res.returncode})")
+        except subprocess.TimeoutExpired:
+            print("  ❌  Test command timed out after 30 s")
+        log_action("test", service, {"status": "passed" if success
+                                      else "failed", "test_cmd": test_cmd})
+        return 0 if success else 1
+
+    log_action("test", service, {"status": "passed_restart_only",
+                                  "test_cmd": None})
+    return 0
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Subcommand: revert
+# ──────────────────────────────────────────────────────────────────────────────
+
+def cmd_revert(service: str, *, dry_run: bool = False) -> int:
+    """Remove the hardening drop‑in and restore the original service state."""
+    service = _resolve_service(service)
+    dropin = dropin_path(service)
+
+    print(f"\n{'═'*70}\n  REVERTING HARDENING: {service}\n{'═'*70}\n")
+    if not dropin.exists():
+        print(f"  No hardening drop‑in found at {dropin}")
+        return 0
+
+    print("  Current drop‑in contents:")
+    print(dropin.read_text())
+
+    if _read_choice(f"  Delete {dropin} and restart {service}? [y/N]: ") \
+       != "y":
+        print("  Aborted.")
+        return 0
+
+    if dry_run:
+        print(f"  [DRY‑RUN] Would delete {dropin} and restart {service}")
+        return 0
+
+    dropin.unlink()
+    try:
+        dropin.parent.rmdir()
+    except OSError:
+        pass  # directory not empty – keep it
+
+    reload_systemd()
+    success = restart_service(service)
+    log_action("revert", service, {"dropin_removed": str(dropin),
+                                   "restart_success": success})
+    return 0 if success else 1
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Subcommand: bisect
+# ──────────────────────────────────────────────────────────────────────────────
+
+def cmd_bisect(service: str, *, dry_run: bool = False) -> int:
+    """Identify which hardening directive caused a service failure."""
+    service = _resolve_service(service)
+    dropin = dropin_path(service)
+
+    print(f"\n{'═'*70}\n  BISECT MODE: {service}\n{'═'*70}\n")
+    if not dropin.exists():
+        print(f"  No hardening drop‑in found at {dropin}")
+        return 0
+
+    original = dropin.read_text(encoding="utf‑8")
+    directives: list[tuple[str, str]] = []
+    for line in original.splitlines():
+        stripped = line.strip()
+        if stripped and not stripped.startswith("#") and "=" in stripped:
+            k, v = stripped.split("=", 1)
+            if k.strip() not in ("[Service]", "[Unit]", "[Install]"):
+                directives.append((k.strip(), v.strip()))
+
+    if not directives:
+        print("  Drop‑in contains no directives to bisect.")
+        return 0
+
+    print(f"  Found {len(directives)} directive(s).")
+    culprit: tuple[str, str] | None = None
+
+    for i, (name, _) in enumerate(directives, 1):
+        print(f"  [{i}/{len(directives)}] Testing with ‘{name}’ DISABLED …")
+        new_lines: list[str] = []
+        skipped = False
+        for line in original.splitlines():
+            stripped = line.strip()
+            if not skipped and stripped.startswith(name + "="):
+                new_lines.append(f"# BISECT_DISABLED: {line}")
+                skipped = True
+            else:
+                new_lines.append(line)
+
+        if not dry_run:
+            dropin.write_text("\n".join(new_lines), encoding="utf‑8")
+            reload_systemd()
+            success = restart_service(service)
+        else:
+            success = True
+
+        if success:
+            print(f"  ✅  Service recovered when ‘{name}’ was disabled.")
+            culprit = (name, directives[i‑1][1])
+            if not dry_run:
+                dropin.write_text(original, encoding="utf‑8")
+                reload_systemd()
+            break
+        else:
+            if not dry_run:
+                dropin.write_text(original, encoding="utf‑8")
+                reload_systemd()
+            print("  ❌  Service still broken. Continuing …\n")
+
+    if culprit is None:
+        print("\n  ⚠️  Could not isolate a single culprit directive.")
+        print(f"  Use ‘svc‑harden.py revert {service}’ to remove all "
+              f"hardening.")
+        log_action("bisect", service, {"result": "no_culprit_found"})
+        return 1
+
+    print(f"\n  CULPRIT IDENTIFIED: {culprit[0]} = {culprit[1]}")
+    print("  [a] Remove only this directive")
+    print("  [b] Revert ALL hardening")
+    print("  [c] Leave as‑is")
+    choice = _read_choice("  Choice [a/b/c]: ")
+
+    if choice == "a":
+        if dry_run:
+            print(f"  [DRY‑RUN] Would remove ‘{culprit[0]}’")
+            return 0
+        new_lines = [l for l in original.splitlines()
+                     if not l.strip().startswith(culprit[0] + "=")]
+        dropin.write_text("\n".join(new_lines), encoding="utf‑8")
+        reload_systemd()
+        restart_service(service)
+        log_action("bisect_partial_revert", service,
+                   {"removed_directive": culprit[0]})
+        print(f"  ✅  Removed ‘{culprit[0]}’; service running.")
+        return 0
+    elif choice == "b":
+        return cmd_revert(service, dry_run=dry_run)
+    else:
+        print("  Drop‑in unchanged.")
+        log_action("bisect_no_action", service, {"culprit": culprit[0]})
+        return 0
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Subcommand: log
+# ──────────────────────────────────────────────────────────────────────────────
+
+def cmd_log() -> int:
+    """Display the NDJSON audit log."""
+    if not AUDIT_LOG.exists():
+        print(f"No audit log found at {AUDIT_LOG}")
+        return 0
+    try:
+        lines = AUDIT_LOG.read_text(encoding="utf‑8").splitlines()
+    except OSError as exc:
+        print(f"Cannot read audit log: {exc}", file=sys.stderr)
+        return 1
+
+    print(f"\n{'═'*70}\n  SVC‑HARDEN AUDIT LOG ({len(lines)} entries)"
+          f"\n{'═'*70}\n")
+    for line in lines:
+        try:
+            entry = json.loads(line)
+            ts = entry.get("timestamp", "?")
+            action = entry.get("action", "?")
+            service = entry.get("service", "?")
+            details = entry.get("details", {})
+            print(f"  {ts}  [{action:25s}] {service}")
+            for k, v in details.items():
+                print(f"              {k}: {v}")
+        except json.JSONDecodeError:
+            print(f"  [PARSE ERROR] {line[:80]}")
+    print()
+    return 0
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# CLI entry point
+# ──────────────────────────────────────────────────────────────────────────────
+
+def build_parser() -> argparse.ArgumentParser:
+    """Construct the full argparse hierarchy."""
+    parser = argparse.ArgumentParser(
+        prog="svc‑harden.py",
+        description="systemd service hardening tool – single services only",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=textwrap.dedent("""\
+            Bulk hardening is REFUSED.  Always specify a single service unit.
+
+            Examples:
+              svc‑harden.py analyze sshd.service
+              svc‑harden.py apply cockpit.service
+              svc‑harden.py profile nginx.service ‑‑apply
+              svc‑harden.py test cockpit.service ‑‑test‑cmd "curl ‑k https://localhost:9090"
+              svc‑harden.py revert NetworkManager.service
+              svc‑harden.py bisect sshd.service
+              svc‑harden.py log
+        """),
+    )
+    parser.add_argument("‑‑dry‑run", action="store_true",
+                        help="Simulate without making changes")
+
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    # analyze
+    pa = sub.add_parser("analyze",
+                         help="Show exposure score and missing directives")
+    pa.add_argument("service")
+
+    # apply
+    pap = sub.add_parser("apply",
+                         help="Interactively apply hardening directives")
+    pap.add_argument("service")
+
+    # profile (SHH)
+    ppr = sub.add_parser("profile",
+                         help="Profile with SHH and review recommendations")
+    ppr.add_argument("service")
+    ppr.add_argument("‑‑apply", action="store_true",
+                     help="Write the drop‑in after review "
+                          "(otherwise preview only)")
+    ppr.add_argument("‑‑mode", choices=("safe", "aggressive"),
+                     default="safe",
+                     help="SHH hardening mode (default: safe)")
+    ppr.add_argument("‑‑filesystem‑whitelisting", action="store_true",
+                     help="Use SHH filesystem whitelisting (very strict)")
+    ppr.add_argument("‑‑network‑firewalling", action="store_true",
+                     help="Use SHH network firewalling (very strict)")
+
+    # test
+    pt = sub.add_parser("test", help="Test a hardened service")
+    pt.add_argument("service")
+    pt.add_argument("‑‑test‑cmd", metavar="CMD",
+                    help="Shell command to validate functionality")
+
+    # revert
+    pr = sub.add_parser("revert", help="Remove hardening drop‑in")
+    pr.add_argument("service")
+
+    # bisect
+    pb = sub.add_parser("bisect",
+                        help="Find which directive broke the service")
+    pb.add_argument("service")
+
+    # log
+    sub.add_parser("log", help="Show audit log of all changes")
+
+    return parser
+
+
+def main() -> int:
+    parser = build_parser()
+    args = parser.parse_args()
+    dry_run: bool = args.dry_run
+
+    if args.command == "log":
+        return cmd_log()
+
+    service: str = args.service
+    if service in BULK_PATTERNS or "*" in service or service == "":
+        print("❌  REFUSED: bulk / wildcard service hardening is not "
+              "supported.",
+              file=sys.stderr)
+        return 1
+
+    if (os.geteuid() != 0
+            and args.command in ("apply", "profile", "revert", "bisect")
+            and not dry_run):
+        print("ERROR: This command requires root (use sudo).",
+              file=sys.stderr)
+        return 1
+
+    match args.command:
+        case "analyze":
+            return cmd_analyze(service, dry_run=dry_run)
+        case "apply":
+            return cmd_apply(service, dry_run=dry_run)
+        case "profile":
+            return cmd_profile(
+                service,
+                apply=getattr(args, "apply", False),
+                mode=getattr(args, "mode", "safe"),
+                filesystem=getattr(args, "filesystem_whitelisting", False),
+                network=getattr(args, "network_firewalling", False),
+                dry_run=dry_run,
+            )
+        case "test":
+            return cmd_test(service, getattr(args, "test_cmd", None),
+                            dry_run=dry_run)
+        case "revert":
+            return cmd_revert(service, dry_run=dry_run)
+        case "bisect":
+            return cmd_bisect(service, dry_run=dry_run)
+        case _:
+            parser.print_help()
+            return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
 ```
-
-During the `apply` process, you can enable directives such as `ProtectSystem=strict` and `PrivateTmp=true`. It is important to test the GPU's functionality after applying each directive to ensure it does not interfere with driver operations.
 
 ---
 
-### 7B.12 — Post-Install Verification
+### 24.3 – Usage Walkthrough
 
-After the first successful boot:
+1. **Analyse** a service to see its current exposure score and which directives are missing:
+   ```bash
+   sudo svc‑harden.py analyze sshd.service
+   ```
 
-```bash
-# 1. Verify the NVIDIA kernel module is loaded and signed
-lsmod | grep nvidia
-# Expected output should include: nvidia_drm, nvidia_modeset, nvidia_uvm, nvidia
+2. **Apply** hardening interactively (no profiling):
+   ```bash
+   sudo svc‑harden.py apply cockpit.service
+   ```
 
-# 2. Check DRM KMS is active
-cat /sys/module/nvidia_drm/parameters/modeset
-# Should print: Y
+3. **Profile** a service with SHH, review the auto‑selected directives, and write the configuration:
+   ```bash
+   sudo svc‑harden.py profile nginx.service ‑‑apply
+   ```
+   If you omit `‑‑apply`, the tool shows the recommended set without changing anything.
 
-# 3. Verify GPU status
-nvidia-smi
-```
+4. **Test** the hardened service:
+   ```bash
+   sudo svc‑harden.py test cockpit.service ‑‑test‑cmd "curl ‑k https://localhost:9090"
+   ```
 
-If `nvidia-smi` reports the GPU and driver version, the setup is complete.nd `bisect` subcommands for per‑service systemd hardening. It applies directives like `NoNewPrivileges`, `PrivateTmp`, `ProtectSystem=strict`, `MemoryDenyWriteExecute`, and `SystemCallFilter` interactively, one service at a time.
+5. **Revert** to the original state:
+   ```bash
+   sudo svc‑harden.py revert NetworkManager.service
+   ```
+
+6. **Bisect** to find a breaking directive:
+   ```bash
+   sudo svc‑harden.py bisect sshd.service
+   ```
+
+7. **Audit** all actions:
+   ```bash
+   sudo svc‑harden.py log
+   ```
 
 ---
 
-## Part 24 — System Packages (Desktop)
+### 24.4 – Recommended Services for Hardening
+
+Run `svc‑harden.py analyze` (or `profile`) on every active system service. Priorities:
+
+| Priority | Service | Suggested Workflow | Reason |
+|----------|---------|---------------------|--------|
+| 1 | `sshd.service` | manual `apply` | Internet‑facing; high‑value target |
+| 2 | `cockpit.service` | manual `apply` | Management UI on localhost |
+| 3 | `NetworkManager.service` | manual `apply` | Controls all networking |
+| 4 | `firewalld.service` | manual `apply` | Firewall daemon runs as root |
+| 5 | `auditd.service` | `profile` (SHH) | Complex runtime behaviour |
+| 6 | `dnscrypt‑proxy.service` | `profile` (SHH) | Network daemon with dynamic patterns |
+| 7 | `systemd‑resolved.service` | `profile` (SHH) | DNS stub resolver |
+| 8 | `nvidia‑persistenced.service` | manual `apply` | Simple, well‑understood service |
+
+For complex network daemons, prefer SHH profiling because it captures the exact runtime behaviour. For simple, well‑understood services, interactive `apply` is faster.
+
+---
+
+### 24.5 – Learning Python with This Script
+
+This script is a real‑world, production‑grade example of a modern Python CLI application. It uses:
+
+- **`dataclasses`** for structured, immutable data objects
+- **`pathlib`** for safe, cross‑platform filesystem manipulation
+- **Comprehensive type hints** (`dict[str, str]`, `Optional`, `list[HardeningDirective]`, `str | None`) for self‑documenting code
+- **`match` / `case`** (Python 3.10+) for clean, exhaustiveness‑checkable dispatch
+- **`subprocess.run`** with `capture_output=True` and explicit error handling — the recommended secure API, never using `shell=True` for arguments
+- **NDJSON** audit logging for machine‑parseable, append‑only records
+- **`shutil.which()`** to discover external tools safely
+- **`re`** with robust, commented regex patterns
+
+If you are learning Python, studying this script alongside the `systemd.exec(5)` documentation will teach you how to write secure, maintainable, and well‑tested administration tools. The code favours explicitness over cleverness — every function has a purpose, every type is declared, and every error path is handled.
+
+---
+
+
+## Part 25 — System Packages (Desktop)
 
 > **Install all packages listed in `README.md` sections for desktop, development, containers, and scientific computing.** The full emerge list from the personal runbook includes:
 

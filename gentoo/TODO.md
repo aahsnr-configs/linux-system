@@ -1,2 +1,13 @@
 - [ ] Where to utilize tpm2
 - [ ] Secureboot questions - read the whole README.md
+- [ ] Packages to be added to custom overlay:
+    - media-fonts/stix-fonts       v2.14
+    - sys-apps/apparmor            v5.0
+    - sys-apps/apparmor-utils      v5.0
+    - sec-policy/apparmor-profiles v5.0
+    - sys-libs/libapparmor         v5.0
+    - x11-themes/adw-gtk3          v6.4
+    - app-editors/emacs-lsp-booster v9999
+    -           v2.92
+- [ ] Make deepseek write a python script to get the newer version of the packages in the custom overlay if they exist.
+- [ ] Write a python script to automatically audit any ebuild from non-official gentoo overlays for security purposes. The only overlay that should be not be audited is the guru overlay.
