@@ -5,8 +5,8 @@
 #emerge glibc
 #emerge binutils
 #emerge gcc
-#emerge --oneshot --usepkg=n --verbose dev-build/libtool
-#emerge --oneshot --usepkg=n --verbose dev-libs/boost
+emerge --oneshot --usepkg=n --verbose dev-build/libtool
+emerge --oneshot --usepkg=n --verbose dev-libs/boost
 libtool --finish /usr/lib/../lib64
 libtool --finish /usr/lib64
 libtool --finish /usr/libexec/gcc/x86_64-pc-linux-gnu

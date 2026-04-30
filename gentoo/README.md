@@ -137,7 +137,7 @@ gdisk /dev/nvme1n1
 ### 2.4 — Format ESP
 
 ```bash
-mkfs.vfat -F 32 -n ESP /dev/nvme0n1p1
+mkfs.vfat -F 32 -n ESP /dev/nvme1n1p1
 ```
 
 ### 2.5 — LUKS2 Format (Argon2id on Both)
@@ -157,7 +157,7 @@ cryptsetup luksFormat \
   --pbkdf-parallel 4 \
   --iter-time 5000 \
   --label crypt0 \
-  /dev/nvme0n1p2
+  /dev/nvme1n1p2
 
 # ── nvme1n1p1 (1 TB PV) ──
 cryptsetup luksFormat \
@@ -170,7 +170,7 @@ cryptsetup luksFormat \
   --pbkdf-parallel 4 \
   --iter-time 5000 \
   --label crypt1 \
-  /dev/nvme1n1p1
+  /dev/nvme0n1p1
 ```
 
 > **Argon2id parameters**: `‑‑pbkdf‑memory 1048576` = 1 GiB RAM for KDF. On the i9‑13900K with ≥ 32 GiB RAM this adds ≈ 2 s to boot. APT actors with GPU clusters cannot efficiently parallelise 1 GiB‑memory Argon2id.
@@ -178,11 +178,11 @@ cryptsetup luksFormat \
 ### 2.6 — Open LUKS Containers
 
 ```bash
-cryptsetup luksOpen /dev/nvme0n1p2 crypt0
-cryptsetup luksOpen /dev/nvme1n1p1 crypt1
+cryptsetup luksOpen /dev/nvme1n1p2 crypt0
+cryptsetup luksOpen /dev/nvme0n1p1 crypt1
 
-CRYPT0_UUID=$(cryptsetup luksUUID /dev/nvme0n1p2)
-CRYPT1_UUID=$(cryptsetup luksUUID /dev/nvme1n1p1)
+CRYPT0_UUID=$(cryptsetup luksUUID /dev/nvme1n1p2)
+CRYPT1_UUID=$(cryptsetup luksUUID /dev/nvme0n1p1)
 echo "CRYPT0_UUID=$CRYPT0_UUID"  >  /root/luks-uuids.txt
 echo "CRYPT1_UUID=$CRYPT1_UUID"  >> /root/luks-uuids.txt
 ```
@@ -193,9 +193,9 @@ The LUKS header (~4 MiB per container) stores cipher parameters and encrypted 
 
 ```bash
 mkdir -p /tmp/luks-backups
-cryptsetup luksHeaderBackup /dev/nvme0n1p2 \
+cryptsetup luksHeaderBackup /dev/nvme1n1p2 \
   --header-backup-file /tmp/luks-backups/luks-header-crypt0.img
-cryptsetup luksHeaderBackup /dev/nvme1n1p1 \
+cryptsetup luksHeaderBackup /dev/nvme0n1p1 \
   --header-backup-file /tmp/luks-backups/luks-header-crypt1.img
 ```
 
@@ -319,14 +319,11 @@ mount /dev/vg0/root /mnt/gentoo/srv                -o ${BTRFS_OPTS},subvol=@/srv
 mount /dev/vg0/root /mnt/gentoo/tmp                -o ${BTRFS_OPTS},subvol=@/tmp
 mount /dev/vg0/root /mnt/gentoo/usr/local          -o ${BTRFS_OPTS},subvol=@/usr/local
 mount /dev/vg0/root /mnt/gentoo/var                -o ${BTRFS_NOCOW},subvol=@/var
-mount /dev/vg0/root /mnt/gentoo/var/log            -o ${BTRFS_NOCOW},subvol=@/var/log
-mount /dev/vg0/root /mnt/gentoo/var/log/audit      -o ${BTRFS_NOCOW},subvol=@/var/log/audit
-mount /dev/vg0/root /mnt/gentoo/var/cache          -o ${BTRFS_NOCOW},subvol=@/var/cache
 mount /dev/vg0/root /mnt/gentoo/var/tmp            -o ${BTRFS_NOCOW},subvol=@/var/tmp
 
 # ── Mount ESP ──
-mount /dev/nvme0n1p1 /mnt/gentoo/efi
-mkdir -p /mnt/gentoo/efi/EFI/Linux   # UKI destination
+mount /dev/nvme1n1p1 /mnt/gentoo/efi
+mkdir -p /mnt/gentoo/efi/EFI/Linux
 ```
 
 ### 4.5 — Subvolume Justification Table
@@ -362,7 +359,7 @@ mkdir -p /mnt/gentoo/efi/EFI/Linux   # UKI destination
 cd /mnt/gentoo
 
 # Replace the URL with the current hardened‑systemd stage3
-wget https://distfiles.gentoo.org/releases/amd64/autobuilds/current-stage3-amd64-hardened-systemd/stage3-amd64-hardened-systemd-YYYYMMDDTHHMMSSZ.tar.xz
+wget https://distfiles.gentoo.org/releases/amd64/autobuilds/20260426T153103Z/stage3-amd64-nomultilib-systemd-20260426T153103Z.tar.xz
 
 tar xpvf stage3-*.tar.xz --xattrs-include='*.*' --numeric-owner
 ```
@@ -399,7 +396,7 @@ cp /root/luks-uuids.txt /mnt/gentoo/root/luks-uuids.txt
 
 ### 5.4 — Configure `configure files`
 
-[nvim /etc/portage/make.conf]
+`rm -rf /mnt/gentoo/etc/portage/make.conf && nvim /mnt/gentoo/etc/portage/make.conf`
 
 ```bash
 COMMON_FLAGS="-O3 -march=native -pipe -flto -fno-plt -fno-semantic-interposition"
@@ -438,7 +435,7 @@ SECUREBOOT_SIGN_CERT="/var/lib/sbctl/keys/db/db.pem"
 LC_MESSAGES=C
 ```
 
-`nvim /etc/portage/package.use`
+`rm -R /mnt/gentoo/etc/portage/package.use/ && nvim /mnt/gentoo/etc/portage/package.use`
 
 ```bash
 sys-apps/systemd cryptsetup boot tpm
@@ -470,7 +467,7 @@ app-editors/neovim lua_single_target_luajit
 app-text/enchant aspell nuspell voikko
 ```
 
-`nvim /etc/portage/env/clang-lto-env`
+`mkdir -p /mnt/gentoo/etc/portage/env && nvim /mnt/gentoo/etc/portage/env/clang-lto-env`
 
 ```bash
 # /etc/portage/env/clang-lto-env
@@ -492,7 +489,7 @@ LDFLAGS="-fuse-ld=lld -Wl,-O2 -Wl,--as-needed"
 RUSTFLAGS="-C target-cpu=native -C opt-level=3 -Clinker=clang -Clink-arg=-fuse-ld=lld"
 ```
 
-`nvim  /etc/portage/env/polly-on-env`
+`nvim  /mnt/gentoo/etc/portage/env/polly-on-env`
 
 ```bash
 POLLY_FLAGS="-mllvm -polly -mllvm -polly-vectorizer=stripmine"
@@ -500,7 +497,7 @@ CFLAGS="${CFLAGS} ${POLLY_FLAGS}"
 CXXFLAGS="${CXXFLAGS} ${POLLY_FLAGS}"
 ```
 
-`nvim /etc/portage/package.env`
+`nvim /mnt/gentoo/etc/portage/package.env`
 
 ```bash
 media-libs/mesa clang-lto-env polly-on-env
@@ -530,7 +527,7 @@ sys-apps/ripgrep clang-lto-env
 dev-util/git-delta clang-lto-env
 ```
 
-`nvim /etc/portage/package.mask`
+`rm -R /mnt/gentoo/etc/portage/package.mask/ &&  nvim /mnt/gentoo/etc/portage/package.mask`
 
 ```bash
 #dev-lang/python-3.13.2::gentoo
@@ -556,7 +553,7 @@ sys-kernel/cachyos-sources::gentoo-zh
 #>=dev-util/spirv-llvm-translator-20
 ```
 
-`nvim /etc/portage/package.accept_keywords`
+`rm -R /mnt/gentoo/etc/portage/package.accept_keywords/ && nvim /mnt/gentoo/etc/portage/package.accept_keywords`
 
 ```bash
 ##/etc/portage/package.accept_keywords
@@ -1365,6 +1362,627 @@ systemd-cryptenroll /dev/nvme1n1p1
 | PCR[12] | Kernel cmdline (measured by systemd‑boot / direct UEFI load) | Seals against modification of the embedded UKI cmdline |
 
 > **Direct UEFI boot note**: When the firmware loads a UKI directly (no systemd‑boot), the kernel cmdline embedded in the UKI is measured into PCR[12] by the systemd stub. PCR[11] measures the entire UKI. Both are valid for sealing, but PCR[12] is more specific: it will not be invalidated by non‑cmdline UKI changes (e.g., a new kernel version within the same signed image). If you prefer to seal against the entire UKI content, replace `12` with `11` in the PCR list.
+
+## Part 10B — TPM 2.0 Deep Dive: SSH Keys, Diagnostics, FIDO2 & PCR Predictions
+
+Your TPM 2.0 chip is already sealing your LUKS keys (Part 10).  This section covers the rest of its capabilities: storing SSH private keys inside the TPM, useful diagnostic commands, virtual FIDO2 tokens, and the emerging `systemd‑pcrlock` framework for automatic PCR prediction after firmware updates.
+
+### 10B.1 — TPM Fundamentals (Recap)
+
+The Trusted Platform Module is a secure cryptographic processor built into your i9‑13900K. It can:
+
+* **Generate and store keys** that never leave the chip
+* **Seal data** against specific Platform Configuration Register (PCR) values, so that the data can only be decrypted when the system is in a known‑good state
+* **Sign data** with keys that are bound to the TPM hardware
+* **Provide random number generation** via the hardware TRNG
+
+The `systemd‑cryptenroll` enrollment you performed in Part 10 uses the TPM’s sealing capability: the LUKS master key is wrapped (encrypted) by the TPM’s Storage Root Key, and the TPM will only unwrap it if the current PCR values match those recorded during enrollment.
+
+### 10B.2 — TPM‑Backed SSH Keys
+
+Storing SSH private keys in the TPM is the highest‑security authentication method available on this workstation.  The key never exists in plaintext on any filesystem — it is generated inside the TPM and never leaves.  Even a kernel‑level attacker cannot extract it.  This mechanism is much more secure than using filesystem permissions, and is comparable in security to a dedicated hardware token.
+
+This has already been partially implemented in Part 19 of your guide.  The `app‑crypt/tpm2‑pkcs11` package provides the PKCS#11 library that bridges OpenSSH and the TPM.  The key creation and SSH configuration is unchanged from Part 19; the material below adds **context** and explains how to **verify** the key is hardware‑backed.
+
+#### 10B.2.1 — Understanding the Architecture
+
+| Component | Role |
+|-----------|------|
+| `app‑crypt/tpm2‑tss` | TPM 2.0 Software Stack; low‑level libraries that communicate with the TPM chip |
+| `app‑crypt/tpm2‑pkcs11` | Translates between the PKCS#11 API (which OpenSSH understands) and the TPM’s native commands |
+| `libtpm2_pkcs11.so` | The shared library that OpenSSH loads via the `PKCS11Provider` directive |
+| `tpm2_ptool` | Command‑line tool for initialising the PKCS#11 token store and creating keys |
+
+The flow is:
+
+```
+ssh → PKCS11Provider → /usr/lib64/libtpm2_pkcs11.so → tpm2-tss → /dev/tpmrm0 → TPM chip
+```
+
+Because the private key is inside the TPM, the SSH client never sees it.  The TPM performs the cryptographic signing operation internally and returns only the signature.
+
+#### 10B.2.2 — The `tss` Group and User Access
+
+For unprivileged users to access the TPM, they must be members of the `tss` group.  This was done in Section 6.6 when you created the `ahsan` user.  The Gentoo wiki explicitly documents this requirement.
+
+To verify:
+
+```bash
+groups ahsan | grep tss
+```
+
+If `tss` is missing, add it now:
+
+```bash
+gpasswd -a ahsan tss
+```
+
+The user must log out and back in for the group change to take effect.  The TPM resource manager (`/dev/tpmrm0`) grants access to members of the `tss` group via udev rules shipped with `app‑crypt/tpm2‑tss`.
+
+#### 10B.2.3 — Key Hierarchy Inside the TPM
+
+When you run `tpm2_ptool init` (Part 19.2), the following hierarchy is created:
+
+1. **Storage Root Key (SRK)** — generated once when `tpm2_ptool init` is run; it is the root of all user‑created keys and is stored persistently inside the TPM
+2. **Token** — a virtual container that holds one or more keys; you created one with `tpm2_ptool addtoken --pid=1 --label=ssh --userpin=… --sopin=…`
+3. **Private key** — the actual SSH key, generated with `tpm2_ptool addkey --label=ssh --userpin=… --algorithm=ecc256`
+
+The SRK is randomly generated when the TPM is first provisioned and is unique to that physical chip.  If you clear the TPM (e.g., via a UEFI firmware option), the SRK is destroyed, and all keys created under it become permanently inaccessible.  Always keep a non‑TPM backup SSH key stored offline for emergency access.
+
+#### 10B.2.4 — Empty PIN vs. PIN‑Protected Keys
+
+Your `‑‑userpin` can be empty (`--userpin=""`), but the Gentoo wiki warns that "leaving it empty means the physical theft of the computer can allow an attacker to use the SSH private key through possession of the TPM alone."  Setting a PIN achieves two‑factor authentication: something you have (the TPM) and something you know (the PIN).
+
+#### 10B.2.5 — Verifying the Key is Hardware‑Backed
+
+After creating the key, confirm that it is actually stored in the TPM and not on disk:
+
+```bash
+# List all tokens in the PKCS#11 store
+tpm2_ptool list
+# Expected output shows your 'ssh' token with its key
+```
+
+```bash
+# Verify the public key is accessible via the PKCS#11 library
+ssh-keygen -D /usr/lib64/libtpm2_pkcs11.so
+```
+
+```bash
+# Check that no private key file exists in ~/.ssh
+ls ~/.ssh/tpm_key*          # should show only the .pub file
+ls ~/.ssh/id_ed25519        # these are separate software keys (still valid)
+```
+
+If `ssh-keygen -D` prints a public key, the TPM is correctly provisioned.
+
+#### 10B.2.6 — Using TPM Keys with Git Commit Signing
+
+The TPM key can also sign Git commits.  The Gentoo wiki documents this workflow using the SSH‑agent protocol already configured in Part 19.6.
+
+```bash
+# Load the TPM key into the SSH agent
+ssh-add -s /usr/lib64/libtpm2_pkcs11.so
+
+# Extract the public key
+ssh-keygen -D /usr/lib64/libtpm2_pkcs11.so > ~/.ssh/tpm_key.pub
+
+# Configure Git to use this key for signing
+git config --global gpg.format ssh
+git config --global user.signingkey ~/.ssh/tpm_key.pub
+git config --global commit.gpgsign true
+```
+
+Now every Git commit is signed by a key that never left the TPM.  The signature proves that the commit was made on this specific machine by someone who knows the TPM PIN.
+
+---
+
+### 10B.3 — TPM Diagnostic Tools
+
+The `app‑crypt/tpm2‑tools` package provides command‑line utilities for reading PCR values, inspecting keys, and testing attestation.  Install it now:
+
+```bash
+emerge --ask app-crypt/tpm2-tools
+```
+
+The current stable version on Gentoo as of April 2026 is **tpm2‑tools‑5.7**.
+
+#### 10B.3.1 — Reading PCR Values
+
+PCRs contain cryptographic hashes that represent the current state of the system.  The command below reads all PCRs in the SHA‑256 bank (the default used by systemd):
+
+```bash
+tpm2_pcrread sha256:0+1+2+3+4+5+6+7+8+9+10+11+12+13+14+15
+```
+
+Compare the output with the PCR table in Part 10.2.  After a UEFI firmware update, PCR[0] will change.  After enrolling new Secure Boot keys, PCR[7] will change.
+
+#### 10B.3.2 — Listing Persistent Keys
+
+To see which keys are stored in the TPM’s non‑volatile memory:
+
+```bash
+tpm2_getcap handles-persistent
+```
+
+This should show the SRK handle (usually `0x81000001` for the default SRK created by `tpm2‑tss`).
+
+#### 10B.3.3 — Checking the TPM Version and Capabilities
+
+```bash
+tpm2_getcap properties-fixed
+```
+
+Look for:
+- `TPM2_PT_FAMILY_INDICATOR` — should be `2.0`
+- `TPM2_PT_MANUFACTURER` — typically `INTC` for Intel fTPM
+- `TPM2_PT_VENDOR_STRING_1` through `4` — firmware version information
+
+```bash
+# Check if PolicyAuthorizeNV is supported (required for systemd-pcrlock)
+tpm2_getcap commands | grep -i PolicyAuthorizeNV
+```
+
+If this command produces output, your TPM supports the `PolicyAuthorizeNV` command, which is required for `systemd‑pcrlock`.
+
+#### 10B.3.4 — Reading the TPM Event Log
+
+The event log records every measurement that extends a PCR.  It is essential for understanding why a particular PCR value changed:
+
+```bash
+# Binary event log (raw UEFI measurements)
+xxd /sys/kernel/security/tpm0/binary_bios_measurements | head -20
+
+# Systemd‑managed user‑space event log
+cat /run/log/systemd/tpm2-measure.log
+```
+
+The event log is human‑readable when passed through `systemd‑pcrlock` or `tpm2‑eventlog`.
+
+---
+
+### 10B.4 — TPM as a Virtual FIDO2 Token
+
+A TPM can function as a FIDO2 authenticator, effectively replacing a physical security key for many use cases.  The tool **tpm‑fido** bridges this gap: it protects FIDO2 token keys using your system's TPM and uses Linux's `uhid` facility to emulate a USB HID device so that it is properly detected by browsers.
+
+This means you can use your TPM for WebAuthn/U2F authentication on websites without a physical YubiKey.  However, `tpm‑fido` is not currently packaged in the main Gentoo repository.  To use it on your hardened Gentoo system, you would need to install it from source (`github.com/psanford/tpm-fido`), which introduces a manual maintenance burden.  The tool is best suited for experimentation until it matures or becomes packaged.
+
+If you choose to install it, be aware that root access can interpose on the virtual device and trick the TPM into giving up its secrets — the TPM does not provide a trusted path to the application in this configuration.  For this reason, a physical FIDO2 key (e.g., YubiKey) remains the stronger choice for cross‑platform, portable authentication.
+
+---
+
+### 10B.5 — TPM‑Backed PIN for sudo and Login (Experimental)
+
+A complementary tool called **pinpam** provides a PAM module that enables system‑wide authentication with a brute‑force resistant, TPM2‑backed PIN.  It is intended to supplement (not replace) traditional password‑based UNIX authentication, and can be used for `sudo`, login, or any other service supported by PAM.
+
+**How it works**: Instead of a system password, `pinpam` stores a user's PIN directly within the TPM's secure Non‑Volatile Random Access Memory (NVRAM).  The TPM maintains a PinFail index that tracks failed attempts; after a configurable number of incorrect tries, the TPM will lock out further authentication attempts, making brute‑forcing extremely difficult even for an attacker with root access.
+
+`pinpam` is not yet packaged for Gentoo.  To use it on your hardened system, you would need to compile it from source (`github.com/RazeLighter777/pinpam`).
+
+**Recommendation for this guide**: For your APT‑hardened system, the current defense of `pam_faillock` (Part 21) combined with full disk encryption and strict access controls provides robust `sudo` authentication.  `pinpam` is an interesting project to monitor for future integration, but the operational cost of maintaining a from‑source installation currently outweighs the marginal security benefit.
+
+---
+
+### 10B.6 — Automatic PCR Prediction: `systemd‑pcrlock`
+
+The biggest operational pain of TPM‑sealed LUKS is that legitimate firmware updates break the PCR seal, forcing manual recovery (Part 30).  `systemd‑pcrlock` is a new tool designed to automate this.
+
+> **Status as of April 2026:** Marked **experimental** by the systemd project.  "While it is likely to become a regular component of systemd, it might still change in behaviour and interface."
+
+#### 10B.6.1 — How It Works
+
+`systemd‑pcrlock` analyzes the TPM2 event log, recognizes boot components using `*.pcrlock` definition files, and **predicts** what PCR values will look like after legitimate updates.  It then generates a TPM2 access policy (consisting of `PolicyPCR` and `PolicyOR` items) and stores it in a TPM2 NV index.  This policy allows unlocking across predicted PCR changes while still refusing to unlock the disk for unpredicted states.
+
+The tool uses as input:
+* The UEFI firmware TPM2 event log (`/sys/kernel/security/tpm0/binary_bios_measurements`)
+* The userspace TPM2 event log (`/run/log/systemd/tpm2-measure.log`)
+* The current PCR state of the TPM2 chip
+* Boot component definition files (`*.pcrlock` and `*.pcrlock.d/*.pcrlock`)
+
+#### 10B.6.2 — Prerequisites
+
+| Requirement | Command to Verify |
+|-------------|-------------------|
+| systemd ≥ 255 | `systemctl --version` |
+| TPM 2.0 ≥ v1.38 | `tpm2_getcap commands \| grep PolicyAuthorizeNV` |
+| TPM2 event log | `ls /sys/kernel/security/tpm0/binary_bios_measurements` |
+
+#### 10B.6.3 — Basic Workflow
+
+```bash
+# 1. Before a firmware update:
+sudo systemd-pcrlock unlock-firmware-code
+
+# 2. Perform the firmware update and reboot.
+
+# 3. After reboot, refresh the policy:
+sudo systemd-pcrlock make-policy
+```
+
+You can then bind disk encryption to this policy using systemd‑cryptenroll with the `--tpm2-pcrlock=` switch.
+
+> **Important:** Always keep a recovery key as a fallback.  A `pcrlock` policy that fails to generate after an update will prevent TPM‑based unlock entirely.
+
+#### 10B.6.4 — Current Limitations
+
+- The tool is still experimental and may change in behaviour or interface.
+- It cannot predict all possible firmware changes — a Secure Boot dbx update from your motherboard vendor may not be in the prediction model.
+- There is an open request for `fwupd` to integrate `systemd‑pcrlock` for seamless firmware updates, but it has not been merged as of April 2026.
+- The policy is protected by a recovery PIN; you must remember this PIN or fall back to the LUKS recovery key.
+
+**Recommendation:** Continue using the manual recovery procedure in Part 30.  Monitor `systemd‑pcrlock`'s status and re‑evaluate in mid‑2026.  When it stabilises, you can potentially replace the manual re‑enrollment steps with the `unlock‑firmware‑code` / `make‑policy` workflow.
+
+---
+
+### 10B.7 — TPM‑Assisted Random Number Generation
+
+The TPM provides a hardware random number generator that the kernel integrates into its entropy pool.  On the i9‑13900K this happens automatically via `CONFIG_HW_RANDOM_TPM=y` (already enabled in your cachyos‑sources kernel).  No userspace configuration is needed.
+
+Verify:
+
+```bash
+cat /sys/devices/virtual/misc/hw_random/rng_current
+# Should show: tpm-rng-0
+```
+
+The TPM RNG is used alongside RDRAND and the kernel's jitterentropy to seed `/dev/urandom`.  **Do not install `haveged`** on this system — the kernel's built‑in entropy sources are superior on modern hardware.
+
+---
+
+### 10B.8 — TPM‑Backed GPG Keys (Experimental)
+
+GnuPG ≥ 2.3 has experimental support for storing private keys in the TPM.  On Gentoo this requires:
+
+```bash
+# Ensure gnupg is built with the 'tpm' USE flag
+echo "app-crypt/gnupg tpm" >> /etc/portage/package.use/gnupg
+emerge --ask app-crypt/gnupg
+```
+
+Configuration is complex and the feature is still marked experimental upstream.  It is not recommended for production use in an APT‑hardened environment until it stabilises.  The Gentoo TPM wiki page has a dedicated section on GPG/TPM integration that you can consult when the feature matures.
+
+---
+
+### 10B.9 — Security Considerations
+
+| Threat | TPM Mitigation | Limitation |
+|--------|---------------|------------|
+| Evil‑maid attack (malicious firmware) | PCR[0] sealing detects firmware modification | If attacker also has the recovery key, they can bypass TPM |
+| Cold‑boot attack (DRAM extraction) | TPM PIN provides a second factor; LUKS master key never in RAM in plaintext | PIN is prompted before PCR validation, so a compromised initramfs could capture it |
+| SSH key theft | Private key never leaves the TPM; PIN required for use | Physical possession + PIN circumvention still possible |
+| Sniffing attacks on the TPM bus | Bus encryption on modern TPMs (check your firmware) | Not all TPM implementations encrypt the bus |
+| Virtual FIDO2 interposition | Root can interpose on the virtual HID device | Physical FIDO2 key is stronger for this use case |
+
+---
+
+### 10B.10 — Summary of TPM Integration
+
+| Feature | Guide Section | Status |
+|---------|---------------|--------|
+| LUKS2 unlock via TPM2+PIN | Part 10 | ✅ Fully configured |
+| LUKS recovery key enrollment | Part 10 | ✅ Configured |
+| TPM PCR sealing (0+2+7+12) | Part 10.2 | ✅ Configured |
+| TPM‑backed SSH keys | Part 19 | ✅ Configured |
+| TPM SSH key Git signing | Section 10B.2.6 | ✅ Optional |
+| TPM diagnostic tools (`tpm2‑tools`) | Section 10B.3 | Recommended |
+| TPM virtual FIDO2 (`tpm‑fido`) | Section 10B.4 | ⚠️ Experimental / from‑source |
+| TPM‑backed sudo PIN (`pinpam`) | Section 10B.5 | ⚠️ Experimental / from‑source |
+| TPM‑backed GPG keys | Section 10B.8 | ⚠️ Experimental |
+| `systemd‑pcrlock` | Section 10B.6 | ⚠️ Experimental |
+| Manual TPM recovery after firmware update | Part 30 | ✅ Configured |
+
+All of the above is verified against the Gentoo Wiki (specifically the [Trusted Platform Module/SSH page](https://wiki.gentoo.org/wiki/Trusted_Platform_Module/SSH), which documents `tpm2‑pkcs11` installation and `PKCS11Provider` configuration), the systemd man pages (`systemd‑pcrlock(8)` confirms the prediction and NV‑Index policy mechanism), and the `systemd‑cryptenroll(1)` manual page.
+
+---
+
+## Part 10C — `systemd-homed`: Per‑User Encrypted Home Directories
+
+Your LUKS‑encrypted root filesystem protects all data at rest against physical theft of a powered‑off machine.  `systemd-homed` adds a **second, independent encryption layer** for each user: every home directory becomes its own LUKS2 container, sealed with a user‑chosen passphrase or a FIDO2/TPM token.  Critically, the home directory can be **automatically locked when the system suspends** — the LUKS master key is evicted from kernel memory, so a cold‑boot or DMA attack on a sleeping machine reveals nothing.
+
+This is defence‑in‑depth: an attacker who compromises the root filesystem (e.g., via a kernel exploit) still cannot read the contents of a locked home directory without the user’s credentials.  The `systemd-homed` service is included in `sys-apps/systemd` and is enabled via the `homed` USE flag.
+
+### 10C.1 — Kernel Requirements
+
+`systemd-homed` with the LUKS backend requires the following kernel options.  The `cachyos-sources` `.config` already enables most of these; verify in `make menuconfig` if any build fails:
+
+```
+Device Drivers --->
+  [*] Block devices --->
+    <*>   Loopback device support               CONFIG_BLK_DEV_LOOP
+  [*] Multiple devices driver support (RAID and LVM) --->
+    <*>   Device mapper support                  CONFIG_BLK_DEV_DM
+    <*>   Crypt target support                   CONFIG_DM_CRYPT
+  Cryptographic API --->
+    Block ciphers --->
+      <*> AES (Advanced Encryption Standard)     CONFIG_CRYPTO_AES
+    Length-preserving ciphers and modes --->
+      <*> XTS (XOR Encrypt XOR with ciphertext stealing)  CONFIG_CRYPTO_XTS
+    Hashes, digests, and MACs --->
+      <*> SHA-224 and SHA-256                    CONFIG_CRYPTO_SHA256
+    Userspace interface --->
+      <*> Hash algorithms                        CONFIG_CRYPTO_USER_API_HASH
+      <*> Symmetric key cipher algorithms        CONFIG_CRYPTO_USER_API_SKCIPHER
+    Accelerated Cryptographic Algorithms for CPU (x86) --->
+      <*> Ciphers: AES (AES-NI)                  CONFIG_CRYPTO_AES_NI_INTEL
+      <*> Hash functions: SHA-224 and SHA-256 (SSSE3/AVX/AVX2/SHA-NI)
+                                                  CONFIG_CRYPTO_SHA256_SSSE3
+```
+
+All of the above are verified against the [Gentoo wiki’s `systemd-homed` article](https://wiki.gentoo.org/wiki/Systemd/systemd-homed).
+
+### 10C.2 — Installation and USE Flags
+
+`systemd-homed` requires the `homed` USE flag on `sys-apps/systemd` and on `sys-auth/pambase`.  Add them to your existing configuration in `/etc/portage/package.use`:
+
+```bash
+# /etc/portage/package.use/systemd — append 'homed' to the existing line
+sys-apps/systemd cryptsetup boot tpm homed
+```
+
+```bash
+# /etc/portage/package.use/pambase — ensure homed is set
+sys-auth/pambase pwquality homed
+```
+
+Rebuild the affected packages and reload systemd:
+
+```bash
+emerge --ask --oneshot sys-auth/pambase sys-apps/systemd
+systemctl daemon-reexec
+```
+
+Enable the `systemd-homed` service:
+
+```bash
+systemctl enable --now systemd-homed.service
+```
+
+Verify the service is active:
+
+```bash
+systemctl is-active systemd-homed.service   # should print "active"
+```
+
+### 10C.3 — NSS Configuration
+
+Update the Name Service Switch configuration so that `systemd-homed` users are recognised by the system.  Edit `/etc/nsswitch.conf` and add `systemd` to the `passwd`, `shadow`, and `group` lines:
+
+```bash
+# /etc/nsswitch.conf (relevant lines)
+passwd: files systemd
+shadow: files systemd
+group:  files systemd
+```
+
+Without this change, tools like `ls -l`, `id`, and `sudo` will not resolve `systemd-homed` user names or group memberships.
+
+### 10C.4 — Storage Backends
+
+`systemd-homed` supports several storage backends; the **LUKS2 backend** is the only one appropriate for this hardened configuration:
+
+| Backend | Encryption | Portable | Lock on Suspend | Recommendation |
+|---------|-----------|----------|-----------------|----------------|
+| `luks` | LUKS2 on a loopback file or partition | Yes | Yes (with PAM `suspend=true`) | **This guide** |
+| `fscrypt` | Native filesystem encryption (ext4/f2fs) | No | No | Weak: no suspend‑lock |
+| `directory` | Plain directory, no encryption | No | No | Insecure — do not use |
+| `subvolume` | Btrfs subvolume, no encryption | No | No | Insecure — do not use |
+| `cifs` | Remote CIFS mount | N/A | N/A | Network only |
+
+The `luks` backend stores the home directory as a LUKS2‑encrypted loopback file at `/home/<username>.home`.  This file can be moved between compatible systems — your entire user identity is portable.  The home directory is mounted at `/home/<username>` when the user logs in and unmounted when the last session ends.
+
+At login, the LUKS2 volume is decrypted and the filesystem inside is mounted.  The loopback file can be transparently discarded (trimmed) when the user logs out by enabling both `--luks-discard=true` (online discard while mounted) and `--luks-offline-discard=true` (offline discard on logout).  However, enabling discard leaks information about which sectors are in use; for an APT threat model, leave both discard options at their defaults (`false`) unless disk space is critically constrained.
+
+### 10C.5 — Creating a `systemd-homed` User
+
+> **This section assumes the `ahsan` user already exists (created in Section 6.6) and has data in `/home/ahsan`.  If you have not yet rebooted into the installed system, complete Part 26 first, then return here.**
+
+There is no `homectl convert` command.  Migrating an existing traditional user to `systemd-homed` is a manual process following the [upstream conversion guide](https://systemd.io/CONVERTING_TO_HOMED/).  The steps below follow that guide, adapted for this system.
+
+**Step 1: Log in as root on the console**
+
+You must be logged in directly as root (not via `sudo`), because the `ahsan` user account will be temporarily removed from `/etc/passwd` during the migration.
+
+**Step 2: Collect the existing user’s metadata**
+
+```bash
+getent passwd ahsan
+# Example output: ahsan:x:1000:1000::/home/ahsan:/bin/bash
+# Fields: name:password:UID:GID:GECOS:home:shell
+
+getent shadow ahsan | cut -d: -f1-2
+# Shows the user name and password hash (for reference only; homed will prompt for a new password)
+
+getent group 1000
+# Shows the primary group name
+```
+
+**Step 3: Backup core system files and the home directory**
+
+```bash
+cp /etc/passwd /etc/passwd.bak
+cp /etc/shadow /etc/shadow.bak
+cp /etc/gshadow /etc/gshadow.bak
+cp /etc/group /etc/group.bak
+
+# Backup the home directory (this may take time)
+cp -a /home/ahsan /home/ahsan.saved
+```
+
+**Step 4: Remove the old user account from system files**
+
+Use `vipw`, `vipw -s`, `vigr`, and `vigr -s` to safely edit these files:
+
+```bash
+vipw        # delete the line for 'ahsan'
+vipw -s     # delete the line for 'ahsan' in /etc/shadow
+vigr        # delete the line for the private group (usually 'ahsan') if it exists
+vigr -s     # delete the corresponding line in /etc/gshadow
+```
+
+**Step 5: Create the new `systemd-homed` user**
+
+Use the same UID and GID from Step 2.  The `--storage=luks` flag selects the encrypted LUKS2 backend.  The `--recovery-key=yes` flag prints a 48‑character recovery key — **store it offline immediately**, identically to your LUKS disk recovery key.
+
+```bash
+homectl create ahsan \
+    --uid=1000 \
+    --real-name="Ahsan" \
+    --member-of=wheel,audio,video,tss \
+    --storage=luks \
+    --shell=/bin/bash \
+    --recovery-key=yes
+```
+
+You will be prompted to set a password for the new user.  Choose a strong, unique passphrase — this is used both for login and to decrypt the LUKS2 home container.
+
+**Step 6: Migrate the old data into the new home directory**
+
+```bash
+homectl with ahsan -- rsync -aHAXv --remove-source-files /home/ahsan.saved/ .
+```
+
+This command mounts the new home directory, runs `rsync` as root to copy the old data in, and unmounts the home directory when `rsync` completes.  The `--remove-source-files` flag deletes files from the old backup as they are copied.
+
+**Step 7: Verify**
+
+```bash
+# Confirm the user is managed by systemd-homed
+userdbctl user ahsan
+# Should show:
+#   Service: io.systemd.Home
+#   Storage: luks
+
+# Check the home directory is unmounted when logged out
+findmnt /home/ahsan
+# Should show nothing when the user is not logged in
+
+# List the loopback file
+ls -lh /home/ahsan.home
+# Should report a LUKS container file
+```
+
+### 10C.6 — PAM Integration and Automatic Locking on Suspend
+
+For `systemd-homed` to work with SSH, the display manager (SDDM), and `sudo`, the PAM stack must load `pam_systemd_home.so`.  Gentoo’s `sys-auth/pambase` already includes this module when the `homed` USE flag is enabled (Section 10C.2), so no manual PAM edits are required for basic functionality.
+
+However, for the lock‑on‑suspend feature — which evicts the LUKS master key from memory when the system suspends — the `suspend=true` parameter must be added to the `pam_systemd_home.so` lines in the PAM configuration.  This is controlled by the `$SYSTEMD_HOME_SUSPEND` environment variable that `pam_systemd_home.so` reads, but the authoritative method is to set the parameter directly in the PAM stack.
+
+Add `suspend=true` to every `pam_systemd_home.so` entry in `/etc/pam.d/system-auth`:
+
+```bash
+# /etc/pam.d/system-auth (relevant lines with suspend=true added)
+auth      sufficient  pam_systemd_home.so suspend=true
+account   sufficient  pam_systemd_home.so
+session   optional    pam_systemd_home.so
+```
+
+> **SSH note**: SSH public‑key authentication via TPM‑backed keys (Part 19) continues to work.  The `PKCS11Provider` is independent of the user’s login password.  After a suspend‑and‑resume, the `ssh-agent` socket may persist, but the home directory must be re‑activated before any files inside it can be accessed.
+
+Additionally, configure the display manager to lock the session on suspend:
+
+```bash
+mkdir -p /etc/systemd/logind.conf.d
+cat > /etc/systemd/logind.conf.d/50-homed-lock.conf << 'EOF'
+[Login]
+HandleLidSwitch=lock
+HandleLidSwitchExternalPower=lock
+HandleLidSwitchDocked=lock
+LockOnSuspend=yes
+EOF
+```
+
+> **Important**: `LockOnSuspend=yes` instructs the display manager to lock the screen, but the LUKS key eviction is triggered by `pam_systemd_home.so suspend=true`, not by `logind`.  Both must be configured for the full suspend‑lock behaviour.  Additionally, at least one active PAM session for the user must have `suspend=true` set; if no such session exists (e.g., the user logged in via a session that lacks this parameter), the home directory will **not** be suspended.
+
+### 10C.7 — Interaction with the Existing Hardening Setup
+
+| Component | Impact |
+|-----------|--------|
+| **LUKS2 full‑disk encryption** | Unchanged — `systemd-homed` adds a second, per‑user LUKS layer inside the already‑encrypted root filesystem. |
+| **TPM2 LUKS unlock (Part 10)** | Unaffected — `systemd-homed` manages user home directories, not the root filesystem.  You may also enroll a TPM2 or FIDO2 token on the homed container via `homectl update ahsan --fido2-device=auto` or `--tpm2-device=auto`. |
+| **AppArmor** | No changes needed — `apparmor.d` does not ship a `systemd-homed` profile, but `homed` runs as a system service confined by systemd’s own sandboxing. |
+| **`svc-harden.py` (Part 24)** | Run `sudo svc-harden.py profile systemd-homed.service` after the service has been active for a week to profile its runtime behaviour and apply confinement directives. |
+| **Snapper snapshots** | The `/home/ahsan.home` loopback file is a single large binary blob.  Snapper snapshots of the `/home` subvolume will include the entire LUKS container, which can consume snapshot space rapidly.  Consider excluding `/home/*.home` from timeline snapshots or reducing the home timeline retention. |
+| **fstab** | No changes — `systemd-homed` mounts home directories dynamically; the `/home` entry in fstab remains a plain Btrfs subvolume. |
+| **NVIDIA drivers** | Unchanged — GPU state is unaffected by home directory encryption. |
+
+### 10C.8 — Security Considerations
+
+| Threat | Without `systemd-homed` | With `systemd-homed` + `suspend=true` |
+|--------|--------------------------|---------------------------------------|
+| Cold‑boot attack on suspended machine | DRAM contains plaintext `/home` data; attacker extracts it | LUKS key is evicted from RAM before suspend; DRAM contains only ciphertext |
+| Root compromise (kernel exploit) | Attacker reads `/home/ahsan` directly | Home directory is an encrypted LUKS container; attacker must also obtain the user’s passphrase or TPM token |
+| Physical theft of powered‑on machine | Attacker can read unencrypted `/home` | Home directory remains encrypted while the user is locked; re‑authentication is required |
+| Malicious root user | root can `su` to any user and read their files | root can still `su`, but the home directory must be activated before its contents are readable; `homectl activate ahsan` requires the user’s password or a recovery key |
+
+> **Note on `suspend=true`**: This feature requires systemd ≥ 245.  The kernel must support `CONFIG_DM_CRYPT` and `CONFIG_BLK_DEV_LOOP`.  Both are satisfied by `cachyos-sources` (≥ 6.13) and systemd (≥ 255) in this guide.
+
+### 10C.9 — Recovery and Troubleshooting
+
+**Forgotten user passphrase**: Boot the system, log in as root, and use the recovery key generated during `homectl create`:
+
+```bash
+homectl authenticate ahsan
+# Enter the recovery key when prompted
+
+# After successful authentication, reset the passphrase:
+homectl passwd ahsan
+```
+
+> **Important**: `homectl passwd` will fail if a recovery key is defined and you cannot provide it.  This is by design — the recovery key is the fallback authentication path.
+
+**Home directory fails to mount at login**: Check the homed journal:
+
+```bash
+journalctl -u systemd-homed.service -n 50
+```
+
+Common causes:
+- The loopback file `/home/ahsan.home` has been deleted or corrupted.
+- Kernel lacks required options (`CONFIG_BLK_DEV_LOOP`, `CONFIG_DM_CRYPT`; see Section 10C.1).
+- The filesystem inside the LUKS container is marked dirty.  Follow the [Gentoo wiki’s repair procedure](https://wiki.gentoo.org/wiki/Systemd/systemd-homed#Manual_homed_mount_and_repair) to mount and `fsck` the filesystem manually.
+- The `nsswitch.conf` has not been updated (Section 10C.3); tools cannot resolve the user.
+
+**Manual mount for emergency data access**:
+
+```bash
+losetup -fP /home/ahsan.home
+cryptsetup open /dev/loop0p1 home-ahsan
+# Enter user password or recovery key when prompted
+mount /dev/mapper/home-ahsan /mnt/rescue
+# Data is now accessible at /mnt/rescue
+# When finished:
+umount /mnt/rescue
+cryptsetup close home-ahsan
+losetup -d /dev/loop0
+```
+
+### 10C.10 — Summary
+
+| Feature | Status |
+|---------|--------|
+| Per‑user LUKS2 encryption | ✅ Configured via `--storage=luks` |
+| Lock on suspend (LUKS key eviction) | ✅ Configured via `pam_systemd_home.so suspend=true` |
+| Recovery key | ✅ Generated — store offline |
+| NSS integration | ✅ Configured via `/etc/nsswitch.conf` |
+| PAM integration | ✅ Automatic via `pambase[homed]` + manual `suspend=true` |
+| Migration from traditional `/home` | ✅ Supported via the upstream manual procedure |
+
+
+### Audit Change Log
+
+| # | Original (Part 10C v1) | Corrected | Rationale |
+|---|---|---|---|
+| 1 | `homectl update ahsan --auto-resize-mode=off --luks-suspend-discard=yes` | Removed entirely | `--luks-suspend-discard` does not exist as a `homectl` parameter. The lock‑on‑suspend behaviour is controlled by `pam_systemd_home.so suspend=true`, not by `homectl update`. |
+| 2 | `homectl convert ahsan --storage=luks …` | Replaced with manual migration procedure | `homectl convert` does not exist. The upstream conversion guide requires manual removal from `/etc/passwd`, `/etc/shadow`, and re‑creation via `homectl create`. |
+| 3 | `--auto-resize-mode=off` | Removed; `auto-resize-mode` is not needed for basic setup | The `--auto-resize-mode` parameter exists but is optional and unrelated to suspend behaviour. |
+| 4 | PAM configuration suggested `auth sufficient`, `account sufficient`, `session optional` without `suspend=true` | Added `suspend=true` to the `auth` line; documented the `$SYSTEMD_HOME_SUSPEND` environment variable | The `suspend=true` parameter is required for the LUKS key eviction on suspend. Without it, the home directory remains unlocked during sleep. |
+| 5 | `LockOnSuspend=yes` described as the sole suspend‑lock mechanism | Clarified that `LockOnSuspend` only locks the screen; key eviction requires `pam_systemd_home.so suspend=true` | `LockOnSuspend` tells the display manager to lock the session; it does not interact with the LUKS layer. Both must be configured. |
+| 6 | No kernel requirements listed | Added kernel configuration section (10C.1) | Loopback devices, dm-crypt, and various crypto algorithms are required by `systemd-homed` with the `luks` backend. |
+| 7 | No NSS configuration | Added `nsswitch.conf` configuration (Section 10C.3) | Without `systemd` in `nsswitch.conf`, tools like `ls -l`, `id`, and `sudo` cannot resolve homed user names. |
+| 8 | `homectl authenticate ahsan --recovery-key` (incorrect flag syntax) | Corrected to `homectl authenticate ahsan` (it prompts interactively) | The `--recovery-key` flag is for `homectl create`, not `homectl authenticate`. |
+| 9 | Missing manual mount recovery procedure | Added emergency data access steps in Section 10C.9 | Users need a documented path to recover data if the home directory fails to mount. |
+| 10 | Missing `--luks-discard` and `--luks-offline-discard` discussion | Added explanation of discard options and security trade-offs | For APT threat model, both discard options should remain at their defaults (`false`) to avoid information leakage. |
+
 
 ---
 
@@ -2454,7 +3072,15 @@ They are complementary: IOMMU prevents a malicious device from reading arbitrary
 
 ---
 
-## Part 18 — Network Hardening
+## Part 18 — Network and Host‑Based Defences
+
+Your `firewalld` configuration (Section 18.1) controls network‑level traffic with a strict default‑drop policy.  This section adds three complementary layers:
+
+1. **Application‑layer outbound filtering** (OpenSnitch) — every new outbound connection from an application requires explicit authorisation.
+2. **Host‑based intrusion detection** — file‑integrity monitoring (AIDE) and periodic rootkit scans (rkhunter + chkrootkit) to detect post‑compromise tampering.
+3. **Encrypted DNS** (dnscrypt‑proxy + systemd‑resolved) and **NetworkManager hardening** — already present in your guide; renumbered below.
+
+---
 
 ### 18.1 — Hardened Firewalld Configuration
 
@@ -2493,10 +3119,10 @@ firewall-cmd --zone=drop --add-rich-rule='rule family="ipv4" port port="443" pro
 firewall-cmd --zone=drop --add-rich-rule='rule family="ipv4" destination NOT address="127.0.0.0/8" port port="53" protocol="udp" drop' --permanent
 firewall-cmd --zone=drop --add-rich-rule='rule family="ipv4" destination NOT address="127.0.0.0/8" port port="53" protocol="tcp" drop' --permanent
 
-# SSH on non‑default port (see Part 20)
+# SSH on non‑default port (see Part 19)
 firewall-cmd --zone=drop --add-rich-rule='rule family="ipv4" port port="2222" protocol="tcp" accept' --permanent
 
-# Cockpit – localhost only (see Section 19.4)
+# Cockpit – localhost only (see Section 18.8)
 firewall-cmd --zone=drop --add-rich-rule='rule family="ipv4" source address="127.0.0.1" port port="9090" protocol="tcp" accept' --permanent
 
 # --- Apply the permanent configuration ---
@@ -2516,61 +3142,257 @@ firewall-cmd --get-active-zones
 > **Note on backends:** On Gentoo, firewalld uses **nftables** as its default backend.  
 > No additional USE flags are required unless you explicitly need the legacy iptables backend.
 
-`NOTES`
+> **Interface names:** The Ethernet and Wi‑Fi interface names (`eno1`, `wlan0`) are placeholders.  Replace them with the actual names shown by `ip link` or `nmcli device`.  If you have no Wi‑Fi card, remove `wlan0` from the loop — the `2>/dev/null || true` ensures a silent no‑op for non‑existent interfaces.
 
 ---
 
-You only need to adjust the **interface identifiers** used in the firewalld configuration. The rules and the `drop` zone policy itself are hardware-agnostic, but we must tell firewalld which of *your* network cards those rules should apply to.
+### 18.2 — Application‑Layer Firewall: OpenSnitch
 
-## What to change (two items)
+Your `firewalld` configuration blocks unsolicited inbound traffic, but any application can initiate an outbound connection by default.  OpenSnitch adds **per‑application outbound control**: when a new application tries to reach the internet, you are prompted to allow or deny the connection, and your decision is stored as a persistent rule.
 
-### ① Ethernet interface name
-The configuration currently mentions `eno1` as a placeholder. On your MSI Pro Z790‑P motherboard, the onboard Ethernet controller will have a predictable name such as `eno1`, `enp3s0`, or `enp4s0`.
+Nation‑state APT actors frequently exfiltrate data through compromised applications — a malicious browser extension or a backdoored binary that phones home is a core TTP in your threat model.  OpenSnitch closes this gap by making **every new outbound connection** explicitly authorised.
 
-**What to do:**
-Run `ip link show` or `nmcli device status` and note the exact name of the wired interface. Replace `eno1` in the firewalld script with that name.
+Since version 1.8.0 (late 2025), OpenSnitch uses its own dedicated nftables table (`opensnitch`), avoiding any conflict with your existing `firewalld` rules.
+
+#### 18.2.1 — Installation
+
+OpenSnitch is not in the main Gentoo repository but is available in the **Pentoo** overlay.
 
 ```bash
-# Check your interface names
-ip link show
+# Add the Pentoo overlay
+eselect repository enable pentoo
+emaint sync --repo pentoo
+
+# The package is net-firewall/opensnitch
+echo "net-firewall/opensnitch ~amd64" >> /etc/portage/package.accept_keywords/opensnitch
+emerge --ask net-firewall/opensnitch
 ```
 
-The line to change:
+#### 18.2.2 — Enable the Daemon
+
 ```bash
-for iface in eno1 wlan0; do   # ← change eno1 to your actual Ethernet interface
+systemctl enable --now opensnitchd.service
+systemctl is-active opensnitchd      # should print "active"
 ```
 
-### ② Wi‑Fi interface name (if you have a wireless card)
-The configuration includes `wlan0` as a placeholder. Modern systems use the predictable naming scheme, so your Wi‑Fi interface is likely named something like `wlp2s0`, `wlp1s0`, or similar.
+If the daemon fails to start, check the journal:
 
-**What to do:**
-Use `ip link show` as above and replace `wlan0` with your actual Wi‑Fi interface name if you have a wireless adapter.
+```bash
+journalctl -u opensnitchd -n 30
+```
 
-> **If you have no Wi‑Fi card**, simply remove `wlan0` from the loop. Nothing breaks — the `2>/dev/null || true` supplies a silent no‑op for any non‑existent interface.
+#### 18.2.3 — Starting the GUI
+
+Launch the GUI as your user (not root):
+
+```bash
+opensnitch-ui &
+```
+
+The GUI connects to the daemon over a Unix socket.  On first launch, the rules list will be empty; prompts will appear as applications start making connections.  For convenience, add `opensnitch-ui` to your Hyprland autostart (`exec-once` in `~/.config/hypr/hyprland.conf`).
+
+#### 18.2.4 — Initial Learning Period
+
+A modern desktop generates dozens of outbound connections per minute.  To avoid prompt fatigue:
+
+1. **First week**: set the default outbound policy to `accept` in `/etc/opensnitchd/default-config.json` so connections are logged but not blocked.  This captures a complete picture of normal network behaviour.
+2. **After one week**: review the connection logs in the GUI.  Identify anomalous destinations (an unknown IP, a PDF reader phoning home, etc.).
+3. **Switch to `deny` default**: change the default policy to `deny` and begin explicitly allowing only verified connections.
+
+During this period, your `firewalld` rules remain fully active — nothing is exposed to inbound attacks.
+
+#### 18.2.5 — Hardening OpenSnitch Itself
+
+Run `svc-harden.py` on the daemon:
+
+```bash
+sudo svc-harden.py analyze opensnitchd.service
+sudo svc-harden.py apply opensnitchd.service
+```
+
+Suggested directives: `NoNewPrivileges=yes`, `PrivateTmp=yes`, `ProtectSystem=strict`, `ProtectHome=yes`, `MemoryDenyWriteExecute=yes`, `RestrictAddressFamilies=AF_UNIX AF_NETLINK`.  Do **not** apply `PrivateNetwork=yes` — the daemon needs network access.
+
+Generate an AppArmor profile with `aa-genprof` (Part 14B):
+
+```bash
+sudo aa-genprof /usr/bin/opensnitchd
+```
+
+After testing, the profile may be placed in `/etc/apparmor.d/local/usr.bin.opensnitchd`.
+
+#### 18.2.6 — Interaction with Existing Hardening
+
+| Component | Interaction |
+|-----------|-------------|
+| **firewalld** | OpenSnitch uses a separate nftables table; no port or zone rules need modification. |
+| **AppArmor** | Profiles for individual applications are evaluated independently; OpenSnitch sees the real process path. |
+| **`dnscrypt-proxy` / `systemd-resolved`** | DNS queries appear as outbound UDP 853/TCP 853; allow these services explicitly in OpenSnitch. |
+| **`svc-harden.py`** | Hardening the daemon with systemd directives is recommended. |
+
+#### 18.2.7 — Verification
+
+```bash
+systemctl is-active opensnitchd
+sudo nft list table inet opensnitch      # confirm the nftables table exists
+sudo firewall-cmd --list-all --zone=drop # confirm firewalld rules are intact
+ls /etc/opensnitchd/rules/
+sudo svc-harden.py analyze opensnitchd.service
+```
 
 ---
 
-## Nothing else needs to change
+### 18.3 — Host‑Based Intrusion Detection: Evaluation
 
-| Configuration object | Hardware‑specific? | Action required |
-|----------------------|--------------------|-----------------|
-| `--set-default-zone=drop` | No | None |
-| Rich rules (port 853, 443, 53, 2222, 9090) | No | None |
-| Interface assignment | **Yes** | Replace the placeholder names with those from `ip link` |
-| `--reload` / verification commands | No | None |
+Your guide already implements several detection controls: `auditd` (Part 15), AppArmor (Part 14), and the Portage supply‑chain auditing pipeline (Part 21).  A dedicated Host‑Based Intrusion Detection System (HIDS) could add file‑integrity monitoring (cryptographic checksums), rootkit detection, and active response.  The table below evaluates the leading options for a standalone APT‑hardened workstation.
 
-Once you replace the placeholder interface names with the ones actually present on your machine, the firewalld configuration is fully ready for your hardened Gentoo system.
+| Tool | Type | Resource Footprint | Gentoo Package | Recommended? |
+|------|------|--------------------|----------------|--------------|
+| **Wazuh** | Full HIDS (FIM + log analysis + rootkit detection + SIEM) | ~7.5 GB RAM (manager + indexer + dashboard) | Not packaged; must be built from source | ❌ — Enterprise SIEM; resource overhead is incompatible with a single‑user workstation |
+| **OSSEC** | Full HIDS (FIM + log analysis + rootkit detection) | ~50 MB RAM | `app‑forensics/ossec-hids` (GURU) | ❌ — Last stable release was 2021; effectively unmaintained |
+| **Samhain** | FIM (signed baseline database, stealth mode) | Very low | `app-forensics/samhain` (GURU) | ⚠️ — Excellent integrity guarantees, but the GURU ebuild is not yet stable |
+| **AIDE** | FIM (checksum baseline, simple) | Very low | `app-forensics/aide` | ✅ — The best balance of simplicity and security; already listed in your `package.accept_keywords` |
+| **rkhunter** | Rootkit scanner (signature‑based) | Negligible | `app-forensics/rkhunter` | ✅ — Useful for detecting known rootkits and anomalous files |
+| **chkrootkit** | Rootkit scanner (binary signature matching) | Negligible | `app-forensics/chkrootkit` | ✅ — Complements rkhunter with a different signature set |
+
+**Conclusion:** Deploy **AIDE** for cryptographic file‑integrity monitoring (Section 18.4) and both **rkhunter** + **chkrootkit** for lightweight rootkit detection (Section 18.5).  A full SIEM (Wazuh) is not needed on a single workstation.
 
 ---
 
-## 18.2 – DNS over TLS and DNSCrypt
+### 18.4 — AIDE: File Integrity Monitoring
+
+AIDE computes SHA‑256 checksums of critical system files and compares them against a known‑good baseline database.  Unlike `auditd` path‑based rules, AIDE detects content changes regardless of when they occurred — even if an attacker disables auditd or tampers with the audit log.
+
+#### 18.4.1 — Installation and Initial Baseline
+
+```bash
+emerge --ask app-forensics/aide
+
+# Generate the initial database (use the Gentoo‑sensible default config as a base)
+cp /etc/aide/aide.conf /etc/aide/aide.conf.orig
+
+# Customise /etc/aide/aide.conf to monitor the same paths as your auditd rules
+# (Part 15.3) plus additional critical paths.  Ensure the following are
+# monitored with CONTENT_EX (sha256 + permissions):
+#   /bin, /sbin, /usr/bin, /usr/sbin, /lib, /lib64, /boot, /efi, /etc
+# Exclude directories that change frequently (package caches, logs, tmp):
+#   !/var/cache, !/var/log, !/var/tmp, !/tmp, !/home
+
+aide --init
+mv /var/lib/aide/aide.db.new /var/lib/aide/aide.db
+
+# Copy the database to an offline, encrypted medium IMMEDIATELY.
+# An attacker with root access can modify both the files AND the database;
+# the offline copy is your only source of truth.
+```
+
+#### 18.4.2 — Periodic Integrity Checks
+
+```bash
+# Manual check
+aide --check
+# Return codes: 0 = no changes; 1 = new files; 2 = errors; 7 = changes detected
+
+# After legitimate changes (e.g., after a Portage update), update the baseline:
+aide --update
+mv /var/lib/aide/aide.db.new /var/lib/aide/aide.db
+# Re‑copy the database to offline storage.
+```
+
+#### 18.4.3 — Automated Weekly Scan
+
+Extend the weekly security scan script from Part 21.6.1:
+
+```bash
+cat >> /usr/local/bin/weekly-security-scan.sh << 'SCRIPT'
+
+# 4. AIDE file integrity check
+echo ""
+echo "--- AIDE file integrity ---"
+if command -v aide &>/dev/null; then
+    aide --check 2>&1 | tail -20
+    if [ $? -eq 7 ]; then
+        echo "WARNING: AIDE detected file changes!"
+    fi
+else
+    echo "aide not installed; emerge app-forensics/aide"
+fi
+SCRIPT
+```
+
+No additional timer is needed; the existing `weekly-security-scan.timer` covers this.
+
+#### 18.4.4 — Verification
+
+```bash
+ls -lh /var/lib/aide/aide.db
+sudo aide --check
+sudo /usr/local/bin/weekly-security-scan.sh
+```
+
+---
+
+### 18.5 — Rootkit Detection: `rkhunter` and `chkrootkit`
+
+Both tools are signature‑based pattern matchers — they detect known rootkits and suspicious system characteristics.  They complement each other by checking for different signatures and are lightweight enough to run after every kernel update.
+
+#### 18.5.1 — Installation
+
+```bash
+emerge --ask app-forensics/rkhunter app-forensics/chkrootkit
+```
+
+#### 18.5.2 — Post‑Kernel‑Update Hook
+
+```bash
+cat > /etc/kernel/postinst.d/98-rootkit-check.sh << 'SCRIPT'
+#!/bin/bash
+# Run rkhunter and chkrootkit after every kernel installation
+
+LOG="/var/log/rootkit-check-$(date +%F).log"
+
+echo "[$(date)] Rootkit scan started" >> "$LOG"
+
+if command -v rkhunter &>/dev/null; then
+    echo "--- rkhunter ---" >> "$LOG"
+    rkhunter --check --skip-keypress --quiet 2>&1 | tee -a "$LOG"
+fi
+
+if command -v chkrootkit &>/dev/null; then
+    echo "--- chkrootkit ---" >> "$LOG"
+    chkrootkit 2>&1 | tee -a "$LOG"
+fi
+
+# Report only warnings and infected entries
+grep -E "Warning|INFECTED|Suspicious|Not found" "$LOG" > /var/log/rootkit-check-alert.log 2>/dev/null || true
+SCRIPT
+chmod +x /etc/kernel/postinst.d/98-rootkit-check.sh
+```
+
+#### 18.5.3 — Tuning False Positives
+
+Both tools produce false positives on a modern system.  After the first scan:
+
+- For `rkhunter`: edit `/etc/rkhunter.conf.local` and add `ALLOWHIDDENDIR`, `ALLOWHIDDENFILE`, `SCRIPTWHITELIST` entries for paths you have verified.
+- For `chkrootkit`: use the `-e` flag to exclude known‑safe strings, or consult the upstream `README.FALSE‑POSITIVES`.
+
+#### 18.5.4 — Verification
+
+```bash
+sudo rkhunter --check --skip-keypress
+sudo chkrootkit
+ls -l /etc/kernel/postinst.d/98-rootkit-check.sh
+```
+
+---
+
+### 18.6 — DNS over TLS and DNSCrypt
 
 ```bash
 # Emerge dnscrypt‑proxy (systemd‑resolved is included in sys‑apps/systemd)
 emerge --ask net-dns/dnscrypt-proxy
 ```
 
-### Architecture
+#### Architecture
 
 ```
 Application
@@ -2586,7 +3408,7 @@ Application
 * `systemd‑resolved` forwards every upstream query to `dnscrypt‑proxy`.
 * Applications use `127.0.0.53` via the `/etc/resolv.conf` symlink.
 
-### systemd‑resolved
+#### systemd‑resolved
 
 ```bash
 cat > /etc/systemd/resolved.conf << 'EOF'
@@ -2607,35 +3429,28 @@ CacheFromLocalhost=no
 ReadEtcHosts=yes
 EOF
 
-# Point the system resolver to the systemd‑resolved stub
 ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 
 systemctl restart systemd-resolved
 systemctl enable systemd-resolved
 ```
 
-### dnscrypt‑proxy
-
-`mkdir -p /etc/dnscrypt-proxy && nvim /etc/dnscrypt-proxy/dnscrypt-proxy.toml`
+#### dnscrypt‑proxy
 
 ```bash
+mkdir -p /etc/dnscrypt-proxy && cat > /etc/dnscrypt-proxy/dnscrypt-proxy.toml << 'EOF'
 ##############################################################
 # dnscrypt‑proxy.toml – Hardened Configuration, April 2026
 ##############################################################
 
-# Listen on localhost port 5300 (systemd‑resolved uses 53)
 listen_addresses = ['127.0.0.1:5300', '[::1]:5300']
-
 max_clients = 250
 
-# Protocol support
 ipv4_servers      = true
 ipv6_servers      = false
 dnscrypt_servers  = true
 doh_servers       = true
 
-# Only use resolvers that validate DNSSEC, commit to no logging,
-# and do not filter content.
 require_dnssec   = true
 require_nolog    = true
 require_nofilter = true
@@ -2645,7 +3460,6 @@ disabled_server_names = []
 timeout   = 2500
 keepalive = 30
 
-# Cache
 cache            = true
 cache_size       = 4096
 cache_min_ttl    = 2400
@@ -2653,16 +3467,12 @@ cache_max_ttl    = 86400
 cache_neg_min_ttl = 60
 cache_neg_max_ttl = 600
 
-# Anonymised DNS – prevents the resolver from seeing the client IP.
-# Only works with the DNSCrypt protocol.
 [anonymized_dns]
   skip_incompatible = true
-
   routes = [
     { server_name='*', via=['anon-ams-dnscrypt-nl', 'anon-cs-fr', 'anon-dnscrypt-ch-ipv4'] },
   ]
 
-# Resolver and relay lists (downloaded and verified on first start)
 [sources]
   [sources.public-resolvers]
     urls = [
@@ -2684,16 +3494,13 @@ cache_neg_max_ttl = 600
     refresh_delay = 72
     prefix        = ''
 
-# Logging
 [log]
   level = 2
 
 [query_log]
   file = '/var/log/dnscrypt-proxy/query.log'
-```
+EOF
 
-```bash
-# --- Permissions & directories ---
 mkdir -p /var/cache/dnscrypt-proxy /var/log/dnscrypt-proxy
 chown -R dnscrypt-proxy:dnscrypt-proxy /var/cache/dnscrypt-proxy /var/log/dnscrypt-proxy
 chmod 750 /var/cache/dnscrypt-proxy /var/log/dnscrypt-proxy
@@ -2703,75 +3510,56 @@ systemctl enable --now dnscrypt-proxy
 systemctl enable --now systemd-resolved
 ```
 
-
-### Verification
+#### Verification
 
 ```bash
 resolvectl status
 resolvectl query gentoo.org
 ```
 
-Both `dnscrypt-proxy` and `systemd-resolved` should be `active (running)`. Check the initial boot log of dnscrypt‑proxy; it should report `Source [public-resolvers] loaded` and `Source [relays] loaded`. If you see `[ERROR]` lines about file permissions or missing cache directories, re‑run the `chown` and `chmod` lines above.
+Both services should be `active (running)`.
 
 ---
 
-## 18.3 — Hardened NetworkManager
-
-`emerge --ask net-misc/networkmanager && mkdir -p /etc/NetworkManager/conf.d/ && nvim /etc/NetworkManager/conf.d/00-hardening.conf`
+### 18.7 — Hardened NetworkManager
 
 ```bash
+emerge --ask net-misc/networkmanager
+mkdir -p /etc/NetworkManager/conf.d/
+
+cat > /etc/NetworkManager/conf.d/00-hardening.conf << 'EOF'
 [main]
 plugins = keyfile
-# Never touch /etc/resolv.conf — systemd‑resolved manages it
 dns = none
 systemd-resolved = true
-# Note: dns=none implies rc-manager=unmanaged, so rc-manager is not set separately.
 
 [connection]
-# MAC address randomisation
-# Supported globally for both Ethernet and Wi‑Fi (see NetworkManager.conf(5))
 ethernet.cloned-mac-address = random
 wifi.cloned-mac-address     = stable-ssid
 
 [device]
-# Randomise the MAC address used during Wi‑Fi scanning (per‑device setting)
 wifi.scan-rand-mac-address = yes
 
 [connectivity]
-# Disable connectivity checking (phone‑home requests leak metadata)
 uri=
 
 [logging]
 level  = INFO
 domains = ALL
+EOF
 ```
 
-`mkdir -p /etc/NetworkManager/dispatcher.d && nvim /etc/NetworkManager/dispatcher.d/99-wifi-security` 
+Enforce Wi‑Fi security via a dispatcher script (since `wifi-sec.*` settings cannot be global defaults):
 
 ```bash
+mkdir -p /etc/NetworkManager/dispatcher.d
+
+cat > /etc/NetworkManager/dispatcher.d/99-wifi-security << 'SCRIPT'
 #!/bin/bash
-# /etc/NetworkManager/dispatcher.d/99-wifi-security
-# Enforce Wi‑Fi security defaults on every connection activation.
-
-# --- Apply Wi‑Fi security defaults via a dispatcher script ---
-# wifi-sec.key-mgmt, wifi-sec.wps-method, and wifi-sec.pmf cannot be set as global defaults in NetworkManager.conf; they are only valid as per‑profile settings. The official NetworkManager documentation recommends using a dispatcher script to enforce them on every new Wi‑Fi connection activation
-
-
-# This script is called by NetworkManager-dispatcher on every network event.
-# It applies wifi-sec settings to all Wi‑Fi connections that are being brought up.
-#
-# Variables provided by NetworkManager:
-#   DEVICE_IFACE  – interface name (e.g. wlan0)
-#   ACTION        – event type ("up", "down", etc.)
-#   CONNECTION_UUID – unique identifier of the connection profile
-
 INTERFACE="$1"
 ACTION="$2"
 
-# Only act when a Wi‑Fi interface comes up
 if [[ "$ACTION" == "up" ]]; then
-    CONNECTION_TYPE="$CONNECTION_TYPE"
-
     if [[ "$CONNECTION_TYPE" == "802-11-wireless" ]]; then
         nmcli connection modify uuid "$CONNECTION_UUID" \
             wifi-sec.pmf        1 \
@@ -2780,9 +3568,8 @@ if [[ "$ACTION" == "up" ]]; then
     fi
 fi
 exit 0
-```
+SCRIPT
 
-```bash
 chown root:root /etc/NetworkManager/dispatcher.d/99-wifi-security
 chmod 755 /etc/NetworkManager/dispatcher.d/99-wifi-security
 
@@ -2790,43 +3577,31 @@ systemctl restart NetworkManager
 systemctl enable NetworkManager
 ```
 
-> **PMF (Protected Management Frames):** Setting `pmf = 1` enables PMF when the AP supports it.  
-> `pmf = 2` (required) is stronger but may cause connectivity issues with older access points; evaluate after testing.
-
-> **WPA3‑SAE:** The dispatcher script enforces `sae` (WPA3) for all Wi‑Fi connections.  
-> Connections to WPA2‑only access points will require manual adjustment—use `nmcli connection modify <con‑name> wifi-sec.key-mgmt wpa-psk` to fall back.
-
-> **Dispatcher script note:** The `99-wifi-security` script runs as root on every connection state change and enforces the Wi‑Fi security settings that are not valid as global defaults in `NetworkManager.conf`.
+> **PMF:** `pmf = 1` enables Protected Management Frames when the AP supports it; `pmf = 2` (required) may cause issues with older access points.  
+> **WPA3‑SAE:** The dispatcher enforces WPA3 for all Wi‑Fi connections; use `nmcli connection modify <name> wifi-sec.key-mgmt wpa-psk` to fall back to WPA2‑only access points.  
+> **MAC randomisation:** `ethernet.cloned-mac-address = random` randomises the MAC on each boot; `wifi.cloned-mac-address = stable-ssid` gives a stable per‑network randomisation to avoid captive‑portal confusion.
 
 ---
 
-## 18.4 — Cockpit Integration (Optional)
+### 18.8 — Cockpit Integration (Optional)
 
 ```bash
-# Enable inode64-overlay (hosts the app-admin/cockpit package)
 eselect repository enable inode64-overlay
 emaint sync -r inode64-overlay
 
 emerge --ask app-admin/cockpit
 ```
 
-Once installed, harden Cockpit with the following configuration:
-
 ```bash
 mkdir -p /etc/cockpit
 
 cat > /etc/cockpit/cockpit.conf << 'EOF'
 [WebService]
-# Bind only to localhost — never expose Cockpit on external interfaces
 Origins = https://localhost:9090 https://127.0.0.1:9090
-# ProtocolHeader is only needed when Cockpit is behind a reverse proxy;
-# here it is harmless but unnecessary for direct local connections.
 AllowUnencrypted = false
 
 [Session]
-# Automatically log out after 15 minutes of inactivity
 IdleTimeout = 15
-# Display the warning banner on the login screen
 Banner = /etc/cockpit/banner.txt
 
 [Log]
@@ -2837,9 +3612,7 @@ cat > /etc/cockpit/banner.txt << 'EOF'
 WARNING: This system is monitored. Unauthorized access is prohibited. All actions are logged and subject to security review.
 EOF
 
-# Generate a self‑signed certificate for TLS
 mkdir -p /etc/cockpit/ws-certs.d
-
 openssl req -x509 -newkey rsa:4096 \
   -keyout /etc/cockpit/ws-certs.d/cockpit.key \
   -out /etc/cockpit/ws-certs.d/cockpit.crt \
@@ -2853,12 +3626,12 @@ chmod 644 /etc/cockpit/ws-certs.d/cockpit.crt
 systemctl enable --now cockpit.socket
 ```
 
-> **Certificate pinning:** After the first login to `https://localhost:9090`, export the certificate’s SHA‑256 fingerprint and pin it in your browser for an additional layer of trust.
-
-> **AppArmor note:** As of April 2026 the apparmor.d project does **not** ship a Cockpit profile.  
-> Compensating controls: Cockpit is bound to localhost only, socket‑activated by systemd, and should be hardened with `svc-harden.py apply cockpit` (see Part 24).
+> **Certificate pinning:** After first login, pin the certificate’s SHA‑256 fingerprint in your browser.  
+> **AppArmor:** No profile shipped by apparmor.d; bound to localhost only, and hardened with `svc-harden.py apply cockpit` (Part 24).
 
 ---
+
+This unified Part 18 provides a complete, layered defence‑in‑depth for network traffic, application behaviour, and host integrity, all tailored to your APT‑hardened Gentoo workstation.---
 
 # Part 19 — SSH Hardening with TPM‑Backed Keys
 

@@ -206,7 +206,7 @@ export BACKUP_DIR="${HOME}/backup"
 
 # Default Applications
 export TERMINAL="kitty"
-export BROWSER="brave-browser"
+export BROWSER="brave"
 export EDITOR="nvim"
 export VISUAL="nvim"
 export PAGER="less"
