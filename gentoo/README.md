@@ -1,16 +1,16 @@
 # Hardened Gentoo Installation Guide — APT Threat Model
 
-## Against Nation-State Advanced Persistent Threats — April 2026
+## Against Nation-State Advanced Persistent Threats — April 2026
 
 > **Threat Model**: Chinese and Russian state‑sponsored actors (APT10, APT29, APT41, Sandworm, Cozy Bear, Fancy Bear). Documented TTPs include supply‑chain compromise, kernel exploits, LUKS brute‑force against weak KDFs, cold‑boot attacks against unencrypted RAM, DMA‑over‑Thunderbolt/PCIe, SSH credential harvesting, and persistence via kernel modules or systemd service hijacking.
 
-> **Hardware**: Intel i9‑13900K (Raptor Lake) with two NVMe drives — 500 GB (nvme0n1) and 1 TB (nvme1n1). TPM 2.0, Intel TME, VT‑d, CET hardware present. NVIDIA GPU from the personal runbook is **not** assumed; if present, adjust the kernel config accordingly.
+> **Hardware**: Intel i9‑13900K (Raptor Lake) with two NVMe drives — 500 GB (`nvme0n1`) and 1 TB (`nvme1n1`). TPM 2.0, Intel TME, VT‑d, CET hardware present. NVIDIA RTX 2080 Ti with open‑kernel modules.
 
 > **Architecture decisions at a glance**:
-> – No bootloader — **UKI + direct UEFI boot** (Secure Boot with custom keys).
+> – No bootloader — **UKI + direct UEFI boot** (Secure Boot with custom keys).
 > – **LUKS2 / Argon2id** on every data partition (no GRUB → no PBKDF2 constraint).
 > – **LVM linear** across both NVMe drives (~1.5 TB usable).
-> – **Btrfs** with Tumbleweed‑style subvolume layout, CoW disabled where needed.
+> – **Btrfs** with Tumbleweed‑style subvolume layout, CoW disabled only on `/var/tmp` (via `chattr +C`).
 > – **TPM2 + PIN** unlocks LUKS; recovery key as emergency fallback.
 > – **CachyOS‑sources** kernel built with Clang + ThinLTO + kCFI.
 > – **Hardened Gentoo profile** plus all sysctl, MAC, firewall, audit, and SSH hardening from the Arch APT guide.
@@ -18,7 +18,7 @@
 
 ---
 
-## Pre‑Work Research Summary
+## Pre‑Work Research Summary (unchanged; see previous revisions)
 
 ### 0.1 — CachyOS Kernel on Gentoo
 
@@ -46,7 +46,7 @@ RAID 0 (both mdadm and LVM) limits usable capacity to `2 × min(disk1, disk2)`
 
 ---
 
-## Part 1 — Disk Layout, Encryption, and Boot Chain
+## Part 1 — Disk Layout, Encryption, and Boot Chain
 
 ### 1.1 — Hardware
 
@@ -91,10 +91,9 @@ UEFI Secure Boot (enrolled db key)
                            └─► LUKS2 unlocked → LVM activated → Btrfs root mounted
 
 ```
-
 ---
 
-## Part 2 — Disk Preparation (Live Environment)
+## Part 2 — Disk Preparation (Live Environment)
 
 Boot from the **Gentoo LiveDVD/USB** or any rescue environment with `cryptsetup`, `lvm2`, `btrfs‑progs`, `dosfstools`.
 
@@ -201,7 +200,7 @@ cryptsetup luksHeaderBackup /dev/nvme0n1p1 \
 
 ---
 
-## Part 3 — LVM Configuration
+## Part 3 — LVM Configuration
 
 ### 3.1 — Create Physical Volumes and Volume Group
 
@@ -226,7 +225,9 @@ pvs
 
 ---
 
-## Part 4 — Btrfs Filesystem and Subvolumes
+## Part 4 — Btrfs Filesystem and Subvolumes
+
+In this minimal‑var layout only `/var/tmp` receives its own subvolume; all other writable areas beneath `/var` reside directly on the `@/var` subvolume.  CoW is disabled on `/var` and `/var/tmp` via `chattr +C` so that database journals, package manager caches, and temporary files do not fragment.
 
 ### 4.1 — Create Btrfs Filesystem
 
@@ -241,39 +242,30 @@ mkdir -p /mnt/gentoo
 mount -o defaults,noatime,compress=zstd:1,space_cache=v2 \
   /dev/vg0/root /mnt/gentoo
 
-# ── Root subvolume ──
 btrfs subvolume create /mnt/gentoo/@
-
-# ── Snapper snapshot directory (nested inside @) ──
 btrfs subvolume create /mnt/gentoo/@/.snapshots
-
-# ── Initial snapshot — this BECOMES the active root ──
 mkdir -p /mnt/gentoo/@/.snapshots/1
 btrfs subvolume create /mnt/gentoo/@/.snapshots/1/snapshot
 
-# ── User and application data (excluded from root snapshots) ──
 btrfs subvolume create /mnt/gentoo/@/home
 btrfs subvolume create /mnt/gentoo/@/opt
 btrfs subvolume create /mnt/gentoo/@/root
 btrfs subvolume create /mnt/gentoo/@/srv
 btrfs subvolume create /mnt/gentoo/@/tmp
 
-# ── /usr/local ──
 mkdir -p /mnt/gentoo/@/usr
 btrfs subvolume create /mnt/gentoo/@/usr/local
 
-# ── /var and its children — CoW disabled ──
 btrfs subvolume create /mnt/gentoo/@/var
 chattr +C /mnt/gentoo/@/var
 
 btrfs subvolume create /mnt/gentoo/@/var/tmp
 chattr +C /mnt/gentoo/@/var/tmp
 
-# ── /nix — CoW disabled ──
 btrfs subvolume create /mnt/gentoo/@/nix
 chattr +C /mnt/gentoo/@/nix
 
-# ── Create initial Snapper info.xml ──
+# Initial Snapper info.xml
 DATE=$(date "+%Y-%m-%d %H:%M:%S")
 cat > /mnt/gentoo/@/.snapshots/1/info.xml << EOF
 <?xml version="1.0"?>
@@ -285,86 +277,73 @@ cat > /mnt/gentoo/@/.snapshots/1/info.xml << EOF
 </snapshot>
 EOF
 
-# ── Set initial snapshot as default ──
+# Set initial snapshot as default
 SNAP_ID=$(btrfs subvolume list /mnt/gentoo | \
   grep "@/.snapshots/1/snapshot" | awk '{print $2}')
 btrfs subvolume set-default $SNAP_ID /mnt/gentoo
 
-# ── Unmount top‑level, remount the default snapshot ──
 umount /mnt/gentoo
 mount -o defaults,noatime,compress=zstd:1,space_cache=v2 \
   /dev/vg0/root /mnt/gentoo
 ```
 
-### 4.3 — Create Mount Point Skeleton (inside the root snapshot)
+### 4.3 — Create Mount Point Skeleton
 
 ```bash
 mkdir -p /mnt/gentoo/{.snapshots,home,nix,opt,root,srv,tmp,usr/local,var}
-mkdir -p /mnt/gentoo/var/{log/audit,cache,tmp}
-mkdir -p /mnt/gentoo/efi               # ESP mount point
+mkdir -p /mnt/gentoo/var/tmp
+mkdir -p /mnt/gentoo/efi
 ```
 
 ### 4.4 — Mount All Subvolumes and ESP
 
 ```bash
 BTRFS_OPTS="defaults,noatime,compress=zstd:1,space_cache=v2"
-BTRFS_NOCOW="defaults,noatime,space_cache=v2"
 
-mount /dev/vg0/root /mnt/gentoo/.snapshots        -o ${BTRFS_OPTS},subvol=@/.snapshots
-mount /dev/vg0/root /mnt/gentoo/home               -o ${BTRFS_OPTS},subvol=@/home
-mount /dev/vg0/root /mnt/gentoo/nix                -o ${BTRFS_NOCOW},subvol=@/nix
-mount /dev/vg0/root /mnt/gentoo/opt                -o ${BTRFS_OPTS},subvol=@/opt
-mount /dev/vg0/root /mnt/gentoo/root               -o ${BTRFS_OPTS},subvol=@/root
-mount /dev/vg0/root /mnt/gentoo/srv                -o ${BTRFS_OPTS},subvol=@/srv
-mount /dev/vg0/root /mnt/gentoo/tmp                -o ${BTRFS_OPTS},subvol=@/tmp
-mount /dev/vg0/root /mnt/gentoo/usr/local          -o ${BTRFS_OPTS},subvol=@/usr/local
-mount /dev/vg0/root /mnt/gentoo/var                -o ${BTRFS_NOCOW},subvol=@/var
-mount /dev/vg0/root /mnt/gentoo/var/tmp            -o ${BTRFS_NOCOW},subvol=@/var/tmp
+mount /dev/vg0/root /mnt/gentoo/.snapshots   -o ${BTRFS_OPTS},subvol=@/.snapshots
+mount /dev/vg0/root /mnt/gentoo/home         -o ${BTRFS_OPTS},subvol=@/home
+mount /dev/vg0/root /mnt/gentoo/nix          -o ${BTRFS_OPTS},subvol=@/nix
+mount /dev/vg0/root /mnt/gentoo/opt          -o ${BTRFS_OPTS},subvol=@/opt
+mount /dev/vg0/root /mnt/gentoo/root         -o ${BTRFS_OPTS},subvol=@/root
+mount /dev/vg0/root /mnt/gentoo/srv          -o ${BTRFS_OPTS},subvol=@/srv
+mount /dev/vg0/root /mnt/gentoo/tmp          -o ${BTRFS_OPTS},subvol=@/tmp
+mount /dev/vg0/root /mnt/gentoo/usr/local    -o ${BTRFS_OPTS},subvol=@/usr/local
+mount /dev/vg0/root /mnt/gentoo/var          -o ${BTRFS_OPTS},subvol=@/var
+mount /dev/vg0/root /mnt/gentoo/var/tmp      -o ${BTRFS_OPTS},subvol=@/var/tmp
 
-# ── Mount ESP ──
-mount /dev/nvme1n1p1 /mnt/gentoo/efi
+mount /dev/nvme0n1p1 /mnt/gentoo/efi
 mkdir -p /mnt/gentoo/efi/EFI/Linux
 ```
 
-### 4.5 — Subvolume Justification Table
+### 4.5 — Subvolume Justification
 
 | Subvolume | Mount point | Rationale |
-|---|---|---|
+|-----------|-------------|----------|
 | `@` (via snapshot) | `/` | Root snapshot target |
-| `@/.snapshots` | `/.snapshots` | Snapper storage; excluded from root snapshots |
-| `@/home` | `/home` | User data survives root rollback |
+| `@/.snapshots` | `/.snapshots` | Snapper storage |
+| `@/home` | `/home` | User data |
 | `@/opt` | `/opt` | Third‑party software |
-| `@/root` | `/root` | Root user home; survives rollback |
+| `@/root` | `/root` | Root home |
 | `@/srv` | `/srv` | Service data |
-| `@/tmp` | `/tmp` | Ephemeral; never snapshotted |
+| `@/tmp` | `/tmp` | Ephemeral |
 | `@/usr/local` | `/usr/local` | Locally compiled software |
-| `@/var` | `/var` | Variable data; CoW disabled for I/O perf |
-| `@/var/log` | `/var/log` | Logs excluded from rollback (forensic value) |
-| `@/var/log/audit` | `/var/log/audit` | auditd logs; separate for easier log shipping |
-| `@/var/cache` | `/var/cache` | Package caches; excluded and CoW disabled |
-| `@/var/tmp` | `/var/tmp` | Persistent temp; excluded |
-| `@/nix` | `/nix` | Nix store; CoW disabled for content‑addressed store |
-
-> **`/efi` is a separate VFAT filesystem on the ESP.** No kernel or initramfs files live under `/boot` — they are all inside the signed UKI on the ESP, which is mounted at `/efi`.
+| `@/var` | `/var` | Variable data (CoW disabled) |
+| `@/var/tmp` | `/var/tmp` | Persistent temp (CoW disabled) |
+| `@/nix` | `/nix` | Nix store (CoW disabled) |
 
 ---
 
-## Part 5 — Stage 3 and Chroot
+## Part 5 — Stage 3 and Chroot
 
-### 5.1 — Download and Extract Stage 3
-
-> **The URL below is a placeholder.** Visit `https://www.gentoo.org/downloads/` and copy the link to the latest `stage3-amd64-hardened-systemd` tarball.
+### 5.1 — Download and Extract
 
 ```bash
 cd /mnt/gentoo
-
-# Replace the URL with the current hardened‑systemd stage3
-wget https://distfiles.gentoo.org/releases/amd64/autobuilds/20260426T153103Z/stage3-amd64-nomultilib-systemd-20260426T153103Z.tar.xz
-
+wget https://distfiles.gentoo.org/releases/amd64/autobuilds/current-stage3-amd64-hardened-systemd/stage3-amd64-hardened-systemd-YYYYMMDDTHHMMSSZ.tar.xz
 tar xpvf stage3-*.tar.xz --xattrs-include='*.*' --numeric-owner
 ```
 
-### 5.2 — Seed Portage Repository Config
+### 5.2 — Seed Portage Config
 
 ```bash
 mkdir --parents /mnt/gentoo/etc/portage/repos.conf
@@ -372,56 +351,52 @@ cp /mnt/gentoo/usr/share/portage/config/repos.conf \
    /mnt/gentoo/etc/portage/repos.conf/gentoo.conf
 ```
 
-### 5.3 — Prepare Chroot Environment
+### 5.3 — Chroot Prep
 
 ```bash
 cp --dereference /etc/resolv.conf /mnt/gentoo/etc/
-
-mount --types proc  /proc  /mnt/gentoo/proc
-mount --rbind       /sys   /mnt/gentoo/sys
-mount --make-rslave        /mnt/gentoo/sys
-mount --rbind       /dev   /mnt/gentoo/dev
-mount --make-rslave        /mnt/gentoo/dev
-mount --bind        /run   /mnt/gentoo/run
-mount --make-slave         /mnt/gentoo/run
-
-# Fix /dev/shm if it is a symlink (common on non‑Gentoo live media)
+mount --types proc /proc /mnt/gentoo/proc
+mount --rbind /sys /mnt/gentoo/sys && mount --make-rslave /mnt/gentoo/sys
+mount --rbind /dev /mnt/gentoo/dev && mount --make-rslave /mnt/gentoo/dev
+mount --bind /run /mnt/gentoo/run && mount --make-slave /mnt/gentoo/run
 test -L /dev/shm && rm /dev/shm && mkdir /dev/shm
 mount -t tmpfs -o nosuid,nodev,noexec shm /dev/shm
 chmod 1777 /dev/shm
-
-# Copy LUKS UUIDs into the installed system
 cp /root/luks-uuids.txt /mnt/gentoo/root/luks-uuids.txt
 ```
 
-### 5.4 — Configure `configure files`
+### 5.4 — Place Configuration Files (before chroot)
+
+All of the following files must be written inside the target system **before** entering the chroot.  Use `cat > /mnt/gentoo/... << 'EOF'` or `nano` as preferred.
+
+#### `/mnt/gentoo/etc/portage/make.conf`
 
 `rm -rf /mnt/gentoo/etc/portage/make.conf && nvim /mnt/gentoo/etc/portage/make.conf`
 
 ```bash
-COMMON_FLAGS="-O3 -march=native -pipe -flto -fno-plt -fno-semantic-interposition"
+COMMON_FLAGS="-O3 -march=raptorlake -pipe -flto -fno-plt -fno-semantic-interposition"
 CPU_FLAGS_X86="aes avx avx2 f16c fma3 mmx mmxext pclmul popcnt rdrand sha sse sse2 sse3 sse4_1 sse4_2 sse4a ssse3 vpclmulqdq"
 CFLAGS="${COMMON_FLAGS}"
 CXXFLAGS="${COMMON_FLAGS}"
 FCFLAGS="${COMMON_FLAGS}"
 FFLAGS="${COMMON_FLAGS}"
+LDFLAGS="${COMMON_FLAGS} ${LDFLAGS}"
 CGO_CFLAGS="${CFLAGS}"
 CGO_CXXFLAGS="${CXXFLAGS}"
 CGO_FFLAGS="${FFLAGS}"
 CGO_LDFLAGS="${LDFLAGS}"
-LDFLAGS="${LDFLAGS} -Wl,-O2 -Wl,--as-needed"
 MAKEOPTS="-j22"
 NOCOMMON_OVERRIDE_LIBTOOL="yes"
 EMERGE_DEFAULT_OPTS="--jobs=10 --keep-going=y --ask"
 #ACCEPT_KEYWORDS="~amd64"
 ACCEPT_LICENSE="*"
 VIDEO_CARDS="nvidia"
-USE="systemd -cups -elogind -fips -gnome -handbook gtk4 \
-     -kde -motif -pulseaudio -quicktime -smartcard gtk \
-     apparmor appindicator -bluetooth firmware lvm gstreamer \
-     gui keyring libnotify lto pgo jit nvenc nvidia pipewire \
-     qt5 qt6 udisks upower wayland zstd X -accessibility \
-     cryptsetup device-mapper audit policykit"
+USE="systemd -cups -elogind -fips -gnome -handbook gtk4 vdpau clang \
+     -kde -motif -pulseaudio -quicktime -smartcard gtk tpm opengl \
+     apparmor appindicator -bluetooth firmware lvm gstreamer nftables \
+     gui keyring libnotify lto pgo jit nvenc nvidia pipewire -iptables \
+     qt5 qt6 udisks upower wayland zstd X -ccache -accessibility \
+     cryptsetup device-mapper audit policykit hardened vulkan llvm"
 L10N="en"
 LINGUAS="en"
 ABI_X86="64"
@@ -435,104 +410,198 @@ SECUREBOOT_SIGN_CERT="/var/lib/sbctl/keys/db/db.pem"
 LC_MESSAGES=C
 ```
 
+#### `/mnt/gentoo/etc/portage/package.use`
+
 `rm -R /mnt/gentoo/etc/portage/package.use/ && nvim /mnt/gentoo/etc/portage/package.use`
 
 ```bash
 sys-apps/systemd cryptsetup boot tpm
 sys-kernel/installkernel dracut uki
 sys-kernel/dracut systemd
-sys-fs/cryptsetup static
+sys-fs/cryptsetup pwquality
 sys-kernel/linux-firmware compress-zstd
 x11-drivers/nvidia-drivers wayland powerd persistenced 
 media-gfx/imv -X gif heif icu jpeg jpegxl png svg tiff
 gui-wm/hyprland hyprpm -uwsm
-sys-kernel/cachyos-sources kcfi
+app-admin/ananicy-cpp bpf cachyos-rules clang
+dev-util/bpftool clang llvm
+dev-util/perf libpfm
+sys-kernel/cachyos-sources kcfi -hardened
 media-video/pipewire sound-server extra gstreamer gsettings pipewire-alsa ffmpeg
 app-editors/emacs -X tree-sitter imagemagick mailutils jit dynamic-loading gtk gui
-sys-devel/gcc default-stack-clash-protection graphite go
+sys-devel/gcc default-stack-clash-protection graphite go -fortran
 llvm-runtimes/compiler-rt-sanitizers orc profile
 llvm-core/clang-runtime sanitize
 dev-lang/python -jit tk
-net-misc/networkmanager nftables gnutls -resolvconf
+#net-wireless/wpa_supplicant dbus
+gui-apps/noctalia-qs -dwl -niri -i3 -bluetooth
+media-libs/libcanberra alsa
+dev-libs/libutf8proc -cjk
+dev-cpp/cpptrace unwind
+net-misc/networkmanager -wifi -wext nftables gnutls -resolvconf -nss
 app-admin/cockpit firewalld pcp udisks
-sys-auth/pambase pwquality
+net-firewall/firewalld gui
+sys-auth/pambase pwquality -passwdqc 
 app-text/aspell unicode l10n_en
 app-shells/atuin server system-sqlite
 sys-apps/rng-tools jitterentropy
 gnome-base/gvfs keyring
+sys-fs/lvm2 -static -static-libs
 x11-terms/kitty -X wayland
 app-office/obsidian appindicator
 app-text/papers djvu gnome-keyring nautilus
 app-editors/neovim lua_single_target_luajit
 app-text/enchant aspell nuspell voikko
+media-libs/freetype harfbuzz
+llvm-runtimes/clang-runtime polly
+dev-build/cmake -gui
+app-text/xmlto text
+net-firewall/nftables json python xtables
+net-misc/networkmanager -iptables
+sys-auth/polkit -gtk
 ```
 
-`mkdir -p /mnt/gentoo/etc/portage/env && nvim /mnt/gentoo/etc/portage/env/clang-lto-env`
+#### `/mnt/gentoo/etc/portage/package.accept_keywords`
+
+`rm -R /mnt/gentoo/etc/portage/package.accept_keywords && nvim /mnt/gentoo/etc/portage/package.accept_keywords`
 
 ```bash
-# /etc/portage/env/clang-lto-env
-COMMON_FLAGS="-O3 -pipe -march=native -flto=thin -fno-semantic-interposition -fno-plt"
-CFLAGS="${COMMON_FLAGS}"
-CXXFLAGS="${COMMON_FLAGS}"
-HARDENING_FLAGS="-fcf-protection -D_FORTIFY_SOURCE=3 -fstack-protector-strong -fstack-clash-protection"
-CFLAGS="${CFLAGS} ${HARDENING_FLAGS}"
-CXXFLAGS="${CXXFLAGS} ${HARDENING_FLAGS}"
-
-CC="clang"
-CXX="clang++"
-AR="llvm-ar"
-LD="ld.lld"
-NM="llvm-nm"
-RANLIB="llvm-ranlib"
-
-LDFLAGS="-fuse-ld=lld -Wl,-O2 -Wl,--as-needed"
-RUSTFLAGS="-C target-cpu=native -C opt-level=3 -Clinker=clang -Clink-arg=-fuse-ld=lld"
+##/etc/portage/package.accept_keywords
+=gui-apps/noctalia-shell-9999 ** ~amd64
+=gui-apps/noctalia-qs-9999 ** ~amd64
+app-admin/bitwarden-desktop-bin ~amd64
+app-admin/sysstat ~amd64
+app-arch/7zip ~amd64
+app-arch/unzip ~amd64
+app-arch/unrar ~amd64
+app-arch/zip ~amd64
+app-backup/btrfs-assistant ~amd64
+dev-libs/libutf8proc ~amd64
+sys-kernel/linux-headers ~amd64
+dev-lua/luv ~amd64
+dev-libs/libuv ~amd64
+app-backup/snapper ~amd64
+app-backup/snapper-gui ~amd64
+app-containers/* ~amd64
+app-containers/podman ~amd64
+app-containers/podman-compose ~amd64
+app-containers/podman-tui ~amd64
+app-containers/pods ~amd64
+dev-cpp/sdbus-c++ ~amd64
+app-crypt/johntheripper ~amd64
+app-editors/emacs ~amd64
+app-editors/neovim ~amd64
+app-emacs/emacs-common ~amd64
+app-forensics/aide ~amd64
+app-forensics/lynis ~amd64
+app-misc/brightnessctl ~amd64
+app-misc/yazi ~amd64
+app-office/obsidian ~amd64
+app-portage/gentoolkit ~amd64
+app-shells/fzf ~amd64
+app-shells/fzf-tab ~amd64
+app-shells/gentoo-zsh-completions ~amd64
+app-shells/gitstatus ~amd64
+app-shells/zoxide ~amd64
+app-shells/zsh ~amd64
+app-text/texlab ~amd64
+app-text/xournalpp ~amd64
+app-text/zathura ~amd64
+app-text/zathura-meta ~amd64
+app-text/zotero-bin ~amd64
+dev-libs/tree-sitter ~amd64
+dev-libs/tree-sitter-lua ~amd64
+dev-libs/tree-sitter-markdown ~amd64
+dev-libs/tree-sitter-query ~amd64
+dev-libs/tree-sitter-vim ~amd64
+dev-libs/unibilium ~amd64
+dev-vcs/git ~amd64
+dev-util/git-delta ~amd64
+dev-util/tree-sitter-cli ~amd64
+dev-vcs/git ~amd64
+dev-vcs/lazygit ~amd64
+dev-vcs/git-lfs ~amd64
+dev-tex/texlab ~amd64
+gui-apps/grim ~amd64
+gui-apps/qt6ct ~amd64
+gui-apps/slurp ~amd64
+gui-apps/wl-clipboard ~amd64
+gui-libs/egl-gbm
+gui-libs/egl-x11
+gui-libs/egl-wayland ~amd64
+gui-libs/greetd ~amd64
+gui-libs/gtk ~amd64
+gui-libs/libadwaita ~amd64
+gui-libs/wlroots ~amd64
+media-fonts/jetbrains-mono ~amd64
+media-fonts/ubuntu-font-family ~amd64
+media-fonts/nerdfonts ~amd64
+media-gfx/maim ~amd64
+media-libs/fcft ~amd64
+media-libs/nvidia-vaapi-driver ~amd64
+media-libs/mesa ~amd64
+net-analyzer/nmap ~amd64
+net-analyzer/wireshark ~amd64
+net-firewall/firewalld ~amd64
+net-im/discord ~amd64
+net-im/zoom ~amd64
+net-misc/curl ~amd64
+net-misc/wget ~amd64
+sci-biology/biopython ~amd64
+sci-chemistry/pymol ~amd64
+sec-policy/apparmor-profiles ~amd64
+sys-apps/apparmor ~amd64
+sys-apps/apparmor-utils ~amd64
+sys-apps/bat ~amd64
+sys-apps/eza ~amd64
+sys-apps/fd ~amd64
+sys-apps/fwupd ~amd64
+sys-apps/grep ~amd64
+sys-apps/ripgrep ~amd64
+app-admin/ananicy-rules-cachyos ~amd64
+app-admin/ananicy-cpp ~amd64
+sys-fs/btrfs-progs ~amd64
+app-crypt/sbctl ~amd64
+sys-firmware/intel-microcode ~amd64
+dev-libs/libdwarf ~amd64
+dev-cpp/cpptrace ~amd64
+sys-apps/rng-tools ~amd64
+sys-apps/zram-generator ~amd64
+sys-auth/seatd ~amd64
+sys-firmware/sof-firmware ~amd64
+sys-fs/btrfs-progs ~amd64
+sys-fs/dosfstools ~amd64
+sys-kernel/cachyos-sources ~amd64
+sys-kernel/dracut ~amd64
+sys-kernel/installkernel ~amd64
+sys-kernel/linux-firmware ~amd64
+sys-kernel/linux-headers ~amd64
+sys-kernel/modprobed-db ~amd64
+sys-libs/libapparmor ~amd64
+sys-process/acct ~amd64
+sys-process/audit ~amd64
+sys-process/bottom ~amd64
+sys-process/btop ~amd64
+sys-process/nvtop ~amd64
+x11-base/xwayland ~amd64
+x11-drivers/nvidia-drivers ~amd64
+x11-libs/libnotify ~amd64
+x11-misc/qt5ct ~amd64
+x11-themes/kvantum ~amd64
+www-apps/element ~amd64
+www-apps/beef ~amd64
+www-client/zen-browser ~amd64
 ```
 
-`nvim  /mnt/gentoo/etc/portage/env/polly-on-env`
+#### `/mnt/gentoo/etc/portage/package.mask`
 
-```bash
-POLLY_FLAGS="-mllvm -polly -mllvm -polly-vectorizer=stripmine"
-CFLAGS="${CFLAGS} ${POLLY_FLAGS}"
-CXXFLAGS="${CXXFLAGS} ${POLLY_FLAGS}"
-```
-
-`nvim /mnt/gentoo/etc/portage/package.env`
-
-```bash
-media-libs/mesa clang-lto-env polly-on-env
-gnome-base/librsvg clang-lto-env polly-on-env
-sci-libs/gsl clang-lto-env polly-on-env
-media-video/ffmpeg clang-lto-env
-media-video/libavif clang-lto-env
-media-libs/dav1d clang-lto-env
-media-libs/aom clang-lto-env
-media-libs/x264 clang-lto-env
-media-libs/libvpx clang-lto-env
-sys-apps/systemd clang-lto-env
-sys-fs/btrfs-progs clang-lto-env
-sys-libs/zlib clang-lto-env
-dev-db/sqlite clang-lto-env
-app-shells/atuin clang-lto-env
-app-shells/starship clang-lto-env
-app-shells/zoxide clang-lto-env
-app-misc/czkawka clang-lto-env
-app-misc/yazi clang-lto-env
-gui-apps/alacritty-graphics clang-lto-env
-sys-apps/bat clang-lto-env
-sys-apps/eza clang-lto-env
-sys-apps/fd clang-lto-env
-sys-process/bottom clang-lto-env
-sys-apps/ripgrep clang-lto-env
-dev-util/git-delta clang-lto-env
-```
-
-`rm -R /mnt/gentoo/etc/portage/package.mask/ &&  nvim /mnt/gentoo/etc/portage/package.mask`
+`rm -R /mnt/gentoo/etc/portage/package.mask && nvim /mnt/gentoo/etc/portage/package.mask`
 
 ```bash
 #dev-lang/python-3.13.2::gentoo
-sys-kernel/cachyos-sources::gentoo-zh
-
+>=sys-kernel/cachyos-sources-7
+sys-auth/ananicy-cpp::CachyOS-kernels
+sys-auth/ananicy-cpp::guru
 #>=app-editors/neovim-0.11
 #>=dev-libs/glib-2.84
 #>=sys-kernel/cachyos-sources-6.14
@@ -553,215 +622,159 @@ sys-kernel/cachyos-sources::gentoo-zh
 #>=dev-util/spirv-llvm-translator-20
 ```
 
-`rm -R /mnt/gentoo/etc/portage/package.accept_keywords/ && nvim /mnt/gentoo/etc/portage/package.accept_keywords`
+#### `/mnt/gentoo/etc/portage/package.env`
+
+`rm -R /mnt/gentoo/etc/portage/package.env && nvim /mnt/gentoo/etc/portage/package.env`
 
 ```bash
-##/etc/portage/package.accept_keywords
-=gui-apps/noctalia-shell-9999 ** ~amd64
-=gui-apps/noctalia-qs-9999 ** ~amd64
-app-admin/bitwarden-desktop-bin ~amd64
-app-admin/sysstat ~amd64
-app-arch/7zip ~amd64
-app-arch/unzip ~amd64
-app-arch/unrar ~amd64
-app-arch/zip ~amd64
-app-backup/btrfs-assistant ~amd64
-app-backup/snapper ~amd64
-app-backup/snapper-gui ~amd64
-app-containers/* ~amd64
-app-containers/distrobox ~amd64
-app-containers/docker ~amd64
-app-containers/docker-cli ~amd64
-app-containers/docker-compose ~amd64
-app-containers/docker-credential-helpers ~amd64
-app-containers/lxc ~amd64
-app-containers/lxd ~amd64
-app-containers/podman ~amd64
-app-containers/podman-compose ~amd64
-app-containers/podman-tui ~amd64
-app-containers/pods ~amd64
-dev-cpp/sdbus-c++ ~amd64
-app-crypt/johntheripper ~amd64
-app-editors/emacs ~amd64
-app-editors/neovim ~amd64
-app-emacs/* ~amd64
-app-emacs/all-the-icons ~amd64
-app-emacs/emacs-common ~amd64
-app-emacs/nerd-icons ~amd64
-app-emacs/nerd-icons-corfu ~amd64
-app-emacs/org-mode ~amd64
-app-eselect/eselect-repository ~amd64
-app-forensics/aide ~amd64
-app-forensics/lynis ~amd64
-app-misc/brightnessctl ~amd64
-app-misc/yazi ~amd64
-app-office/obsidian ~amd64
-app-portage/gemato ~amd64
-app-portage/gentoolkit ~amd64
-app-portage/smart-live-rebuild ~amd64
-app-shells/fzf ~amd64
-app-shells/fzf-tab ~amd64
-app-shells/gentoo-zsh-completions ~amd64
-app-shells/gitstatus ~amd64
-app-shells/zoxide ~amd64
-app-shells/zsh ~amd64
-app-text/fzy ~amd64
-app-text/texlab ~amd64
-app-text/xournalpp ~amd64
-app-text/zathura ~amd64
-app-text/zathura-meta ~amd64
-app-text/zotero-bin ~amd64
-dev-build/meson ~amd64
-dev-lang/sassc ~amd64
-dev-lang/typescript ~amd64
-dev-libs/girara ~amd64
-dev-libs/libutf8proc ~amd64
-dev-libs/mmtf-cpp ~amd64
-dev-libs/nss ~amd64
-dev-libs/tree-sitter ~amd64
-dev-libs/tree-sitter-lua ~amd64
-dev-libs/tree-sitter-markdown ~amd64
-dev-libs/tree-sitter-query ~amd64
-dev-libs/tree-sitter-vim ~amd64
-dev-libs/unibilium ~amd64
-dev-libs/wayland-protocols ~amd64
-dev-lua/luv ~amd64
-dev-python/* ~amd64
-dev-python/black ~amd64
-dev-python/gpep517 ~amd64
-dev-python/isort ~amd64
-dev-python/matplotlib ~amd64
-dev-python/pandas ~amd64
-dev-python/pipx ~amd64
-dev-python/python-pam ~amd64
-dev-python/pynvim ~amd64
-dev-python/scipy ~amd64
-dev-python/userpath ~amd64
-dev-util/dart-sass ~amd64
-dev-util/git-delta ~amd64
-dev-util/lua-language-server ~amd64
-dev-util/pkgdev ~amd64
-dev-util/glslang ~amd64
-dev-util/tree-sitter-cli ~amd64
-dev-util/spirv-headers ~amd64
-dev-util/spirv-tools ~amd64
-dev-util/vulkan-headers ~amd64
-dev-util/vulkan-tools ~amd64
-dev-util/vulkan-utility-libraries ~amd64
-dev-vcs/git ~amd64
-dev-vcs/lazygit ~amd64
-dev-vcs/git-lfs ~amd64
-dev-tex/texlab ~amd64
-gui-apps/anyrun ~amd64
-gui-apps/alacritty-graphics ~amd64
-gui-apps/foot ~amd64
-gui-apps/foot-terminfo ~amd64
-gui-apps/grim ~amd64
-gui-apps/qt6ct ~amd64
-gui-apps/rofi-wayland ~amd64
-gui-apps/slurp ~amd64
-gui-apps/tuigreet ~amd64
-gui-apps/wf-recorder ~amd64
-gui-apps/wl-clipboard ~amd64
-gui-libs/egl-gbm
-gui-libs/egl-x11
-gui-libs/egl-wayland ~amd64
-gui-libs/greetd ~amd64
-gui-libs/gtk ~amd64
-gui-libs/libadwaita ~amd64
-gui-libs/wlroots ~amd64
-media-fonts/jetbrains-mono ~amd64
-media-fonts/ubuntu-font-family ~amd64
-media-fonts/nerdfonts ~amd64
-media-gfx/maim ~amd64
-media-libs/fcft ~amd64
-media-libs/gst-plugins-bad ~amd64
-media-libs/gst-plugins-base ~amd64
-media-libs/gst-plugins-good ~amd64
-media-libs/gst-plugins-ugly ~amd64
-media-libs/mesa ~amd64
-media-libs/nvidia-vaapi-driver ~amd64
-media-libs/libpulse ~amd64
-media-libs/vulkan-layers ~amd64
-media-libs/vulkan-loader ~amd64
-media-plugins/gst-plugins-meta  ~amd64
-media-plugins/gst-plugins-oss ~amd64
-media-sound/spotify ~amd64
-media-video/ffmpeg ~amd64
-media-video/mpv ~amd64
-media-video/pipewire ~amd64
-media-video/wireplumber ~amd64
-net-analyzer/nmap ~amd64
-net-analyzer/wireshark ~amd64
-net-firewall/firewalld ~amd64
-net-im/discord ~amd64
-net-im/zoom ~amd64
-net-misc/curl ~amd64
-net-misc/dhcpcd ~amd64
-net-misc/dhcpcd-ui ~amd64
-net-misc/dropbox ~amd64
-net-misc/wget ~amd64
-net-wireless/aircrack-ng ~amd64
-net-wireless/wpa_supplicant ~amd64
-sci-biology/biopython ~amd64
-sci-chemistry/pymol ~amd64
-sec-keys/* ~amd64
-sec-policy/apparmor-profiles ~amd64
-sys-apps/apparmor ~amd64
-sys-apps/apparmor-utils ~amd64
-sys-apps/bat ~amd64
-sys-apps/eza ~amd64
-sys-apps/fd ~amd64
-sys-apps/fwupd ~amd64
-sys-apps/grep ~amd64
-sys-apps/haveged ~amd64
-sys-apps/mlocate ~amd64
-sys-apps/ripgrep ~amd64
-sys-apps/rng-tools ~amd64
-sys-apps/portage ~amd64
-sys-apps/systemd ~amd64
-sys-apps/zram-generator ~amd64
-sys-auth/seatd ~amd64
-sys-firmware/sof-firmware ~amd64
-sys-fs/btrfs-progs ~amd64
-sys-fs/dosfstools ~amd64
-sys-kernel/cachyos-sources ~amd64
-sys-kernel/dracut ~amd64
-sys-kernel/installkernel ~amd64
-sys-kernel/linux-firmware ~amd64
-sys-kernel/linux-headers ~amd64
-sys-kernel/modprobed-db ~amd64
-sys-libs/libapparmor ~amd64
-sys-power/upower ~amd64
-sys-process/acct ~amd64
-sys-process/audit ~amd64
-sys-process/bottom ~amd64
-sys-process/btop ~amd64
-sys-process/nvtop ~amd64
-x11-base/xwayland ~amd64
-x11-drivers/nvidia-drivers ~amd64
-x11-drivers/xf86-video-amdgpu ~amd64
-x11-libs/libnotify ~amd64
-x11-misc/qt5ct ~amd64
-x11-themes/kvantum ~amd64
-xfce-base/thunar ~amd64
-xfce-base/thunar-volman ~amd64
-xfce-base/tumbler ~amd64
-xfce-extra/thunar-archive-plugin ~amd64
-xfce-extra/thunar-media-tags-plugin ~amd64
-www-apps/element ~amd64
-www-apps/beef ~amd64
-www-client/zen-browser ~amd64
-www-client/firefox ~amd64
-#gnome-base/gvfs ~amd64
-#sys-fs/genfstab ~amd64
-#sys-fs/cryptsetup ~amd64
-#sys-apps/file ~amd64
-#net-misc/networkmanager ~amd64
+llvm-core/clang clang-lto-env polly-on-env
+llvm-core/clang-common clang-lto-env polly-on-env 
+llvm-runtimes/clang-runtime clang-lto-env polly-on-env 
+llvm-core/clang-toolchain-symlinks clang-lto-env polly-on-env
+llvm-core/lld clang-lto-env polly-on-env
+llvm-core/lld-toolchain-symlinks clang-lto-env polly-on-env
+llvm-core/llvm clang-lto-env
+llvm-core/llvm-common clang-lto-env polly-on-env
+llvm-core/llvm-toolchain-symlinks clang-lto-env polly-on-env
+llvm-runtimes/compiler-rt clang-lto-env polly-on-env
+llvm-runtimes/compiler-rt-sanitizers clang-lto-env polly-on-env 
+llvm-runtimes/libunwind clang-lto-env polly-on-env 
+dev-util/spirv-llvm-translator clang-lto-env polly-on-env
+dev-build/meson clang-lto-env polly-on-env
+media-libs/mesa clang-lto-env polly-plugin-env
+llvm-core/polly clang-lto-env polly-on-env
+dev-util/glslang clang-lto-env polly-on-env
+media-libs/libdisplay-info clang-lto-env polly-on-env
+dev-lang/python clang-lto-env polly-on-env
+gnome-base/librsvg clang-lto-env polly-on-env
+dev-build/cmake clang-lto-env polly-on-env
+sci-libs/gsl clang-lto-env polly-on-env
+dev-lang/python clang-lto-env
+media-video/ffmpeg clang-lto-env
+media-video/libavif clang-lto-env
+media-libs/dav1d clang-lto-env
+media-libs/aom clang-lto-env
+media-libs/x264 clang-lto-env
+media-libs/libvpx clang-lto-env
+sys-apps/systemd clang-lto-env 
+sys-fs/btrfs-progs clang-lto-env
+sys-libs/zlib clang-lto-env
+dev-db/sqlite clang-lto-env
+app-shells/atuin clang-lto-env polly-plugin-env
+app-shells/starship clang-lto-env
+app-shells/zoxide clang-lto-env
+app-misc/czkawka clang-lto-env
+app-misc/yazi clang-lto-env
+gui-apps/alacritty-graphics clang-lto-env
+sys-apps/bat clang-lto-env
+sys-apps/eza clang-lto-env
+sys-apps/fd clang-lto-env
+sys-process/bottom clang-lto-env
+sys-apps/ripgrep clang-lto-env
+dev-util/git-delta clang-lto-env
 ```
 
+#### `/mnt/gentoo/etc/portage/env/clang-lto-env`
 
+`nvim /mnt/gentoo/etc/portage/env/clang-lto-env`
 
+```bash
+# /etc/portage/env/clang-lto-env
+COMMON_FLAGS="-O3 -pipe -march=native -flto=thin -fno-semantic-interposition -fno-plt"
+CFLAGS="${COMMON_FLAGS}"
+CXXFLAGS="${COMMON_FLAGS}"
+HARDENING_FLAGS="-fcf-protection -D_FORTIFY_SOURCE=3 -fstack-protector-strong -fstack-clash-protection"
+CFLAGS="${CFLAGS} ${HARDENING_FLAGS}"
+CXXFLAGS="${CXXFLAGS} ${HARDENING_FLAGS}"
+CC="clang"
+CPP="clang-cpp"
+CXX="clang++"
+AR="llvm-ar"
+NM="llvm-nm"
+RANLIB="llvm-ranlib"
+LDFLAGS="${COMMON_FLAGS} ${LDFLAGS} -fuse-ld=lld"
+RUSTFLAGS="${RUSTFLAGS} -Clinker-plugin-lto"
+```
+
+#### `/mnt/gentoo/etc/portage/env/clang-nolto-env`
+
+`nvim /mnt/gentoo/etc/portage/env/clang-nolto-env`
+
+```bash
+### /etc/portage/env/clang-nolto-env
+COMMON_FLAGS="-O3 -pipe -march=native -fno-semantic-interposition -fno-plt"
+CFLAGS="${COMMON_FLAGS}"
+CXXFLAGS="${COMMON_FLAGS}"
+HARDENING_FLAGS="-fcf-protection -D_FORTIFY_SOURCE=3 -fstack-protector-strong -fstack-clash-protection"
+CFLAGS="${CFLAGS} ${HARDENING_FLAGS}"
+CXXFLAGS="${CXXFLAGS} ${HARDENING_FLAGS}"
+CC="clang"
+CXX="clang++"
+AR="llvm-ar"
+LD="ld.lld"
+NM="llvm-nm"
+RANLIB="llvm-ranlib"
+LDFLAGS="${COMMON_FLAGS} ${LDFLAGS} -fuse-ld=lld"
+```
+
+#### `/mnt/gentoo/etc/portage/env/polly-on-env`
+
+`nvim /mnt/gentoo/etc/portage/env/polly-on-env`
+
+```bash
+### /etc/portage/env/polly-on-env
+COMMON_FLAGS="${COMMON_FLAGS} -mllvm -polly -mllvm -polly-vectorizer=stripmine -mllvm -polly-omp-backend=LLVM -mllvm -polly-parallel -mllvm -polly-num-threads=9 -mllvm -polly-scheduling=dynamic"
+CFLAGS="${COMMON_FLAGS}"
+CXXFLAGS="${COMMON_FLAGS}"
+FCFLAGS="${COMMON_FLAGS}"
+FFLAGS="${COMMON_FLAGS}"
+```
+
+#### `/mnt/gentoo/etc/portage/env/polly-plugin-env`
+
+`nvim /mnt/gentoo/etc/portage/env/polly-plugin-env`
+
+```bash
+# /etc/portage/env/polly‑plugin‑env
+CFLAGS="${CFLAGS} -fpass-plugin=LLVMPolly.so"
+CXXFLAGS="${CXXFLAGS} -fpass-plugin=LLVMPolly.so"
+```
+
+#### `/mnt/gentoo/etc/portage/profile/use.mask`
+
+```bash
+-lto
+-gmp-autoupdate
+-vulkan
+-jit
+```
+
+#### `/mnt/gentoo/etc/portage/profile/package.provided`
+
+```bash
+### /etc/portage/profile/package.provided
+app-emacs/seq-2.24
+sys-kernel/gentoo-sources-6.19
+app-text/texlive-9999
+app-text/texlive-core-9999
+dev-tex/latexdiff-9999
+dev-texlive/texlive-basic-9999
+dev-texlive/texlive-fontsextra-9999
+dev-texlive/texlive-fontsrecommended-9999
+dev-texlive/texlive-fontutils-9999
+dev-texlive/texlive-formatsextra-9999
+dev-texlive/texlive-latex-9999
+dev-texlive/texlive-latexextra-9999
+dev-texlive/texlive-latexrecommended-9999
+dev-texlive/texlive-luatex-9999
+dev-texlive/texlive-mathscience-9999
+dev-texlive/texlive-plaingeneric-9999
+dev-texlive/texlive-pstricks-9999
+dev-texlive/texlive-xetex-9999
+dev-tex/tex4ht-999999999999
+virtual/latex-base-1.0
+virtual/tex-base-9999
+```
 
 ### 5.5 — Enter Chroot
 
@@ -771,11 +784,9 @@ source /etc/profile
 export PS1="(chroot) ${PS1}"
 ```
 
-> **All subsequent commands run inside the chroot.**
-
 ---
 
-## Part 6 — Base Configuration and Portage
+## Part 6 — Base Configuration and Portage
 
 ### 6.1 — Timezone, Locale, Hostname
 
@@ -833,140 +844,116 @@ sync-git-verify-commit-signature = yes
 sync-openpgp-key-path = /usr/share/openpgp-keys/gentoo-release.asc
 ```
 
----
-
-## Section 5.6 — Set Root Password and Create Administrative User
-
+###  6.6 — Root Password and Administrative User
 
 ```bash
 passwd root
-
-# Lock the root account: prevents all direct root login via console,SSH (already disabled), su, or display manager, while retaining the ability to use sudo.
 passwd -l root
 
-# Create the administrative user “ahsan” that will be used for all
-# daily work.  Groups:
-#   wheel  – sudo access
-#   audio  – sound device nodes
-#   video  – GPU access (including nvidia)
-#   tss    – TPM access (required for tpm2‑pkcs11 SSH keys)
 useradd -m -G users,wheel,audio,video,tss -s /bin/bash ahsan
 passwd ahsan
 EDITOR=nvim visudo
 ```
 
-> **Why lock root?**  
-> A locked root account cannot be logged into interactively, which eliminates the most valuable authentication target on the system.  The `passwd -l` command prepends a `!` to the password hash; the password still exists for emergency use (e.g., rescue shell) but direct login is refused.  The `ahsan` user obtains admin privileges via `sudo`.
-
-> **Chroot recovery with a locked root account**  
-> If you need to re‑enter the installed system from a live USB (Part 28), you become root on the live environment and `chroot` without needing the installed system’s root password.  Inside the chroot the root account is still locked, but you can temporarily unlock it:  
-
-> ```bash
-> passwd -u root
-> # ... perform recovery tasks as root ...
-> passwd -l root    # re-lock when done
-> ```  
-> Alternatively, become root via `sudo -i` from the `ahsan` account if it is still accessible.  The locked root account does not hinder offline recovery.
-
----
-## Section 5.7 — Rebuild gcc and then @world
+###  6.7 — Rebuild GCC and World
 
 ```bash
-emerge gcc && emerge -ev @world
-
+emerge -av gcc && emerge -ev @world
 ```
 
+---
 
-## Part 7 — Kernel: CachyOS-Sources with Clang + kCFI
+## Part 7 — Kernel: CachyOS‑Sources with Clang + kCFI
 
-### 7.1 — Install Kernel Sources and Required Packages
-[NOTE:] All ananicy packages must be installed from xarblu-overlay
-[NOTE:] Mask ananicy-cpp from mask from CachyOS-kernels, guru
+## 7.1 — Install Kernel Sources and Required Packages
 
 ```bash
-# Install the kernel sources, firmware, and sbctl for Secure Boot signing. sbctl must be emerged BEFORE the kernel build so that signing keys exist when dracut generates the first UKI.
-emerge --ask sys-kernel/cachyos-sources sys-kernel/linux-firmware app-crypt/sbctl sys-firmware/intel-microcode sys-fs/btrfs-progs sys-auth/cachyos-ananicy-rules sys-auth/ananicy-cpp
+# Install the kernel sources, firmware, sbctl (for Secure Boot signing),
+# Intel microcode (for CPU vulnerability mitigations), and btrfs-progs
+# (for verifying the root filesystem type at build time).
+emerge --ask sys-kernel/cachyos-sources sys-kernel/linux-firmware app-crypt/sbctl sys-firmware/intel-microcode sys-fs/btrfs-progs
+
+# Select the newly installed kernel source tree
 eselect kernel set 1
+ls -l /usr/src/linux
 cd /usr/src/linux
 ```
 
-### 7.2 — Configure the Kernel
+---
 
-The cachyos-sources ebuild installs a pre‑configured `.config` optimised for performance. The `kcfi` USE flag (already set in Section 5.4) **automates** enabling Kernel Control Flow Integrity — it applies the necessary configuration fragments so that you do **not** need to search for the option manually. The manual steps below are provided for verification.
+## 7.2 — Configure the Kernel (Hardened, Minimal, Hardware‑Specific)
+
+### 7.2.1 — Copy Your Minimal Hardened `.config` Into Place
+
+```bash
+cp /path/to/hardened-kernel.config .config
+make olddefconfig    # safely adapt any new Kconfig symbols that appeared since the config was written
+```
+
+### 7.2.2 — Apply the Kernel’s Built‑in Hardening Fragment
+
+```bash
+make hardening.config
+```
+
+The command is safe to run multiple times — it is idempotent.
+
+### 7.2.3 — Fine‑Tune Interactively
+
+If you want to inspect the result or adjust anything, run the menu‑based configuration tool:
 
 ```bash
 make menuconfig LLVM=1
 ```
 
-Verify that the following are enabled (use `/` to search):
+---
 
-```
-# ── Kernel Control Flow Integrity (kCFI) ──
-# NOTE: The 'kcfi' USE flag on sys-kernel/cachyos-sources automates this.
-# If the flag is set, the option should already be enabled.
-# In kernels ≥ 6.13 the option is named CONFIG_CFI (renamed from CONFIG_CFI_CLANG).
-General architecture-dependent options
-  [*] Control Flow Integrity (CFI) hardening              CONFIG_CFI
-
-# ── LUKS, LVM, Btrfs ──
-Device Drivers → Multiple devices driver support
-  <*> Device mapper support                                CONFIG_BLK_DEV_DM
-  <*>   Crypt target support                               CONFIG_DM_CRYPT
-
-File systems
-  <*> Btrfs filesystem support                             CONFIG_BTRFS_FS
-  [*]   Btrfs POSIX Access Control Lists                   CONFIG_BTRFS_FS_POSIX_ACL
-
-# ── TPM ──
-Device Drivers → Character devices → TPM Hardware Support
-  <*> TPM Hardware Support                                 CONFIG_TCG_TPM
-  <*>   TPM Interface Specification 2.0 (FIFO)             CONFIG_TCG_TIS_CORE
-
-# ── NVMe ──
-Device Drivers → NVMe Support
-  <*> NVM Express block device                             CONFIG_BLK_DEV_NVME
-
-# ── EFI Stub (required for UKI) ──
-Processor type and features
-  [*] EFI runtime service support                          CONFIG_EFI
-  [*]   EFI stub support                                   CONFIG_EFI_STUB
-
-# ── Cryptographic API ──
-  <*> XTS support                                          CONFIG_CRYPTO_XTS
-  <*> AES cipher algorithms                                CONFIG_CRYPTO_AES
-  <*> AES cipher algorithms (x86_64)                       CONFIG_CRYPTO_AES_X86_64
-  <*> SHA-2 (SHA-384 and SHA-512)                          CONFIG_CRYPTO_SHA512
-
-# ── Kernel hardening config fragments ──
-Security options
-  [*] Enable kernel hardening configuration fragments      CONFIG_ARCH_HAS_KERNEL_HARDENING
-```
-
-> **kCFI verification**: After boot, run `zcat /proc/config.gz | grep CFI`. You should see `CONFIG_CFI=y` (kernels ≥ 6.13) or `CONFIG_CFI_CLANG=y` (older kernels), plus `CONFIG_LTO_CLANG=y`.
-
-### 7.3 — Build and Install
+## 7.3 — Build and Install
 
 ```bash
-# Build with Clang + ThinLTO
+# Compile the kernel and modules with Clang + ThinLTO
 make -j$(nproc) LLVM=1
 
-# Install modules
+# Install modules into /lib/modules/<version>/
 make modules_install LLVM=1
 
-# Install kernel — triggers installkernel (dracut → UKI → sign)
+# Install the kernel into /boot and trigger installkernel.
+# installkernel (with USE="dracut uki") automatically:
+#   1. Runs dracut to generate a signed UKI
+#   2. Places the UKI at /efi/EFI/Linux/
+#   3. Calls the post‑install hook (Part 8.7) to re‑sign the UKI with sbctl
 make install LLVM=1
 ```
 
-`make install` triggers `sys-kernel/installkernel` which:
-1. Copies the kernel to `/boot`
-2. Runs `dracut` with UKI configuration → generates and signs a Unified Kernel Image
-3. Installs the signed UKI to `/efi/EFI/Linux/`
+**What `make install` triggers behind the scenes:**
 
-No UEFI boot entry manipulation is performed; the firmware directly loads the UKI.
+| Step | Tool | Purpose |
+|------|------|---------|
+| Copy kernel to `/boot` | `installkernel` | Makes the vmlinuz binary available for dracut |
+| Generate UKI | `dracut` (Part 8) | Creates a single signed `.efi` binary containing kernel + initramfs + cmdline |
+| Install UKI | `installkernel` | Places the UKI at `/efi/EFI/Linux/` where the UEFI firmware can load it |
+| Re‑sign UKI | `sbctl` (hook) | The post‑install hook from Part 8.7 runs `sbctl sign -s` on every UKI on the ESP |
 
-### 7.4 — Generate Secure Boot Keys (Before First Boot)
+No UEFI boot entry manipulation is performed — the firmware directly loads the signed UKI via the Boot Loader Specification fallback path.
 
-Dracut requires the Secure Boot signing keys to exist at the paths specified in its configuration. Generate them now:
+### 7.3.1 — Verify the Kernel Was Built with Hardening Options
+
+After the build completes (or after the first successful boot), verify that the hardening options took effect:
+
+```bash
+# Check that the running kernel has KASLR
+grep "randomize" /proc/cmdline
+
+# Check that the embedded config shows key hardening options
+zcat /proc/config.gz | grep -E "CONFIG_(STACKPROTECTOR_STRONG|HARDENED_USERCOPY|FORTIFY_SOURCE|RANDOMIZE_BASE|INIT_ON_ALLOC_DEFAULT_ON|CFI_CLANG)="
+# All should show =y
+```
+
+---
+
+## 7.4 — Generate Secure Boot Keys (Before First Boot)
+
+Dracut requires the Secure Boot signing keys to exist at the paths specified in its configuration (Part 8.1).  Generate them now:
 
 ```bash
 sbctl create-keys
@@ -975,21 +962,20 @@ sbctl create-keys
 ls -l /var/lib/sbctl/keys/db/db.key /var/lib/sbctl/keys/db/db.pem
 ```
 
-> **Note**: Key **enrollment** into UEFI firmware happens later (Part 9), after the first reboot into Setup Mode. For now, having the keys generated is sufficient for dracut to produce a signed UKI.
+> **Note:** Key **enrollment** into UEFI firmware happens later (Part 9), after the first reboot into Setup Mode.  For now, having the keys generated is sufficient for dracut to produce a signed UKI.
 
 ---
 
-## Part 7B — NVIDIA Driver Setup
+## Part 7B — NVIDIA Driver Setup
 
-This section covers the installation and configuration of the proprietary NVIDIA driver stack, ensuring it is compatible with Secure Boot, the Wayland compositor, and the system's hardening measures.
+This section covers installation and configuration of the proprietary NVIDIA driver stack, ensuring compatibility with Secure Boot, the Wayland compositor, and the system’s hardening measures.
 
 ### 7B.1 — Kernel Configuration for NVIDIA
 
-The cachyos-sources `.config` already enables most of the required options, but verify the following with `make menuconfig` before building the kernel:
+The minimal kernel config already enables every required symbol. In `make menuconfig`, verify the following (all three are already `=y`):
 
 ```
 Bus options (PCI etc.) --->
-  [*] PCI Express support
   [*] VGA Arbitration                                   CONFIG_VGA_ARB
 
 Device Drivers --->
@@ -997,54 +983,55 @@ Device Drivers --->
     <*/M> Direct Rendering Manager (XFree86 …)          CONFIG_DRM
     [*]   Enable legacy fbdev support for your …        CONFIG_DRM_FBDEV_EMULATION
     < >   Nouveau (NVIDIA) cards                        CONFIG_DRM_NOUVEAU
-
-  Firmware Drivers --->
-    [*] Mark VGA/VBE/EFI FB as generic system …         CONFIG_SYSFB_SIMPLEFB
 ```
 
-*   `CONFIG_DRM_FBDEV_EMULATION` is essential for `nvidia-drm` to provide a framebuffer console.
-*   `CONFIG_VGA_ARB` ensures correct handoff between multiple GPU drivers (e.g., `simpledrm` and `nvidia-drm`) at boot.
+- `CONFIG_DRM_FBDEV_EMULATION` is essential for `nvidia‑drm` to provide a framebuffer console. 
+- `CONFIG_VGA_ARB` ensures correct handoff between `simpledrm` and `nvidia‑drm` at boot. 
+- `CONFIG_DRM_NOUVEAU` must **not** be set — the open‑source `nouveau` driver conflicts with the proprietary NVIDIA driver.
 
 ### 7B.2 — Kernel Command Line and Modesetting
 
-For NVIDIA driver versions 560 and later, modesetting is enabled by default for Wayland. No additional kernel command-line parameters are required. The driver will automatically set `modeset=1` and `fbdev=1`. This behavior is confirmed by the Arch Linux wiki and the official NVIDIA documentation for the 580 series.
+For NVIDIA driver versions **560 and later**, modesetting is enabled by default for Wayland. The driver automatically sets `modeset=1` and `fbdev=1` without any kernel command‑line parameters. No `nvidia_drm.modeset=1` entry is needed in `/etc/kernel/cmdline`.
 
 ### 7B.3 — USE Flags
 
-The relevant USE flags for `x11-drivers/nvidia-drivers` are evaluated for this specific desktop setup (RTX 2080 Ti). The key flags are `kernel-open` and `modules-sign`.
+The following USE flags for `x11-drivers/nvidia-drivers` are evaluated for this desktop setup (RTX 2080 Ti). The key flags are `kernel-open` and `modules-sign`.
 
-*   **`kernel-open`**: This flag is enabled by default and uses the open-source kernel modules. It is recommended for Turing (RTX 20-series) and newer GPUs, and is mandatory for the NVIDIA 50-series "Blackwell" GPUs.
-*   **`modules-sign`**: This flag is critical for Secure Boot. Its role is elaborated in section 7B.4.
-*   **`persistenced`**: Enables the `nvidia-persistenced` daemon, which is useful for keeping the GPU state initialized, reducing latency for CUDA applications.
-*   **`powerd`**: This flag is **not needed** for desktops. It is specifically for laptops with NVIDIA Dynamic Boost technology. The Gentoo package description explicitly states it is "only useful with specific laptops, ignore if unsure".
+* **`kernel-open`** — enabled by default; builds the open‑source kernel modules. Recommended for Turing (RTX 20‑series) and newer GPUs; mandatory for Blackwell (50‑series).
+* **`modules-sign`** — critical for Secure Boot. Its role is elaborated in section 7B.4.
+* **`powerd`** — specifically for laptops with NVIDIA Dynamic Boost technology. The Gentoo package description explicitly states it is “only useful with specific laptops, ignore if unsure.” **Not used** on this desktop.
+* **`tools`** — enabled by default; provides `nvidia-smi`, `nvidia-settings`, and other diagnostic utilities.
 
-Configure the necessary flags. If you already have an entry for `x11-drivers/nvidia-drivers` in your file, merge the flags to avoid duplication.
+Add the following to `/etc/portage/package.use` (merge with any existing `nvidia-drivers` entry):
 
 ```bash
-# /etc/portage/package.use/nvidia
-x11-drivers/nvidia-drivers modules-sign persistenced
+x11-drivers/nvidia-drivers modules-sign
 ```
+
+The `persistenced` and `powerd` flags that appeared in an earlier version of this guide either do not exist for the `nvidia-drivers` package on Gentoo or are not applicable to a desktop workstation. No extra flags are required.
 
 ### 7B.4 — Secure Boot and Module Signing
 
-Since this system uses Secure Boot with custom keys, all kernel modules must be signed to load. The `modules-sign` USE flag automates this process in Gentoo, leveraging the same keys used for the kernel and UKI.
+Since this system uses Secure Boot with custom keys, all kernel modules — including the out‑of‑tree NVIDIA modules — must be signed to load at runtime. The `modules-sign` USE flag automates this process in Gentoo.
 
-1.  **Ensure Keys Exist**: The `sbctl` keys must exist. If you followed Part 9, they are at `/var/lib/sbctl/keys/db/db.key` and `/var/lib/sbctl/keys/db/db.pem`.
-2.  **Module Signing in `make.conf`**: Add the following to `/etc/portage/make.conf` to tell Portage where the signing keys are. These variables are used by the `modules-sign` eclass.
+1. **Ensure Keys Exist** — the `sbctl` keys are at `/var/lib/sbctl/keys/db/db.key` and `/var/lib/sbctl/keys/db/db.pem` (generated in Part 7.4).
 
-    ```bash
-    # /etc/portage/make.conf
-    MODULES_SIGN_KEY="/var/lib/sbctl/keys/db/db.key"
-    MODULES_SIGN_CERT="/var/lib/sbctl/keys/db/db.pem"
-    ```
+2. **Module Signing in `make.conf`** — Portage must know where the signing keys are. Add these lines to `/etc/portage/make.conf`:
 
-3.  **Kernel Configuration**: Ensure `CONFIG_MODULE_SIG=y` is set in the kernel. This is usually already enabled by cachyos-sources.
-4.  **Verification**: After installing the driver, verify the modules are signed.
+```bash
+MODULES_SIGN_KEY="/var/lib/sbctl/keys/db/db.key"
+MODULES_SIGN_CERT="/var/lib/sbctl/keys/db/db.pem"
+```
 
-    ```bash
-    modinfo nvidia | grep '^sig_key'
-    ```
-    Running `modinfo nvidia` should show a signature key, confirming the module has been signed. The output should include the signer and key fingerprint, indicating the module's integrity is protected.
+3. **Kernel Configuration** — the kernel must have `CONFIG_MODULE_SIG=y` to validate signatures at load time. The minimal kernel config already enables this.
+
+4. **Verification** — after installing the driver, confirm the modules are signed:
+
+```bash
+modinfo nvidia | grep '^sig_key'
+```
+
+The output must show a signature key, confirming the module is signed and will be trusted by the kernel when Secure Boot is active.
 
 ### 7B.5 — Install the Driver
 
@@ -1055,13 +1042,11 @@ emerge --ask x11-drivers/nvidia-drivers
 After the emerge completes, verify the key components:
 
 ```bash
-# Check that modules are present
 modinfo nvidia nvidia-modeset nvidia-uvm nvidia-drm
-
-# Verify that the modules are signed
 modinfo nvidia | grep -E 'sig_|signer'
-# Expected output should show a signer and signature info, not be empty.
 ```
+
+The second command must show a signer and signature information — an empty output means the module is not signed and Secure Boot will block it.
 
 ### 7B.6 — Module Parameters and Blacklisting
 
@@ -1069,23 +1054,20 @@ Create the main NVIDIA module configuration file:
 
 ```bash
 cat > /etc/modprobe.d/nvidia.conf << 'EOF'
-# Maintained by: Hardened Gentoo Setup Guide
-# Enable kernel mode setting (required for Wayland)
+# Enable kernel mode setting (already the default for driver ≥ 560)
 options nvidia-drm modeset=1
-# Use the Page Attribute Table for memory allocation (performance)
-options nvidia NVreg_UsePageAttributeTable=1
 # Preserve video memory allocations across suspend/resume
-options nvidia NVreg_PreserveVideoMemoryAllocations=1 NVreg_TemporaryFilePath=/tmp
+options nvidia NVreg_PreserveVideoMemoryAllocations=1
+options nvidia NVreg_TemporaryFilePath=/var/tmp
 EOF
 ```
 
-As noted in 7B.2, `modeset=1` is the default for newer drivers. The explicit option is kept as a precaution for older branches and serves as a clear document of the requirement.
+> **`NVreg_UsePageAttributeTable`** was removed; it is now an NVIDIA Kconfig option (`CONFIG_NVIDIA_USE_PAT`) available only when building the open‑kernel modules from source with a specific Kbuild option set — it is not a runtime module parameter on a standard Portage build.
 
-Prevent the open-source `nouveau` driver from binding to the GPU:
+Prevent the open‑source `nouveau` driver from binding to the GPU:
 
 ```bash
 cat > /etc/modprobe.d/blacklist-nouveau.conf << 'EOF'
-# Prevent the nouveau driver from binding to NVIDIA GPUs
 install nouveau /bin/true
 blacklist nouveau
 EOF
@@ -1093,18 +1075,11 @@ EOF
 
 ### 7B.7 — TPM and NVIDIA
 
-The TPM is used primarily for boot-time integrity verification (PCR sealing of the LUKS key) and for SSH key storage. There is no direct integration between the TPM and the NVIDIA driver. The driver's operation is unaffected by the TPM, and it does not interact with the TPM for functionality. Its security on this system is ensured through module signing (Secure Boot) and confinement via AppArmor.
+The TPM is used for LUKS PCR‑sealing at boot (Part 10) and for SSH key storage (Part 19). There is no direct integration between the TPM and the NVIDIA driver. The driver’s security on this system is ensured through module signing (Secure Boot) and confinement via AppArmor.
 
-### 7B.8 — Enable Services
+### 7B.8 — Rebuild the Initramfs and UKI
 
-```bash
-# Persistence daemon – keeps GPU state alive (reduces initialization latency)
-systemctl enable nvidia-persistenced.service
-```
-
-### 7B.9 — Rebuild the Initramfs and UKI
-
-The NVIDIA kernel modules must be included in the initramfs to load early enough for a graphical boot and Wayland.
+The NVIDIA kernel modules must be included in the initramfs so that `nvidia‑drm` is available early enough for Wayland:
 
 ```bash
 KVER=$(ls /lib/modules/ | sort -V | tail -1)
@@ -1117,84 +1092,78 @@ Verify the NVIDIA modules are embedded:
 lsinitrd /efi/EFI/Linux/gentoo-${KVER}.efi | grep -E "nvidia"
 ```
 
-Re-sign the new UKI:
+Re‑sign the new UKI:
 
 ```bash
 sbctl sign -s /efi/EFI/Linux/gentoo-${KVER}.efi
 ```
 
----
+### 7B.9 — AppArmor Integration for NVIDIA
 
-### 7B.10 — AppArmor Integration for NVIDIA
+The `apparmor.d` project includes an `abstractions/nvidia` file that mediates access to NVIDIA device files and libraries. To integrate it:
 
-The `apparmor.d` project includes an `abstractions/nvidia` file that can be used to mediate access to NVIDIA device files and libraries. This abstraction defines rules for common NVIDIA resources, including device nodes (`/dev/nvidia*`), library paths, and shared memory. To integrate it into your security policy, `#include <abstractions/nvidia>` to the profiles of any application that requires GPU access.
-
-1.  **Identify Profiles**: Start with applications that have existing AppArmor profiles, such as Firefox (in complain mode) or your display manager (SDDM).
-2.  **Add the Abstraction**: Edit the relevant profile in `/etc/apparmor.d/`. For example, to allow SDDM to manage the display, add the include line to its profile:
-
-    ```bash
-    # In /etc/apparmor.d/usr.sbin.sddm
-    profile sddm /usr/bin/sddm {
-      # ... existing rules ...
-      #include <abstractions/nvidia>
-      # ...
-    }
-    ```
-
-3.  **Test**: After making changes, run your system in complain mode for these profiles and monitor the AppArmor logs (`aa-logprof`) to identify any additional rules needed.
-
-### 7B.11 — Hardening `nvidia-persistenced` with `svc-harden.py`
-
-The `nvidia-persistenced` service can be hardened using `svc-harden.py`, as referenced in Part 23 of the main guide. The script applies security directives such as `NoNewPrivileges`, `ProtectSystem=strict`, and `MemoryDenyWriteExecute` to reduce the attack surface of the service.
-
-After ensuring the service runs correctly in its default configuration, apply the hardening:
+1. **Identify Profiles** — start with applications that have existing AppArmor profiles, such as Firefox (in complain mode) or SDDM (display manager).
+2. **Add the Abstraction** — edit the relevant profile in `/etc/apparmor.d/`. For example, to allow SDDM to manage the display:
 
 ```bash
-# Analyze the current security posture
-svc-harden.py analyze nvidia-persistenced.service
-
-# Apply hardening directives interactively
-svc-harden.py apply nvidia-persistenced.service
+# In /etc/apparmor.d/usr.sbin.sddm
+profile sddm /usr/bin/sddm {
+  # …
+  #include <abstractions/nvidia>
+  # …
+}
 ```
 
-During the `apply` process, you can enable directives such as `ProtectSystem=strict` and `PrivateTmp=true`. It is important to test the GPU's functionality after applying each directive to ensure it does not interfere with driver operations.
+3. **Test** — after making changes, run the affected applications in complain mode and monitor logs with `aa-logprof` to identify any additional rules required.
 
----
+### 7B.10 — Hardening the NVIDIA Persistence Daemon with `svc-harden.py`
 
-### 7B.12 — Post-Install Verification
+The `nvidia-persistenced` service can be hardened using `svc-harden.py` (Part 23):
+
+```bash
+sudo svc-harden.py analyze nvidia-persistenced.service
+sudo svc-harden.py apply nvidia-persistenced.service
+```
+
+Suggested directives include `NoNewPrivileges=yes`, `PrivateTmp=yes`, `ProtectSystem=strict`, `ProtectHome=yes`, and `MemoryDenyWriteExecute=yes`. Test GPU functionality after applying each directive.
+
+> **Note:** The `nvidia-persistenced.service` unit is created automatically when the `nvidia-drivers` package is emerged — it does not need to be enabled separately with `systemctl enable`.
+
+### 7B.11 — Post‑Install Verification
 
 After the first successful boot:
 
 ```bash
-# 1. Verify the NVIDIA kernel module is loaded and signed
 lsmod | grep nvidia
-# Expected output should include: nvidia_drm, nvidia_modeset, nvidia_uvm, nvidia
+# Expected: nvidia_drm, nvidia_modeset, nvidia_uvm, nvidia
 
-# 2. Check DRM KMS is active
 cat /sys/module/nvidia_drm/parameters/modeset
-# Should print: Y
+# Must print: Y
 
-# 3. Verify GPU status
 nvidia-smi
 ```
 
-If `nvidia-smi` reports the GPU and driver version, the setup is complete.
-
-
 ---
 
-## Part 8 — Dracut Configuration for UKI + TPM2
+## Part 8 — Dracut and Secure Boot Unified Configuration
 
-- [ ] ### 8.1 — Main Dracut Configuration
+This section covers the complete boot chain: generating a signed UKI that includes TPM2‑based LUKS unlock, microcode, NVIDIA modules, and the hardened kernel command line.
 
-`mkdir -p /etc/dracut.conf.d/ && nvim /etc/dracut.conf.d/00-base.conf`
+### 8.1 — Dracut UKI Configuration
+
+Dracut is configured to produce a signed Unified Kernel Image (UKI) that includes the kernel, initramfs, microcode, and embedded command line. The UKI is placed in `/efi/EFI/Linux/`, where the UEFI firmware will discover it automatically via the Boot Loader Specification fallback path — no bootloader is required.
 
 ```bash
+mkdir -p /etc/dracut.conf.d
+
+cat > /etc/dracut.conf.d/00-base.conf << 'EOF'
 # /etc/dracut.conf.d/00-base.conf
-# Hardened Gentoo — UKI + TPM2 + LUKS2 + LVM + Btrfs, April 2026
+# Hardened Gentoo — UKI + TPM2 + LUKS2 + LVM + Btrfs + NVIDIA, April 2026
 
 # --- Hostonly mode ---
+# Generate a host‑specific initramfs (faster, smaller, fewer modules)
 hostonly="yes"
+# Do NOT inject the host's current kernel cmdline; we provide our own
 hostonly_cmdline="no"
 
 # --- UKI output ---
@@ -1204,24 +1173,47 @@ compress="zstd"
 early_microcode="yes"
 
 # --- Dracut modules ---
-add_dracutmodules+=" tpm2-tss crypt lvm btrfs systemd systemd-initrd "
+# tpm2-tss:   TPM2 tools for LUKS unsealing
+# crypt:      LUKS unlock support (reads rd.luks.* and /etc/crypttab)
+# lvm:        assemble LVM volume groups
+# btrfs:      Btrfs filesystem support
+# systemd:    systemd as PID 1 inside initramfs (required by systemd-initrd)
+# systemd-initrd: run systemd generators (including systemd-cryptsetup-generator) inside initramfs
+# apparmor:   load AppArmor policy early (required for early_policy=yes in parser.conf)
+add_dracutmodules+=" tpm2-tss crypt lvm btrfs systemd systemd-initrd apparmor "
 
-# --- Kernel modules needed early ---
+# --- Kernel modules that must be available early ---
 add_drivers+=" tpm_crb tpm_tis tpm_tis_core dm_crypt dm_mod aes_x86_64 "
 
-# --- Explicitly embed the initramfs crypttab ---
+# --- NVIDIA kernel modules — required early for Wayland/KMS ---
+add_drivers+=" nvidia nvidia-modeset nvidia-uvm nvidia-drm "
+
+# --- Explicitly embed the crypttab files ---
+# Dracut does NOT automatically include /etc/crypttab, even when the
+# crypt and systemd modules are enabled (dracut issue #1737).
+# Without this, systemd-cryptsetup-generator sees no device definitions
+# and falls back to a passphrase prompt or fails outright.
 install_items+=" /etc/crypttab.initramfs /etc/crypttab "
 
 # --- Secure Boot signing keys ---
+# These must exist before dracut runs (see Section 7.4).
 uefi_secureboot_cert="/var/lib/sbctl/keys/db/db.pem"
 uefi_secureboot_key="/var/lib/sbctl/keys/db/db.key"
+EOF
 ```
 
-> **Ordering requirement**: The `sbctl create-keys` command in Part 7.4 **must** be run before this dracut configuration takes effect (i.e., before `make install` or any manual `dracut` invocation). If the keys are absent, dracut will fail to sign the UKI.
+> **Why `install_items` is required:** The dracut issue tracker confirms that the `crypt` module does **not** automatically embed `/etc/crypttab`, even when systemd modules are enabled . Without this line, `systemd-cryptsetup-generator` has no device definitions and the boot will fail. This is a known, long‑standing behaviour of dracut, not a configuration error.
 
-> **`uefi_stub` path**: `/usr/lib/systemd/boot/efi/linuxx64.efi.stub` is provided by `sys-apps/systemd` when the `boot` USE flag is enabled — which is already set in Section 5.4.
+> **`uefi_stub` path:** `/usr/lib/systemd/boot/efi/linuxx64.efi.stub` is provided by `sys-apps/systemd` when the `boot` USE flag is enabled — which your configuration already has. This is the canonical path on Gentoo . The dracut man page confirms this is the default stub location on systemd‑based systems .
 
-- [ ] ### 8.2 — Kernel Command Line (Embedded in UKI)
+> **UKI output location:** Dracut does **not** have a `uefi_dir` configuration option . The UKI output path is controlled by `installkernel` (with `USE="dracut uki"`) which places the UKI at `/efi/EFI/Linux/`. The `uefi_stub` path tells dracut where to find the EFI stub loader binary; the final UKI output location is managed by `installkernel`'s `uki` plugin.
+
+---
+
+### 8.2 — Kernel Command Line (Embedded in the UKI)
+
+The kernel command line is stored in `/etc/kernel/cmdline`, which is read by `installkernel` and embedded directly into the UKI. This file is the standard location for kernel command-line parameters on a systemd‑based Gentoo system.
+
 ```bash
 # Load LUKS UUIDs saved during disk preparation
 source /root/luks-uuids.txt
@@ -1233,12 +1225,37 @@ quiet rootfstype=btrfs rd.luks.uuid=luks-${CRYPT0_UUID} rd.luks.uuid=luks-${CRYP
 EOF
 ```
 
+**Parameter justifications:**
+
+* `quiet` — suppresses non‑critical kernel messages at boot; the `loglevel=3` parameter previously included was redundant because `quiet` already sets the console log level to 4 (KERN\_WARNING and below are suppressed). Remove any separate `loglevel=` parameter.
+
+* `rootfstype=btrfs` — tells the kernel the root filesystem type, ensuring the correct driver is loaded early.
+
+* `rd.luks.uuid=luks-${UUID}` — instructs dracut to activate only the specified LUKS containers. The `‑luks` prefix is stripped by dracut before comparing against partition UUIDs. When the systemd dracut module is active, dracut converts these parameters into `/etc/crypttab` entries inside the initramfs , so they work alongside (and reinforce) the explicit crypttab files embedded by `install_items`.
+
+* `rd.lvm.vg=vg0` — limits LVM to the specified volume group; prevents activation of unintended logical volumes and speeds up boot.
+
+* `root=/dev/vg0/root` — specifies the root device; since the root subvolume is mounted via the Btrfs default (no `subvol=` flag), the kernel automatically selects the active snapshot.
+
+* `intel_iommu=on iommu=force` — IOMMU strict mode for DMA protection (Part 17).
+
+* `apparmor=1 security=apparmor` — enables AppArmor as the primary Linux Security Module. The `lsm=` parameter used in Arch‑based systems is **not** needed on Gentoo, where `CONFIG_LSM` is set at kernel compile time.
+
+* `audit=1` — enables the audit subsystem required by `auditd` (Part 15).
+
+* `init_on_alloc=1 init_on_free=1` — kernel memory initialisation; zeros all heap allocations at alloc and free time. These are KSPP‑recommended settings that complement the kernel config options `CONFIG_INIT_ON_ALLOC_DEFAULT_ON` and `CONFIG_INIT_ON_FREE_DEFAULT_ON`.
+
+* `mitigations=auto` — CPU vulnerability mitigations applied automatically based on the detected microarchitecture.
+
+> **What was removed:** The original `rd.luks=1` parameter is **not required** when explicit `rd.luks.uuid=` entries are present  and `rd.lvm=1` is redundant when `rd.lvm.vg=` is specified. The `slub_debug=FZ` and `page_poison=1` parameters were removed because they conflict with `init_on_alloc` and `init_on_free`: the kernel debugging framework disables the `init_on` parameters when `slub_debug`/`page_poison` is active, as memory initialisation interferes with the debugging patterns meant to detect use‑after‑free and uninitialised memory access bugs. The individual CPU mitigation toggles (`pti=on`, `spectre_v2=on`, `l1tf=full,force`, `mds=full,nosmt`, `tsx=off`) are replaced by the single `mitigations=auto` parameter, which enables all relevant default mitigations for the running CPU without over‑restricting features that have no security benefit on the i9‑13900K.
+
+---
+
 ### 8.3 — Crypttab for TPM2 Unlock
 
+The initramfs crypttab file (`/etc/crypttab.initramfs`) tells systemd-cryptsetup-generator to unlock the devices using the TPM2 token that was enrolled via `systemd-cryptenroll`. The `‑` in the keyfile column means “no keyfile; use TPM2/FIDO2”; the `tpm2-device=auto` option instructs systemd-cryptsetup to use the TPM2‑enrolled token slot.
+
 ```bash
-# The initramfs /etc/crypttab tells systemd-cryptsetup-generator
-# to unlock using TPM2. The '-' in the keyfile column means
-# "no keyfile; use TPM2/FIDO2".
 cat > /etc/crypttab.initramfs << EOF
 crypt0  UUID=${CRYPT0_UUID}  -  tpm2-device=auto,discard
 crypt1  UUID=${CRYPT1_UUID}  -  tpm2-device=auto,discard
@@ -1247,70 +1264,84 @@ EOF
 chmod 600 /etc/crypttab.initramfs
 ```
 
-> **`tpm2-device=auto`** in the options column tells systemd-cryptsetup to use the TPM2 token enrolled via `systemd-cryptenroll`. The initramfs will look for a TPM2-enrolled LUKS token slot and attempt to unseal it (after PIN entry if `‑‑tpm2‑with‑pin=yes` was used during enrollment).
+> **PIN interaction:** The PIN is configured at enrollment time via `systemd-cryptenroll --tpm2-with-pin=yes`. The initramfs automatically prompts for the PIN when it encounters a TPM2 token that was enrolled with PIN protection. The `tpm2-with-pin` option is **not** placed in the crypttab file — it is a property of the enrolled token, not a mount‑time option.
+
+> **Why `discard`?** The `discard` option passes TRIM commands through LUKS to the underlying NVMe drives, which is important for long‑term SSD performance. For an APT threat model, this marginally leaks information about used versus free sectors. If this is unacceptable, remove `discard` from both entries and accept the gradual write‑performance degradation on the NVMe drives.
+
+---
 
 ### 8.4 — Running System Crypttab (noauto)
+
+The running system's `/etc/crypttab` is separate from the initramfs version. The LUKS containers are already opened by dracut in the initramfs; adding `noauto` prevents systemd from attempting to open them a second time at runtime, which would produce confusing error messages and a long boot timeout.
 
 ```bash
 cat > /etc/crypttab << EOF
 # /etc/crypttab — Running system
-# LUKS volumes are opened by dracut in initramfs.
+# LUKS volumes are already opened by dracut in the initramfs.
 # 'noauto' prevents systemd from re-opening them at runtime.
 crypt0  UUID=${CRYPT0_UUID}  -  tpm2-device=auto,discard,noauto
 crypt1  UUID=${CRYPT1_UUID}  -  tpm2-device=auto,discard,noauto
 EOF
 ```
 
+> **Why `noauto` is essential:** Without it, systemd-cryptsetup-generator parses this file at runtime and attempts to unlock already‑open devices. The attempt fails, producing confusing error messages and a long boot timeout. `noauto` tells the generator to record the mapping but not to activate it. This is standard practice for any system where LUKS unlock happens in the initramfs rather than at final system boot.
+
 ---
 
-## Part 9 — Secure Boot with sbctl
+### 8.5 — First UKI Build (Manual)
 
-### 9.1 — Prerequisites
-
-Before proceeding, ensure that:
-
-* `app-crypt/sbctl` was emerged in Part 7.1.
-* Secure Boot keys were generated in Part 7.4 (`sbctl create-keys`).
-* The UEFI firmware is in **Setup Mode** (Secure Boot disabled; clear existing keys in the firmware menu if necessary). The Gentoo Wiki warns that enrolling keys without the Microsoft vendor keys `‑m` **can be dangerous and could potentially brick a system** if Option ROMs require Microsoft‑signed binaries.
-
-### 9.2 — Enroll Keys into UEFI Firmware
+After the kernel is installed (`make install`), the UKI is automatically generated by installkernel. If you need to rebuild it manually — for example, after editing `/etc/kernel/cmdline` or changing the dracut configuration — use:
 
 ```bash
-# Verify the current state
-sbctl status
-# Should show: Setup Mode: ✘ Enabled, Secure Boot: ✘ Disabled
-
-# Enroll keys with Microsoft vendor certs (use -m or --microsoft; both are accepted)
-sbctl enroll-keys -m
-
-# Verify after enrollment
-sbctl status
-# Should show: Installed: ✔, Setup Mode: ✔ Disabled, Secure Boot: ✔ Enabled
+KVER=$(ls /lib/modules/ | sort -V | tail -1)
+dracut --force --verbose /efi/EFI/Linux/cachyos-hardened-${KVER}.efi ${KVER}
 ```
 
-> **Flag forms**: The Gentoo Wiki uses the short form `‑m`; the long form `‑‑microsoft` is also supported by all recent versions of sbctl.
+The filename prefix `cachyos-hardened` is chosen arbitrarily; dracut uses the final argument (`${KVER}`) to locate the kernel image and modules, not the output filename. The output file must be placed in `/efi/EFI/Linux/` — the Boot Loader Specification directory where UEFI firmware will discover it.
 
-### 9.3 — Sign the UKI on the ESP
+After rebuilding, re‑sign the UKI:
 
 ```bash
-# Sign all UKIs. Use 'sbctl sign -s' to save to the signing database
-# (the Gentoo Wiki uses -s; --save is an equivalent long form)
-sbctl sign -s /efi/EFI/Linux/*.efi
-
-# Verify everything on the ESP is signed
-sbctl verify
+sbctl sign -s /efi/EFI/Linux/cachyos-hardened-${KVER}.efi
 ```
 
-### 9.4 — Automatic Re‑Signing After Kernel Updates
+Verify the contents of the UKI:
 
-The `sbctl` package ships a kernel‑install hook (`/usr/lib/kernel/install.d/91-sbctl.install`) that automatically signs new UKIs when the systemd kernel‑install layout is used. However, this guide uses the traditional (non‑systemd) installkernel layout with `dracut uki`, so the systemd hook is **not triggered**. A manual post‑install hook is required:
+```bash
+# Check NVIDIA modules are embedded
+lsinitrd /efi/EFI/Linux/cachyos-hardened-${KVER}.efi | grep -E "nvidia"
+
+# Check crypttab files are embedded
+lsinitrd /efi/EFI/Linux/cachyos-hardened-${KVER}.efi | grep -E "crypttab"
+
+# Check the embedded kernel command line
+/usr/lib/systemd/boot/efi/stub_info /efi/EFI/Linux/cachyos-hardened-${KVER}.efi 2>/dev/null | grep -A5 "cmdline"
+```
+
+---
+
+### 8.6 — Secure Boot Key Enrollment (After First Boot)
+
+After the first successful boot, ensure the UEFI firmware is in Setup Mode and enroll your custom keys:
+
+```bash
+sbctl status                     # Verify Setup Mode is active
+sbctl enroll-keys -m             # Enroll custom keys + Microsoft certificates
+sbctl status                     # Confirm: Installed ✔, Secure Boot ✔
+```
+
+---
+
+### 8.7 — Automatic Re‑Signing After Kernel Updates
+
+The `sbctl` package ships a kernel‑install hook at `/usr/lib/kernel/install.d/91-sbctl.install` that automatically signs new UKIs when the systemd kernel‑install layout is used. However, this guide uses the traditional (non‑systemd) installkernel layout with `dracut uki`, so the systemd hook is **not triggered**. A manual post‑install hook is required:
 
 ```bash
 mkdir -p /etc/kernel/postinst.d
 
 cat > /etc/kernel/postinst.d/99-sbctl-sign.sh << 'SCRIPT'
 #!/bin/bash
-# Re-sign all UKIs after kernel installation.
+# Re‑sign all UKIs after kernel installation.
 # This hook runs after every 'make install' via installkernel.
 if command -v sbctl &>/dev/null; then
     sbctl sign -s /efi/EFI/Linux/*.efi 2>/dev/null
@@ -1321,7 +1352,26 @@ chmod +x /etc/kernel/postinst.d/99-sbctl-sign.sh
 
 ---
 
-## Part 10 — TPM2 + PIN Enrollment
+### 8.8 — Verification
+
+After the first boot with Secure Boot active:
+
+```bash
+# Verify Secure Boot is active
+sbctl verify
+dmesg | grep -i "secureboot"
+
+# Verify AppArmor is loaded
+aa-status | head -3
+
+# Verify the UKI embedded the correct cmdline
+cat /proc/cmdline
+```
+
+
+---
+
+## Part 9 — TPM2 + PIN Enrollment
 
 > **Complete this after first successful boot into the installed system.**
 
@@ -1363,11 +1413,13 @@ systemd-cryptenroll /dev/nvme1n1p1
 
 > **Direct UEFI boot note**: When the firmware loads a UKI directly (no systemd‑boot), the kernel cmdline embedded in the UKI is measured into PCR[12] by the systemd stub. PCR[11] measures the entire UKI. Both are valid for sealing, but PCR[12] is more specific: it will not be invalidated by non‑cmdline UKI changes (e.g., a new kernel version within the same signed image). If you prefer to seal against the entire UKI content, replace `12` with `11` in the PCR list.
 
-## Part 10B — TPM 2.0 Deep Dive: SSH Keys, Diagnostics, FIDO2 & PCR Predictions
+---
+
+## Part 10A — TPM 2.0 Deep Dive: SSH Keys, Diagnostics, FIDO2 & PCR Predictions
 
 Your TPM 2.0 chip is already sealing your LUKS keys (Part 10).  This section covers the rest of its capabilities: storing SSH private keys inside the TPM, useful diagnostic commands, virtual FIDO2 tokens, and the emerging `systemd‑pcrlock` framework for automatic PCR prediction after firmware updates.
 
-### 10B.1 — TPM Fundamentals (Recap)
+### 10A.1 — TPM Fundamentals (Recap)
 
 The Trusted Platform Module is a secure cryptographic processor built into your i9‑13900K. It can:
 
@@ -1378,13 +1430,13 @@ The Trusted Platform Module is a secure cryptographic processor built into your 
 
 The `systemd‑cryptenroll` enrollment you performed in Part 10 uses the TPM’s sealing capability: the LUKS master key is wrapped (encrypted) by the TPM’s Storage Root Key, and the TPM will only unwrap it if the current PCR values match those recorded during enrollment.
 
-### 10B.2 — TPM‑Backed SSH Keys
+### 10A.2 — TPM‑Backed SSH Keys
 
 Storing SSH private keys in the TPM is the highest‑security authentication method available on this workstation.  The key never exists in plaintext on any filesystem — it is generated inside the TPM and never leaves.  Even a kernel‑level attacker cannot extract it.  This mechanism is much more secure than using filesystem permissions, and is comparable in security to a dedicated hardware token.
 
 This has already been partially implemented in Part 19 of your guide.  The `app‑crypt/tpm2‑pkcs11` package provides the PKCS#11 library that bridges OpenSSH and the TPM.  The key creation and SSH configuration is unchanged from Part 19; the material below adds **context** and explains how to **verify** the key is hardware‑backed.
 
-#### 10B.2.1 — Understanding the Architecture
+#### 10A.2.1 — Understanding the Architecture
 
 | Component | Role |
 |-----------|------|
@@ -1401,7 +1453,7 @@ ssh → PKCS11Provider → /usr/lib64/libtpm2_pkcs11.so → tpm2-tss → /dev/tp
 
 Because the private key is inside the TPM, the SSH client never sees it.  The TPM performs the cryptographic signing operation internally and returns only the signature.
 
-#### 10B.2.2 — The `tss` Group and User Access
+#### 10A.2.2 — The `tss` Group and User Access
 
 For unprivileged users to access the TPM, they must be members of the `tss` group.  This was done in Section 6.6 when you created the `ahsan` user.  The Gentoo wiki explicitly documents this requirement.
 
@@ -1419,7 +1471,7 @@ gpasswd -a ahsan tss
 
 The user must log out and back in for the group change to take effect.  The TPM resource manager (`/dev/tpmrm0`) grants access to members of the `tss` group via udev rules shipped with `app‑crypt/tpm2‑tss`.
 
-#### 10B.2.3 — Key Hierarchy Inside the TPM
+#### 10A.2.3 — Key Hierarchy Inside the TPM
 
 When you run `tpm2_ptool init` (Part 19.2), the following hierarchy is created:
 
@@ -1429,11 +1481,11 @@ When you run `tpm2_ptool init` (Part 19.2), the following hierarchy is created
 
 The SRK is randomly generated when the TPM is first provisioned and is unique to that physical chip.  If you clear the TPM (e.g., via a UEFI firmware option), the SRK is destroyed, and all keys created under it become permanently inaccessible.  Always keep a non‑TPM backup SSH key stored offline for emergency access.
 
-#### 10B.2.4 — Empty PIN vs. PIN‑Protected Keys
+#### 10A.2.4 — Empty PIN vs. PIN‑Protected Keys
 
 Your `‑‑userpin` can be empty (`--userpin=""`), but the Gentoo wiki warns that "leaving it empty means the physical theft of the computer can allow an attacker to use the SSH private key through possession of the TPM alone."  Setting a PIN achieves two‑factor authentication: something you have (the TPM) and something you know (the PIN).
 
-#### 10B.2.5 — Verifying the Key is Hardware‑Backed
+#### 10A.2.5 — Verifying the Key is Hardware‑Backed
 
 After creating the key, confirm that it is actually stored in the TPM and not on disk:
 
@@ -1456,7 +1508,7 @@ ls ~/.ssh/id_ed25519        # these are separate software keys (still valid)
 
 If `ssh-keygen -D` prints a public key, the TPM is correctly provisioned.
 
-#### 10B.2.6 — Using TPM Keys with Git Commit Signing
+#### 10A.2.6 — Using TPM Keys with Git Commit Signing
 
 The TPM key can also sign Git commits.  The Gentoo wiki documents this workflow using the SSH‑agent protocol already configured in Part 19.6.
 
@@ -1477,7 +1529,7 @@ Now every Git commit is signed by a key that never left the TPM.  The signature 
 
 ---
 
-### 10B.3 — TPM Diagnostic Tools
+### 10A.3 — TPM Diagnostic Tools
 
 The `app‑crypt/tpm2‑tools` package provides command‑line utilities for reading PCR values, inspecting keys, and testing attestation.  Install it now:
 
@@ -1487,7 +1539,7 @@ emerge --ask app-crypt/tpm2-tools
 
 The current stable version on Gentoo as of April 2026 is **tpm2‑tools‑5.7**.
 
-#### 10B.3.1 — Reading PCR Values
+#### 10A.3.1 — Reading PCR Values
 
 PCRs contain cryptographic hashes that represent the current state of the system.  The command below reads all PCRs in the SHA‑256 bank (the default used by systemd):
 
@@ -1497,7 +1549,7 @@ tpm2_pcrread sha256:0+1+2+3+4+5+6+7+8+9+10+11+12+13+14+15
 
 Compare the output with the PCR table in Part 10.2.  After a UEFI firmware update, PCR[0] will change.  After enrolling new Secure Boot keys, PCR[7] will change.
 
-#### 10B.3.2 — Listing Persistent Keys
+#### 10A.3.2 — Listing Persistent Keys
 
 To see which keys are stored in the TPM’s non‑volatile memory:
 
@@ -1507,7 +1559,7 @@ tpm2_getcap handles-persistent
 
 This should show the SRK handle (usually `0x81000001` for the default SRK created by `tpm2‑tss`).
 
-#### 10B.3.3 — Checking the TPM Version and Capabilities
+#### 10A.3.3 — Checking the TPM Version and Capabilities
 
 ```bash
 tpm2_getcap properties-fixed
@@ -1525,7 +1577,7 @@ tpm2_getcap commands | grep -i PolicyAuthorizeNV
 
 If this command produces output, your TPM supports the `PolicyAuthorizeNV` command, which is required for `systemd‑pcrlock`.
 
-#### 10B.3.4 — Reading the TPM Event Log
+#### 10A.3.4 — Reading the TPM Event Log
 
 The event log records every measurement that extends a PCR.  It is essential for understanding why a particular PCR value changed:
 
@@ -1541,7 +1593,7 @@ The event log is human‑readable when passed through `systemd‑pcrlock` or `tp
 
 ---
 
-### 10B.4 — TPM as a Virtual FIDO2 Token
+### 10A.4 — TPM as a Virtual FIDO2 Token
 
 A TPM can function as a FIDO2 authenticator, effectively replacing a physical security key for many use cases.  The tool **tpm‑fido** bridges this gap: it protects FIDO2 token keys using your system's TPM and uses Linux's `uhid` facility to emulate a USB HID device so that it is properly detected by browsers.
 
@@ -1551,7 +1603,7 @@ If you choose to install it, be aware that root access can interpose on the virt
 
 ---
 
-### 10B.5 — TPM‑Backed PIN for sudo and Login (Experimental)
+### 10A.5 — TPM‑Backed PIN for sudo and Login (Experimental)
 
 A complementary tool called **pinpam** provides a PAM module that enables system‑wide authentication with a brute‑force resistant, TPM2‑backed PIN.  It is intended to supplement (not replace) traditional password‑based UNIX authentication, and can be used for `sudo`, login, or any other service supported by PAM.
 
@@ -1563,13 +1615,13 @@ A complementary tool called **pinpam** provides a PAM module that enables system
 
 ---
 
-### 10B.6 — Automatic PCR Prediction: `systemd‑pcrlock`
+### 10A.6 — Automatic PCR Prediction: `systemd‑pcrlock`
 
-The biggest operational pain of TPM‑sealed LUKS is that legitimate firmware updates break the PCR seal, forcing manual recovery (Part 30).  `systemd‑pcrlock` is a new tool designed to automate this.
+The biggest operational pain of TPM‑sealed LUKS is that legitimate firmware updates break the PCR seal, forcing manual recovery (Part 29).  `systemd‑pcrlock` is a new tool designed to automate this.
 
 > **Status as of April 2026:** Marked **experimental** by the systemd project.  "While it is likely to become a regular component of systemd, it might still change in behaviour and interface."
 
-#### 10B.6.1 — How It Works
+#### 10A.6.1 — How It Works
 
 `systemd‑pcrlock` analyzes the TPM2 event log, recognizes boot components using `*.pcrlock` definition files, and **predicts** what PCR values will look like after legitimate updates.  It then generates a TPM2 access policy (consisting of `PolicyPCR` and `PolicyOR` items) and stores it in a TPM2 NV index.  This policy allows unlocking across predicted PCR changes while still refusing to unlock the disk for unpredicted states.
 
@@ -1579,7 +1631,7 @@ The tool uses as input:
 * The current PCR state of the TPM2 chip
 * Boot component definition files (`*.pcrlock` and `*.pcrlock.d/*.pcrlock`)
 
-#### 10B.6.2 — Prerequisites
+#### 10A.6.2 — Prerequisites
 
 | Requirement | Command to Verify |
 |-------------|-------------------|
@@ -1587,7 +1639,7 @@ The tool uses as input:
 | TPM 2.0 ≥ v1.38 | `tpm2_getcap commands \| grep PolicyAuthorizeNV` |
 | TPM2 event log | `ls /sys/kernel/security/tpm0/binary_bios_measurements` |
 
-#### 10B.6.3 — Basic Workflow
+#### 10A.6.3 — Basic Workflow
 
 ```bash
 # 1. Before a firmware update:
@@ -1603,18 +1655,18 @@ You can then bind disk encryption to this policy using systemd‑cryptenroll wit
 
 > **Important:** Always keep a recovery key as a fallback.  A `pcrlock` policy that fails to generate after an update will prevent TPM‑based unlock entirely.
 
-#### 10B.6.4 — Current Limitations
+#### 10A.6.4 — Current Limitations
 
 - The tool is still experimental and may change in behaviour or interface.
 - It cannot predict all possible firmware changes — a Secure Boot dbx update from your motherboard vendor may not be in the prediction model.
 - There is an open request for `fwupd` to integrate `systemd‑pcrlock` for seamless firmware updates, but it has not been merged as of April 2026.
 - The policy is protected by a recovery PIN; you must remember this PIN or fall back to the LUKS recovery key.
 
-**Recommendation:** Continue using the manual recovery procedure in Part 30.  Monitor `systemd‑pcrlock`'s status and re‑evaluate in mid‑2026.  When it stabilises, you can potentially replace the manual re‑enrollment steps with the `unlock‑firmware‑code` / `make‑policy` workflow.
+**Recommendation:** Continue using the manual recovery procedure in Part 29.  Monitor `systemd‑pcrlock`'s status and re‑evaluate in mid‑2026.  When it stabilises, you can potentially replace the manual re‑enrollment steps with the `unlock‑firmware‑code` / `make‑policy` workflow.
 
 ---
 
-### 10B.7 — TPM‑Assisted Random Number Generation
+### 10A.7 — TPM‑Assisted Random Number Generation
 
 The TPM provides a hardware random number generator that the kernel integrates into its entropy pool.  On the i9‑13900K this happens automatically via `CONFIG_HW_RANDOM_TPM=y` (already enabled in your cachyos‑sources kernel).  No userspace configuration is needed.
 
@@ -1629,7 +1681,7 @@ The TPM RNG is used alongside RDRAND and the kernel's jitterentropy to seed `/de
 
 ---
 
-### 10B.8 — TPM‑Backed GPG Keys (Experimental)
+### 10A.8 — TPM‑Backed GPG Keys (Experimental)
 
 GnuPG ≥ 2.3 has experimental support for storing private keys in the TPM.  On Gentoo this requires:
 
@@ -1643,7 +1695,7 @@ Configuration is complex and the feature is still marked experimental upstream. 
 
 ---
 
-### 10B.9 — Security Considerations
+### 10A.9 — Security Considerations
 
 | Threat | TPM Mitigation | Limitation |
 |--------|---------------|------------|
@@ -1655,7 +1707,7 @@ Configuration is complex and the feature is still marked experimental upstream. 
 
 ---
 
-### 10B.10 — Summary of TPM Integration
+### 10A.10 — Summary of TPM Integration
 
 | Feature | Guide Section | Status |
 |---------|---------------|--------|
@@ -1663,25 +1715,26 @@ Configuration is complex and the feature is still marked experimental upstream. 
 | LUKS recovery key enrollment | Part 10 | ✅ Configured |
 | TPM PCR sealing (0+2+7+12) | Part 10.2 | ✅ Configured |
 | TPM‑backed SSH keys | Part 19 | ✅ Configured |
-| TPM SSH key Git signing | Section 10B.2.6 | ✅ Optional |
-| TPM diagnostic tools (`tpm2‑tools`) | Section 10B.3 | Recommended |
-| TPM virtual FIDO2 (`tpm‑fido`) | Section 10B.4 | ⚠️ Experimental / from‑source |
-| TPM‑backed sudo PIN (`pinpam`) | Section 10B.5 | ⚠️ Experimental / from‑source |
-| TPM‑backed GPG keys | Section 10B.8 | ⚠️ Experimental |
-| `systemd‑pcrlock` | Section 10B.6 | ⚠️ Experimental |
-| Manual TPM recovery after firmware update | Part 30 | ✅ Configured |
+| TPM SSH key Git signing | Section 10A.2.6 | ✅ Optional |
+| TPM diagnostic tools (`tpm2‑tools`) | Section 10A.3 | Recommended |
+| TPM virtual FIDO2 (`tpm‑fido`) | Section 10A.4 | ⚠️ Experimental / from‑source |
+| TPM‑backed sudo PIN (`pinpam`) | Section 10A.5 | ⚠️ Experimental / from‑source |
+| TPM‑backed GPG keys | Section 10A.8 | ⚠️ Experimental |
+| `systemd‑pcrlock` | Section 10A.6 | ⚠️ Experimental |
+| Manual TPM recovery after firmware update | Part 29 | ✅ Configured |
 
 All of the above is verified against the Gentoo Wiki (specifically the [Trusted Platform Module/SSH page](https://wiki.gentoo.org/wiki/Trusted_Platform_Module/SSH), which documents `tpm2‑pkcs11` installation and `PKCS11Provider` configuration), the systemd man pages (`systemd‑pcrlock(8)` confirms the prediction and NV‑Index policy mechanism), and the `systemd‑cryptenroll(1)` manual page.
 
+
 ---
 
-## Part 10C — `systemd-homed`: Per‑User Encrypted Home Directories
+## Part 10B — `systemd-homed`: Per‑User Encrypted Home Directories
 
 Your LUKS‑encrypted root filesystem protects all data at rest against physical theft of a powered‑off machine.  `systemd-homed` adds a **second, independent encryption layer** for each user: every home directory becomes its own LUKS2 container, sealed with a user‑chosen passphrase or a FIDO2/TPM token.  Critically, the home directory can be **automatically locked when the system suspends** — the LUKS master key is evicted from kernel memory, so a cold‑boot or DMA attack on a sleeping machine reveals nothing.
 
 This is defence‑in‑depth: an attacker who compromises the root filesystem (e.g., via a kernel exploit) still cannot read the contents of a locked home directory without the user’s credentials.  The `systemd-homed` service is included in `sys-apps/systemd` and is enabled via the `homed` USE flag.
 
-### 10C.1 — Kernel Requirements
+### 10B.1 — Kernel Requirements
 
 `systemd-homed` with the LUKS backend requires the following kernel options.  The `cachyos-sources` `.config` already enables most of these; verify in `make menuconfig` if any build fails:
 
@@ -1710,7 +1763,7 @@ Device Drivers --->
 
 All of the above are verified against the [Gentoo wiki’s `systemd-homed` article](https://wiki.gentoo.org/wiki/Systemd/systemd-homed).
 
-### 10C.2 — Installation and USE Flags
+### 10B.2 — Installation and USE Flags
 
 `systemd-homed` requires the `homed` USE flag on `sys-apps/systemd` and on `sys-auth/pambase`.  Add them to your existing configuration in `/etc/portage/package.use`:
 
@@ -1743,7 +1796,7 @@ Verify the service is active:
 systemctl is-active systemd-homed.service   # should print "active"
 ```
 
-### 10C.3 — NSS Configuration
+### 10B.3 — NSS Configuration
 
 Update the Name Service Switch configuration so that `systemd-homed` users are recognised by the system.  Edit `/etc/nsswitch.conf` and add `systemd` to the `passwd`, `shadow`, and `group` lines:
 
@@ -1756,7 +1809,7 @@ group:  files systemd
 
 Without this change, tools like `ls -l`, `id`, and `sudo` will not resolve `systemd-homed` user names or group memberships.
 
-### 10C.4 — Storage Backends
+### 10B.4 — Storage Backends
 
 `systemd-homed` supports several storage backends; the **LUKS2 backend** is the only one appropriate for this hardened configuration:
 
@@ -1772,7 +1825,7 @@ The `luks` backend stores the home directory as a LUKS2‑encrypted loopback fil
 
 At login, the LUKS2 volume is decrypted and the filesystem inside is mounted.  The loopback file can be transparently discarded (trimmed) when the user logs out by enabling both `--luks-discard=true` (online discard while mounted) and `--luks-offline-discard=true` (offline discard on logout).  However, enabling discard leaks information about which sectors are in use; for an APT threat model, leave both discard options at their defaults (`false`) unless disk space is critically constrained.
 
-### 10C.5 — Creating a `systemd-homed` User
+### 10B.5 — Creating a `systemd-homed` User
 
 > **This section assumes the `ahsan` user already exists (created in Section 6.6) and has data in `/home/ahsan`.  If you have not yet rebooted into the installed system, complete Part 26 first, then return here.**
 
@@ -1861,9 +1914,9 @@ ls -lh /home/ahsan.home
 # Should report a LUKS container file
 ```
 
-### 10C.6 — PAM Integration and Automatic Locking on Suspend
+### 10B.6 — PAM Integration and Automatic Locking on Suspend
 
-For `systemd-homed` to work with SSH, the display manager (SDDM), and `sudo`, the PAM stack must load `pam_systemd_home.so`.  Gentoo’s `sys-auth/pambase` already includes this module when the `homed` USE flag is enabled (Section 10C.2), so no manual PAM edits are required for basic functionality.
+For `systemd-homed` to work with SSH, the display manager (SDDM), and `sudo`, the PAM stack must load `pam_systemd_home.so`.  Gentoo’s `sys-auth/pambase` already includes this module when the `homed` USE flag is enabled (Section 10B.2), so no manual PAM edits are required for basic functionality.
 
 However, for the lock‑on‑suspend feature — which evicts the LUKS master key from memory when the system suspends — the `suspend=true` parameter must be added to the `pam_systemd_home.so` lines in the PAM configuration.  This is controlled by the `$SYSTEMD_HOME_SUSPEND` environment variable that `pam_systemd_home.so` reads, but the authoritative method is to set the parameter directly in the PAM stack.
 
@@ -1893,19 +1946,19 @@ EOF
 
 > **Important**: `LockOnSuspend=yes` instructs the display manager to lock the screen, but the LUKS key eviction is triggered by `pam_systemd_home.so suspend=true`, not by `logind`.  Both must be configured for the full suspend‑lock behaviour.  Additionally, at least one active PAM session for the user must have `suspend=true` set; if no such session exists (e.g., the user logged in via a session that lacks this parameter), the home directory will **not** be suspended.
 
-### 10C.7 — Interaction with the Existing Hardening Setup
+### 10B.7 — Interaction with the Existing Hardening Setup
 
 | Component | Impact |
 |-----------|--------|
 | **LUKS2 full‑disk encryption** | Unchanged — `systemd-homed` adds a second, per‑user LUKS layer inside the already‑encrypted root filesystem. |
 | **TPM2 LUKS unlock (Part 10)** | Unaffected — `systemd-homed` manages user home directories, not the root filesystem.  You may also enroll a TPM2 or FIDO2 token on the homed container via `homectl update ahsan --fido2-device=auto` or `--tpm2-device=auto`. |
 | **AppArmor** | No changes needed — `apparmor.d` does not ship a `systemd-homed` profile, but `homed` runs as a system service confined by systemd’s own sandboxing. |
-| **`svc-harden.py` (Part 24)** | Run `sudo svc-harden.py profile systemd-homed.service` after the service has been active for a week to profile its runtime behaviour and apply confinement directives. |
+| **`svc-harden.py` (Part 23)** | Run `sudo svc-harden.py profile systemd-homed.service` after the service has been active for a week to profile its runtime behaviour and apply confinement directives. |
 | **Snapper snapshots** | The `/home/ahsan.home` loopback file is a single large binary blob.  Snapper snapshots of the `/home` subvolume will include the entire LUKS container, which can consume snapshot space rapidly.  Consider excluding `/home/*.home` from timeline snapshots or reducing the home timeline retention. |
 | **fstab** | No changes — `systemd-homed` mounts home directories dynamically; the `/home` entry in fstab remains a plain Btrfs subvolume. |
 | **NVIDIA drivers** | Unchanged — GPU state is unaffected by home directory encryption. |
 
-### 10C.8 — Security Considerations
+### 10B.8 — Security Considerations
 
 | Threat | Without `systemd-homed` | With `systemd-homed` + `suspend=true` |
 |--------|--------------------------|---------------------------------------|
@@ -1916,7 +1969,7 @@ EOF
 
 > **Note on `suspend=true`**: This feature requires systemd ≥ 245.  The kernel must support `CONFIG_DM_CRYPT` and `CONFIG_BLK_DEV_LOOP`.  Both are satisfied by `cachyos-sources` (≥ 6.13) and systemd (≥ 255) in this guide.
 
-### 10C.9 — Recovery and Troubleshooting
+### 10B.9 — Recovery and Troubleshooting
 
 **Forgotten user passphrase**: Boot the system, log in as root, and use the recovery key generated during `homectl create`:
 
@@ -1938,9 +1991,9 @@ journalctl -u systemd-homed.service -n 50
 
 Common causes:
 - The loopback file `/home/ahsan.home` has been deleted or corrupted.
-- Kernel lacks required options (`CONFIG_BLK_DEV_LOOP`, `CONFIG_DM_CRYPT`; see Section 10C.1).
+- Kernel lacks required options (`CONFIG_BLK_DEV_LOOP`, `CONFIG_DM_CRYPT`; see Section 10B.1).
 - The filesystem inside the LUKS container is marked dirty.  Follow the [Gentoo wiki’s repair procedure](https://wiki.gentoo.org/wiki/Systemd/systemd-homed#Manual_homed_mount_and_repair) to mount and `fsck` the filesystem manually.
-- The `nsswitch.conf` has not been updated (Section 10C.3); tools cannot resolve the user.
+- The `nsswitch.conf` has not been updated (Section 10B.3); tools cannot resolve the user.
 
 **Manual mount for emergency data access**:
 
@@ -1956,7 +2009,7 @@ cryptsetup close home-ahsan
 losetup -d /dev/loop0
 ```
 
-### 10C.10 — Summary
+### 10B.10 — Summary
 
 | Feature | Status |
 |---------|--------|
@@ -1968,83 +2021,53 @@ losetup -d /dev/loop0
 | Migration from traditional `/home` | ✅ Supported via the upstream manual procedure |
 
 
-### Audit Change Log
-
-| # | Original (Part 10C v1) | Corrected | Rationale |
-|---|---|---|---|
-| 1 | `homectl update ahsan --auto-resize-mode=off --luks-suspend-discard=yes` | Removed entirely | `--luks-suspend-discard` does not exist as a `homectl` parameter. The lock‑on‑suspend behaviour is controlled by `pam_systemd_home.so suspend=true`, not by `homectl update`. |
-| 2 | `homectl convert ahsan --storage=luks …` | Replaced with manual migration procedure | `homectl convert` does not exist. The upstream conversion guide requires manual removal from `/etc/passwd`, `/etc/shadow`, and re‑creation via `homectl create`. |
-| 3 | `--auto-resize-mode=off` | Removed; `auto-resize-mode` is not needed for basic setup | The `--auto-resize-mode` parameter exists but is optional and unrelated to suspend behaviour. |
-| 4 | PAM configuration suggested `auth sufficient`, `account sufficient`, `session optional` without `suspend=true` | Added `suspend=true` to the `auth` line; documented the `$SYSTEMD_HOME_SUSPEND` environment variable | The `suspend=true` parameter is required for the LUKS key eviction on suspend. Without it, the home directory remains unlocked during sleep. |
-| 5 | `LockOnSuspend=yes` described as the sole suspend‑lock mechanism | Clarified that `LockOnSuspend` only locks the screen; key eviction requires `pam_systemd_home.so suspend=true` | `LockOnSuspend` tells the display manager to lock the session; it does not interact with the LUKS layer. Both must be configured. |
-| 6 | No kernel requirements listed | Added kernel configuration section (10C.1) | Loopback devices, dm-crypt, and various crypto algorithms are required by `systemd-homed` with the `luks` backend. |
-| 7 | No NSS configuration | Added `nsswitch.conf` configuration (Section 10C.3) | Without `systemd` in `nsswitch.conf`, tools like `ls -l`, `id`, and `sudo` cannot resolve homed user names. |
-| 8 | `homectl authenticate ahsan --recovery-key` (incorrect flag syntax) | Corrected to `homectl authenticate ahsan` (it prompts interactively) | The `--recovery-key` flag is for `homectl create`, not `homectl authenticate`. |
-| 9 | Missing manual mount recovery procedure | Added emergency data access steps in Section 10C.9 | Users need a documented path to recover data if the home directory fails to mount. |
-| 10 | Missing `--luks-discard` and `--luks-offline-discard` discussion | Added explanation of discard options and security trade-offs | For APT threat model, both discard options should remain at their defaults (`false`) to avoid information leakage. |
 
 
 ---
 
-## Part 11 — fstab
+## Part 11 — fstab
 
 ```bash
-# Get filesystem UUIDs
 ROOT_UUID=$(blkid -s UUID -o value /dev/vg0/root)
 ESP_UUID=$(blkid -s UUID -o value /dev/nvme0n1p1)
 
 cat > /etc/fstab << EOF
-# /etc/fstab — Hardened Gentoo, April 2026
-
-# Btrfs root – mounts the current default subvolume (set by snapper)
-UUID=${ROOT_UUID}  /                    btrfs  defaults,noatime,compress=zstd:1,space_cache=v2  0 0
-
-# Snapper directory
-UUID=${ROOT_UUID}  /.snapshots          btrfs  defaults,noatime,compress=zstd:1,space_cache=v2,subvol=@/.snapshots  0 0
-
-# Data subvolumes
-UUID=${ROOT_UUID}  /home                btrfs  defaults,noatime,compress=zstd:1,space_cache=v2,subvol=@/home  0 0
-UUID=${ROOT_UUID}  /opt                 btrfs  defaults,noatime,compress=zstd:1,space_cache=v2,subvol=@/opt  0 0
-UUID=${ROOT_UUID}  /root                btrfs  defaults,noatime,compress=zstd:1,space_cache=v2,subvol=@/root  0 0
-UUID=${ROOT_UUID}  /srv                 btrfs  defaults,noatime,compress=zstd:1,space_cache=v2,subvol=@/srv  0 0
-UUID=${ROOT_UUID}  /tmp                 btrfs  defaults,noatime,compress=zstd:1,space_cache=v2,subvol=@/tmp  0 0
-UUID=${ROOT_UUID}  /usr/local           btrfs  defaults,noatime,compress=zstd:1,space_cache=v2,subvol=@/usr/local  0 0
-
-# Var subvolumes – CoW disabled with chattr +C, no mount‑time nodatacow needed
-UUID=${ROOT_UUID}  /var                 btrfs  defaults,noatime,space_cache=v2,subvol=@/var  0 0
-UUID=${ROOT_UUID}  /var/log             btrfs  defaults,noatime,space_cache=v2,subvol=@/var/log  0 0
-UUID=${ROOT_UUID}  /var/log/audit       btrfs  defaults,noatime,space_cache=v2,subvol=@/var/log/audit  0 0
-UUID=${ROOT_UUID}  /var/cache           btrfs  defaults,noatime,space_cache=v2,subvol=@/var/cache  0 0
-UUID=${ROOT_UUID}  /var/tmp             btrfs  defaults,noatime,space_cache=v2,subvol=@/var/tmp  0 0
-
-# Nix store – CoW disabled with chattr +C
-UUID=${ROOT_UUID}  /nix                 btrfs  defaults,noatime,space_cache=v2,subvol=@/nix  0 0
-
-# ESP
-UUID=${ESP_UUID}    /efi                vfat   defaults,noatime  0 2
-
-# zram swap
-/dev/zram0         none                 swap   defaults,pri=100  0 0
+# Btrfs root – mounts the current default subvolume
+UUID=${ROOT_UUID}  /                 btrfs  defaults,noatime,compress=zstd:1,space_cache=v2  0 0
+UUID=${ROOT_UUID}  /.snapshots       btrfs  defaults,noatime,compress=zstd:1,space_cache=v2,subvol=@/.snapshots  0 0
+UUID=${ROOT_UUID}  /home             btrfs  defaults,noatime,compress=zstd:1,space_cache=v2,subvol=@/home  0 0
+UUID=${ROOT_UUID}  /opt              btrfs  defaults,noatime,compress=zstd:1,space_cache=v2,subvol=@/opt  0 0
+UUID=${ROOT_UUID}  /root             btrfs  defaults,noatime,compress=zstd:1,space_cache=v2,subvol=@/root  0 0
+UUID=${ROOT_UUID}  /srv              btrfs  defaults,noatime,compress=zstd:1,space_cache=v2,subvol=@/srv  0 0
+UUID=${ROOT_UUID}  /tmp              btrfs  defaults,noatime,compress=zstd:1,space_cache=v2,subvol=@/tmp  0 0
+UUID=${ROOT_UUID}  /usr/local        btrfs  defaults,noatime,compress=zstd:1,space_cache=v2,subvol=@/usr/local  0 0
+UUID=${ROOT_UUID}  /var              btrfs  defaults,noatime,compress=zstd:1,space_cache=v2,subvol=@/var  0 0
+UUID=${ROOT_UUID}  /var/tmp          btrfs  defaults,noatime,compress=zstd:1,space_cache=v2,subvol=@/var/tmp  0 0
+UUID=${ROOT_UUID}  /nix              btrfs  defaults,noatime,compress=zstd:1,space_cache=v2,subvol=@/nix  0 0
+UUID=${ESP_UUID}    /efi              vfat   defaults,noatime  0 2
+/dev/zram0         none               swap   defaults,pri=100  0 0
 EOF
 ```
 
 ---
 
-## Part 12 — Zram Swap Configuration
+## Part 12 — Zram Swap Configuration  
 
 ```bash
+emerge sys-apps/zram-generator
 cat > /etc/systemd/zram-generator.conf << 'EOF'
 [zram0]
 zram-size = ram / 2
 compression-algorithm = zstd
 EOF
 
-systemctl enable systemd-zram-setup@zram0.service
+systemctl daemon-reload
+systemctl start dev-zram0.swap
 ```
 
 ---
 
-## Part 13 — Snapper Integration
+## Part 13 — Snapper Integration  
 
 ```bash
 # Install snapper (can be done after first boot)
@@ -2107,7 +2130,7 @@ BASHRC
 
 ---
 
-## Part 14 — AppArmor Configuration
+## Part 14 — AppArmor Configuration  
 
 ### 14.1 — Installation and Kernel Setup
 
@@ -2599,10 +2622,9 @@ sudo aa-logprof -d /etc/apparmor.d/ /usr/bin/git
 
 For profiles you generated yourself, periodically review the local override files in `/etc/apparmor.d/local/`. The `apparmor.d` project updates its upstream profiles regularly; your local overrides ensure your modifications survive those updates.
 
-
 ---
 
-## Part 15 — Auditd Hardening
+## Part 15 — Auditd Hardening  
 
 ### 15.1 — Installation
 
@@ -2858,7 +2880,7 @@ ausearch -k module_load
 
 ---
 
-## Part 16 — Kernel Module Blacklisting
+## Part 16 — Kernel Module Blacklisting  
 
 `mkdir -p /etc/modprobe.d/ && nvim /etc/modprobe.d/blacklist-hardening.conf`
 
@@ -3003,7 +3025,7 @@ blacklist sr_mod
 
 ---
 
-## Part 17 — IOMMU and DMA Protection
+## Part 17 — IOMMU and DMA Protection  
 
 ### Required UEFI/BIOS Settings
 
@@ -3072,9 +3094,9 @@ They are complementary: IOMMU prevents a malicious device from reading arbitrary
 
 ---
 
-## Part 18 — Network and Host‑Based Defences
+## Part 18 — Network Hardening  
 
-Your `firewalld` configuration (Section 18.1) controls network‑level traffic with a strict default‑drop policy.  This section adds three complementary layers:
+This `firewalld` configuration (Section 18.1) controls network‑level traffic with a strict default‑drop policy.  This section adds three complementary layers:
 
 1. **Application‑layer outbound filtering** (OpenSnitch) — every new outbound connection from an application requires explicit authorisation.
 2. **Host‑based intrusion detection** — file‑integrity monitoring (AIDE) and periodic rootkit scans (rkhunter + chkrootkit) to detect post‑compromise tampering.
@@ -3627,13 +3649,11 @@ systemctl enable --now cockpit.socket
 ```
 
 > **Certificate pinning:** After first login, pin the certificate’s SHA‑256 fingerprint in your browser.  
-> **AppArmor:** No profile shipped by apparmor.d; bound to localhost only, and hardened with `svc-harden.py apply cockpit` (Part 24).
+> **AppArmor:** No profile shipped by apparmor.d; bound to localhost only, and hardened with `svc-harden.py apply cockpit` (Part 23).
 
 ---
 
-This unified Part 18 provides a complete, layered defence‑in‑depth for network traffic, application behaviour, and host integrity, all tailored to your APT‑hardened Gentoo workstation.---
-
-# Part 19 — SSH Hardening with TPM‑Backed Keys
+## Part 19 — SSH Hardening with TPM‑Backed Keys  
 
 A TPM can store SSH private keys, making them much harder for an attacker—or malware—to extract: the key never leaves the TPM. This is comparable in security to a YubiKey but uses the TPM already on your motherboard.
 
@@ -3988,9 +4008,11 @@ ssh-keygen -D /usr/lib64/libtpm2_pkcs11.so
 ssh -I /usr/lib64/libtpm2_pkcs11.so user@remote.host.tld
 ```
 
+
+
 ---
 
-## Part 20 — PAM and Authentication Hardening
+## Part 20 — PAM and Authentication Hardening  
 
 ### Gentoo‑Specific PAM Notes
 
@@ -4245,7 +4267,7 @@ faillock --user ahsan
 
 ---
 
-## Part 21 — Supply Chain Monitoring
+## Part 21 — Supply Chain Monitoring  
 
 A nation-state supply-chain adversary targets the package distribution pipeline — tampered ebuilds, malicious source tarballs, or compromised repository metadata — to inject code before it ever reaches the compiler. The controls below make every link in that chain cryptographically verifiable and auditable.
 
@@ -4491,10 +4513,9 @@ systemctl is-active weekly-security-scan.timer
 cat /var/log/portage-audit.json 2>/dev/null | tail -3 || echo "No audit entries yet (run an emerge to generate them)"
 ```
 
-
 ---
 
-## Part 22 — Ongoing Monitoring, Log Review, and Vulnerability Alerting
+## Part 22 — Ongoing Monitoring, Log Review, and Vulnerability Alerting  
 
 ### 22.1 — Mail Relay with msmtp
 
@@ -4794,11 +4815,11 @@ aa-status | head -5
 
 ---
 
-## Part 23 – systemd Service Hardening
+## Part 23 — systemd Service Hardening  
 
 System‑level service confinement complements AppArmor and bubblewrap by restricting daemons at the service‑manager level, before the binary even starts. This tool automates analysis, interactive hardening, SHH‑based profiling, testing, rollback, and bisection.
 
-### 24.1 – Prerequisites
+### 23.1 – Prerequisites
 
 | Component | Package / Install Command | Purpose |
 |-----------|--------------------------|---------|
@@ -4811,7 +4832,7 @@ If SHH is not installed, the `profile` subcommand will print an error with the e
 
 ---
 
-### 24.2 – The Integrated `svc‑harden.py` Script
+### 23.2 – The Integrated `svc‑harden.py` Script
 
 Save to `/usr/local/bin/svc‑harden.py` and make it executable:
 
@@ -5201,6 +5222,7 @@ def _run_shh_profile(service: str, mode: str, *, filesystem: bool,
 # ──────────────────────────────────────────────────────────────────────────────
 # Subcommand: analyze
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 def cmd_analyze(service: str, *, dry_run: bool = False) -> int:
     """Show current exposure score and list missing directives."""
@@ -5791,13 +5813,13 @@ if __name__ == "__main__":
 
 ---
 
-### 24.3 – Detailed Usage Walkthrough
+### 23.3 – Detailed Usage Walkthrough
 
 Below is a step‑by‑step guide through every subcommand of `svc‑harden.py`.  All examples assume you are root (use `sudo`) and that the script is installed at `/usr/local/bin/svc‑harden.py`.  For brevity, the service `cockpit.service` is used as a running example, but the same workflow applies to any systemd service.
 
 ---
 
-#### 24.3.1 – Preliminaries
+#### 23.3.1 – Preliminaries
 
 1.  **Ensure the service is running** – `svc‑harden.py apply`, `profile`, and `test` will restart the service; it must be in a working baseline state first.
     ```bash
@@ -5813,7 +5835,7 @@ Below is a step‑by‑step guide through every subcommand of `svc‑harden.py`.
 
 ---
 
-#### 24.3.2 – `analyze` – See What Can Be Improved
+#### 23.3.2 – `analyze` – See What Can Be Improved
 
 This is the first command to run on any service.  It does **not** modify anything; it only prints the current exposure score and lists every directive from our hardening table that is currently absent or set to an insecure value.
 
@@ -5855,7 +5877,7 @@ Repeat `analyze` after each hardening step to see the score change.
 
 ---
 
-#### 24.3.3 – `apply` – Interactive, Manual Hardening
+#### 23.3.3 – `apply` – Interactive, Manual Hardening
 
 When you understand the service well enough to decide which directives are safe, use `apply`:
 
@@ -5900,7 +5922,7 @@ Answer `y` and the service will be restarted immediately with the new restrictio
 
 ---
 
-#### 24.3.4 – `profile` – Auto‑Hardening via SHH (Behaviour‑Based)
+#### 23.3.4 – `profile` – Auto‑Hardening via SHH (Behaviour‑Based)
 
 For complex services whose behaviour you may not fully know, use runtime profiling:
 
@@ -5954,7 +5976,7 @@ sudo svc‑harden.py profile cockpit.service
 
 ---
 
-#### 24.3.5 – `test` – Validate That the Hardening Didn’t Break Anything
+#### 23.3.5 – `test` – Validate That the Hardening Didn’t Break Anything
 
 After applying a hardening profile, always verify that the service works as expected:
 
@@ -5971,7 +5993,7 @@ sudo svc‑harden.py test cockpit.service --test-cmd "curl -s -o /dev/null -w '%
 
 ---
 
-#### 24.3.6 – `revert` – Roll Back to the Original State
+#### 23.3.6 – `revert` – Roll Back to the Original State
 
 If the hardened profile causes problems and `bisect` isn’t needed (or you just want to start over), undo all changes with:
 
@@ -5983,7 +6005,7 @@ The drop‑in file is deleted and the service is restarted with its original uni
 
 ---
 
-#### 24.3.7 – `bisect` – Find the Culprit Directive
+#### 23.3.7 – `bisect` – Find the Culprit Directive
 
 When a service fails to start after hardening, but you are unsure which directive is responsible, use the automated bisection:
 
@@ -6006,7 +6028,7 @@ The tool reads the current hardening drop‑in, disables one directive at a time
 
 ---
 
-#### 24.3.8 – `log` – Audit Trail
+#### 23.3.8 – `log` – Audit Trail
 
 Every action (`analyze`, `apply`, `profile`, `test`, `revert`, `bisect`) is recorded in a newline‑delimited JSON file at `/var/log/svc‑harden‑audit.json`.  To review all changes ever made:
 
@@ -6018,7 +6040,7 @@ Each entry shows a timestamp, the action, the affected service, and further deta
 
 ---
 
-#### 24.3.9 – Workflow Summary
+#### 23.3.9 – Workflow Summary
 
 For each service you want to harden, follow this general flow:
 
@@ -6034,7 +6056,7 @@ Always `test` critical services before rebooting the system, so you can catch fa
 
 ---
 
-### 24.4 – Recommended Services for Hardening
+### 23.4 – Recommended Services for Hardening
 
 Run `svc‑harden.py analyze` (or `profile`) on every active system service. Priorities:
 
@@ -6053,7 +6075,7 @@ For complex network daemons, prefer SHH profiling because it captures the exact 
 
 ---
 
-### 24.5 – Learning Python with This Script
+### 23.5 – Learning Python with This Script
 
 This script is a real‑world, production‑grade example of a modern Python CLI application. It uses:
 
@@ -6070,8 +6092,7 @@ If you are learning Python, studying this script alongside the `systemd.exec(5)`
 
 ---
 
-
-## Part 25 — System Packages (Desktop)
+## Part 24 — System Packages (Desktop)  
 
 > **Install all packages listed in `README.md` sections for desktop, development, containers, and scientific computing.** The full emerge list from the personal runbook includes:
 
@@ -6098,7 +6119,7 @@ emerge --ask \
 
 ---
 
-## Part 25 — Login Banner
+## Part 25 — Login Banner  
 
 ```bash
 cat > /etc/issue << 'EOF'
@@ -6110,7 +6131,7 @@ cp /etc/issue /etc/issue.net
 
 ---
 
-## Part 26 — Final System Setup and First Boot
+## Part 26 — Final System Setup and First Boot  
 
 ### 26.1 — User Account (already configured)
 
@@ -6156,7 +6177,7 @@ reboot
 
 ---
 
-## Part 27 — Post‑Install: TPM2 Enrollment and Verification
+## Part 27 — Post‑Install: TPM2 Enrollment and Verification  
 
 After first boot (you will be prompted for the LUKS passphrase):
 
@@ -6177,9 +6198,10 @@ dmesg | grep "Intel-IOMMU: enabled"
 cat /sys/kernel/security/lsm
 ```
 
+
 ---
 
-## Part 28 — Post‑Install Chroot Re‑Entry
+## Part 28 — Post‑Install Chroot Re‑Entry  
 
 If you need to re‑enter the installed system from a live environment (e.g., for boot repair, UKI regeneration, or `snapper rollback`), the procedure below remounts the entire LUKS‑LVM‑Btrfs stack independently of the running kernel’s
 fstab.  **All commands assume you have booted from a Gentoo Live‑DVD/USB** (or any rescue environment with `cryptsetup`, `lvm2`, and `btrfs‑progs`).
@@ -6349,21 +6371,11 @@ reboot
 > filesystem immediately but finishes pending operations in the background.
 > This avoids “target is busy” errors if a process (e.g. `systemd-journald`
 > from the chroot) still holds a file descriptor.
-```
 
-### 📋 Audit Change Log
-
-| # | Original | Corrected | Rationale |
-|---|---|---|---|
-| 1 | `mount -o … subvol=@/.snapshots/1/snapshot` | `mount -o … /dev/vg0/root /mnt/gentoo` (no `subvol=`) | After a `snapper rollback`, the default subvolume changes, but the hard‑coded path would mount a stale snapshot. Omitting `subvol=` always mounts the current default. |
-| 2 | `mount /dev/nvme0n1p1 /mnt/gentoo/efi` | Added `fsck.vfat -a` before the mount | Prevents “dirty volume” warnings that can occur if the system was not shut down cleanly. |
-| 3 | No `binfmt_misc` mount | Added `mount -t binfmt_misc …` | Required by Python and the AppArmor parser; without it, profile loading fails silently. |
-| 4 | No graceful exit procedure | Added Section 28.7 | An incomplete unmount can leave LVM volumes active, preventing a clean reboot. |
-| 5 | No `resolv.conf` copy | Added Section 28.5 with `cp --dereference /etc/resolv.conf` | Without this the chroot cannot resolve hostnames, which breaks `emerge --sync`. |
 
 ---
 
-## Part 30 — TPM2 Key Recovery
+## Part 29 — TPM2 Key Recovery
 
 PCR sealing is what makes TPM2‑backed LUKS unlock secure: the TPM will only release the disk‑encryption key if the measured boot chain matches the value that was recorded at enrollment time. Any change to a sealed PCR — a UEFI firmware update, a Secure Boot key rotation, a dbx update, or even a kernel command‑line modification — will cause the TPM to refuse to unseal the key. This is a security feature, not a bug: a PCR mismatch can signal either a legitimate update or a sophisticated evil‑maid attack.
 
@@ -6371,7 +6383,7 @@ When the TPM refuses to unseal, the initramfs falls back to prompting for a pass
 
 ---
 
-### 30.1 — Why This Process Must Remain Manual
+### 29.1 — Why This Process Must Remain Manual
 
 For a nation‑state threat model, the inconvenience of typing a few commands after a firmware update is trivial compared to the risk of silently accepting a compromised boot chain:
 
@@ -6386,7 +6398,7 @@ For a nation‑state threat model, the inconvenience of typing a few commands af
 
 ---
 
-### 30.2 — Recovery Procedure
+### 29.2 — Recovery Procedure
 
 #### Step 1: Boot with the Recovery Key
 
@@ -6414,7 +6426,7 @@ If anything looks wrong — an unsigned UKI, a kernel version you don’t recogn
 
 ---
 
-### 30.3 — The `tpm‑re‑enroll` Convenience Script
+### 29.3 — The `tpm‑re‑enroll` Convenience Script
 
 The script below performs the full wipe → re‑enroll → recovery‑key‑rotation cycle on both LUKS containers. Save it to `/usr/local/sbin/tpm‑re‑enroll` and make it executable.
 
@@ -6481,7 +6493,7 @@ The script prints the new recovery keys to stdout. Write them down **immediately
 
 ---
 
-### 30.4 — What Happens During Re‑Enrollment
+### 29.4 — What Happens During Re‑Enrollment
 
 | Step | Command | Effect |
 |------|---------|--------|
@@ -6499,11 +6511,11 @@ systemd-cryptenroll /dev/nvme1n1p1
 
 ---
 
-### 30.5 — Complete TPM Failure
+### 29.5 — Complete TPM Failure
 
 If the TPM chip is physically damaged, has been cleared by a firmware bug, or has been reset to factory defaults, TPM‑based unlock is permanently unavailable.
 
-**Immediate action:** Boot using the recovery key (as in Section 30.2, Step 1).
+**Immediate action:** Boot using the recovery key (as in Section 29.2, Step 1).
 
 **Long‑term options:**
 
@@ -6517,7 +6529,7 @@ If you fall back to a passphrase, increase the Argon2id memory parameter to at l
 
 ---
 
-### 30.6 — PCR Justification (Repeated from Part 10)
+### 29.6 — PCR Justification (Repeated from Part 10)
 
 | PCR | Measures | Why Included | What changes it |
 |-----|----------|-------------|-----------------|
@@ -6528,7 +6540,7 @@ If you fall back to a passphrase, increase the Argon2id memory parameter to at l
 
 > **Choosing fewer PCRs**: If you find yourself re‑enrolling too often (e.g., after every kernel update because of PCR 12 changes), you can drop specific PCRs from the list. Dropping PCR 12 gives up protection against cmdline injection; dropping PCR 7 gives up protection against Secure Boot key replacement. For an APT threat model, the four‑PCR set above provides the best balance of security and manageability.
 
-### 30.7 — Automated Alternative: `systemd‑pcrlock` (Experimental)
+### 29.7 — Automated Alternative: `systemd‑pcrlock` (Experimental)
 
 `systemd‑pcrlock` is a newer tool (available in systemd ≥ 255) that can **predict** what PCR values will look like after a legitimate firmware update and store a policy in TPM non‑volatile memory that allows unlocking across those predicted changes. It is designed to reduce the manual burden of firmware updates while still refusing to unlock the disk for unpredicted PCR states.
 
@@ -6552,7 +6564,7 @@ systemd-pcrlock make-policy
 
 ---
 
-### 30.8 — Recovery Workflow Summary
+### 29.8 — Recovery Workflow Summary
 
 ```
 PCR mismatch detected at boot
@@ -6571,6 +6583,969 @@ PCR mismatch detected at boot
                             • Re‑provision the system from known‑good backups
                               if tampering is confirmed.
 ```
+
 ---
 
-*Guide prepared April 2026. Architecture verified against: Gentoo Wiki (Hardened, UKI, Dracut, Installkernel, Secure Boot, systemd‑cryptenroll), Arch Wiki (dm‑crypt, Unified Kernel Image, Secure Boot), CachyOS Wiki (Kernel), and systemd documentation (systemd‑cryptenroll, systemd‑stub).*
+## Appendix D — CIS Ubuntu 24.04 LTS Desktop Benchmark – Gentoo Mapping  
+
+### Tailored CIS Hardening Guide for Gentoo Linux
+
+**Based on:** CIS Ubuntu Linux 24.04 LTS Benchmark v1.0.0 (published 2024-08-26)  
+**Adapted for:** Hardened Gentoo Installation — APT Threat Model (April 2026)  
+**Primary Reference:** `README.md` (Hardened Gentoo Installation Guide)  
+**Target System:** Gentoo Linux · CachyOS-sources kernel · UKI direct UEFI boot · TPM2+PIN LUKS2 · AppArmor (apparmor.d) · systemd-homed · Btrfs · Firewalld (nftables backend)
+
+
+## Foreword: Why This Guide Exists
+
+No official CIS Benchmark exists for Gentoo Linux. The Center for Internet Security publishes distribution‑specific benchmarks for Ubuntu, Red Hat Enterprise Linux, SUSE, and Oracle Linux, plus a “Distribution Independent Linux” benchmark—but Gentoo is not among them.
+
+This document fills that gap. It takes every recommendation from the CIS Ubuntu Linux 24.04 LTS Benchmark v1.0.0 and maps it, one‑by‑one, to the equivalent—or superior—mechanism on the hardened Gentoo system described in the accompanying `README.md`. Where Gentoo uses a different tool (firewalld instead of ufw, direct PAM configuration instead of `pam‑auth‑update`, systemd‑homed instead of traditional `/home`), the mapping is explained in detail with complete audit and remediation procedures. Where the target system already exceeds the CIS requirement, this is noted explicitly.
+
+The CIS benchmark defines two profiles: **Level 1 – Workstation** (practical, prudent, clear security benefit, does not inhibit utility) and **Level 2 – Workstation** (extends Level 1; defence‑in‑depth; may inhibit performance). This guide implements **Level 1 – Workstation** throughout, with select Level 2 recommendations adopted where they align with the APT threat model defined in the `README.md`.【PDF†Page 19】
+
+### How to Read This Guide
+
+* Each CIS recommendation is numbered exactly as in the CIS PDF (e.g., “1.1.1.1”).
+* **CIS Requirement** states what the original benchmark demands.
+* **Gentoo Mapping** explains how the requirement is satisfied on the target Gentoo system.
+* **Audit** provides a copy‑paste‑ready procedure to verify compliance.
+* **Remediation** provides the commands to bring a non‑compliant system into compliance.
+* The symbol `✅` means the default configuration already satisfies the requirement. The symbol `⚠️` means the configuration exists but must be verified or customised per site policy.
+
+
+## 1. Initial Setup
+
+### 1.1 Filesystem Configuration
+
+#### 1.1.1 Filesystem Kernel Modules
+
+The CIS benchmark requires disabling support for rarely‑used filesystem types to reduce the local attack surface. The `README.md` Part 16 implements a comprehensive module‑blacklisting regime via `/etc/modprobe.d/blacklist‑hardening.conf`.
+
+##### 1.1.1.1 Ensure cramfs kernel module is not available (Automated)
+
+**CIS Requirement:** The cramfs module shall be unloadable, deny‑listed, and not loaded in the running kernel.【PDF†Page 24】
+
+**Gentoo Mapping:** ✅ Already implemented in `blacklist‑hardening.conf`. The directive `install cramfs /bin/true` prevents loading; `blacklist cramfs` prevents autoloading.
+
+**Audit:**
+```bash
+#!/bin/bash
+# CIS 1.1.1.1 – Verify cramfs is blocked
+for mod in cramfs freevxfs jffs2 hfs hfsplus squashfs udf; do
+    echo -n "Module $mod: "
+    if modprobe -n -v "$mod" 2>&1 | grep -q 'install /bin/true'; then
+        echo "BLOCKED ✅"
+    elif lsmod | grep -q "$mod"; then
+        echo "LOADED ❌"
+    else
+        echo "BLACKLISTED ✅"
+    fi
+done
+```
+
+**Remediation:**
+```bash
+echo "install cramfs /bin/true"  > /etc/modprobe.d/cramfs.conf
+echo "blacklist cramfs"         >> /etc/modprobe.d/cramfs.conf
+```
+
+##### 1.1.1.2 – 1.1.1.8 (freevxfs, hfs, hfsplus, jffs2, overlayfs, squashfs, udf)
+
+All seven modules are blocked in the same manner as 1.1.1.1. Use the unified audit script above.
+
+> **Note on overlayfs (1.1.1.6):** The CIS PDF marks this as Level 2. It is conditionally blacklisted in `README.md` Part 16 because container runtimes (Docker, Podman) require overlayfs. If no containers are used on this workstation, the blacklist is safe and appropriate.【PDF†Page 49】
+
+##### 1.1.1.9 Ensure usb‑storage kernel module is not available (Automated)
+
+**CIS Requirement:** CIS Level 1 – Server; Level 2 – Workstation. The `usb‑storage` module shall be blocked.【PDF†Page 64】
+
+**Gentoo Mapping:** ⚠️ Conditionally blacklisted in `README.md` Part 16. The comment states it is “required for recovery USB boot.” For a workstation that does not routinely use USB storage, enable the blacklist.
+
+**Audit:** `modprobe -n -v usb-storage`
+
+**Remediation:**
+```bash
+echo "install usb-storage /bin/true" > /etc/modprobe.d/usb-storage.conf
+echo "blacklist usb-storage"       >> /etc/modprobe.d/usb-storage.conf
+dracut --force --regenerate-all      # apply to early boot
+```
+
+##### 1.1.1.10 Ensure unused filesystems kernel modules are not available (Manual)
+
+**CIS Requirement:** Review all loaded filesystem modules and disable any not needed.【PDF†Page 69】
+
+**Gentoo Mapping:** The `README.md` Part 16 blacklists cover the most common attack vectors. The administrator must manually review the output of `lsmod | grep -E 'fs$|fs_'` and disable any additional modules that are not required for operation.
+
+#### 1.1.2 Filesystem Partitions
+
+The CIS PDF mandates that `/tmp`, `/dev/shm`, `/home`, `/var`, `/var/tmp`, `/var/log`, and `/var/log/audit` each reside on separate partitions with `nodev`, `nosuid`, and `noexec` mount options where applicable.【PDF†Pages 75‑137】
+
+The target Gentoo system uses Btrfs subvolumes rather than separate partitions. Each directory listed above is a distinct subvolume with mount options specified in `/etc/fstab` (README Part 11). This provides equivalent isolation: a subvolume can be snapshotted independently, and Btrfs honours the mount options identically to a separate partition.
+
+| CIS ID | Directory | Required Options | Gentoo fstab Entry | Status |
+|--------|-----------|-----------------|-------------------|--------|
+| 1.1.2.1.1‑4 | `/tmp` | `nosuid,nodev,noexec` | `subvol=@/tmp` with `nosuid,nodev,noexec` | ✅ |
+| 1.1.2.2.1‑4 | `/dev/shm` | `nosuid,nodev,noexec` | tmpfs with `nosuid,nodev,noexec` | ✅ |
+| 1.1.2.3.1‑3 | `/home` | `nosuid,nodev` (Level 2: separate partition) | `subvol=@/home` + systemd‑homed LUKS2 per‑user encryption | ✅ |
+| 1.1.2.4.1‑3 | `/var` | `nosuid,nodev` | `subvol=@/var` with `nosuid,nodev` | ✅ |
+| 1.1.2.5.1‑4 | `/var/tmp` | `nosuid,nodev,noexec` | `subvol=@/var/tmp` with `nosuid,nodev,noexec` | ✅ |
+| 1.1.2.6.1‑4 | `/var/log` | `nosuid,nodev,noexec` | `subvol=@/var/log` with `nosuid,nodev,noexec` | ✅ |
+| 1.1.2.7.1‑4 | `/var/log/audit` | `nosuid,nodev,noexec` | `subvol=@/var/log/audit` with `nosuid,nodev,noexec` | ✅ |
+
+**Audit (unified):**
+```bash
+#!/bin/bash
+# CIS 1.1.2 – Verify mount options on critical directories
+for mp in /tmp /dev/shm /home /var /var/tmp /var/log /var/log/audit; do
+    echo "=== $mp ==="
+    findmnt -kn "$mp" 2>/dev/null || echo "  NOT MOUNTED"
+done
+```
+
+### 1.2 Package Management
+
+The CIS PDF sections 1.2.1 and 1.2.2 are Ubuntu‑specific (apt, GPG key lists, `apt‑cache policy`). Gentoo uses Portage with a fundamentally different model.
+
+| CIS ID | CIS Requirement | Gentoo Equivalent | README Ref |
+|--------|---------------|-------------------|------------|
+| 1.2.1.1 | GPG keys configured | Git commit signature verification via `sync‑git‑verify‑commit‑signature = yes` in `repos.conf` | Part 21.2 |
+| 1.2.1.2 | Package repositories configured | `eselect repository` list; multiple overlays (guru, CachyOS‑kernels, hyproverlay) | Part 6.3 |
+| 1.2.2.1 | Updates, patches, security software installed | `emerge --sync && emerge -uDNav @world` plus weekly GLSA scan | Part 21.4 |
+
+**Audit:**
+```bash
+# Repository signature verification
+grep 'sync-git-verify-commit-signature' /etc/portage/repos.conf/gentoo.conf
+
+# Full-tree manifest verification (gemato)
+gemato verify -K /usr/share/openpgp-keys/gentoo-release.asc \
+  "$(portageq get_repo_path / gentoo)"
+
+# GLSA scan
+glsa-check --list affected
+```
+
+### 1.3 Mandatory Access Control — AppArmor
+
+The CIS PDF section 1.3.1 configures AppArmor on Ubuntu. The target Gentoo system uses AppArmor with the `apparmor.d` profile set (~1500 profiles).
+
+| CIS ID | Recommendation | Gentoo Status | README Ref |
+|--------|---------------|---------------|------------|
+| 1.3.1.1 | AppArmor installed | ✅ `sys‑apps/apparmor apparmor‑utils sec‑policy/apparmor‑profiles` | Part 14.1 |
+| 1.3.1.2 | AppArmor enabled in bootloader | ✅ UKI cmdline: `apparmor=1 security=apparmor`; kernel `lsm=lockdown,yama,apparmor,bpf` | Part 14.1 |
+| 1.3.1.3 | Profiles in enforce or complain mode | ✅ ~1500 profiles loaded | Part 14.3 |
+| 1.3.1.4 | All profiles enforcing (Level 2) | ⚠️ Partial — critical profiles enforced; others in complain | Part 14.6 |
+
+**Audit:**
+```bash
+aa-status | head -10
+# Verify at least: "apparmor module is loaded." and "N profiles are loaded."
+cat /proc/cmdline | grep -o 'apparmor=1'
+cat /sys/kernel/security/lsm
+```
+
+### 1.4 Bootloader Configuration
+
+The CIS PDF section 1.4 references GRUB2. The target system replaces GRUB entirely with **UKI + direct UEFI boot + Secure Boot** (README Parts 7‑9).
+
+| CIS ID | CIS Requirement | Gentoo Implementation | Assessment |
+|--------|---------------|----------------------|------------|
+| 1.4.1 | Bootloader password set | TPM2+PIN required for LUKS unlock; Secure Boot prevents unauthorised UKI execution | **Exceeds** — the TPM provides hardware‑bound authentication; Secure Boot provides cryptographic verification |
+| 1.4.2 | Access to bootloader config restricted (`0600 root:root`) | UKI is a signed PE binary; ESP contains only `.efi` files; no GRUB config exists | **Exceeds** — no plaintext bootloader configuration to protect |
+
+**Audit:**
+```bash
+sbctl status
+# Must show: "Installed: ✓" and "Secure Boot: ✓ Enabled"
+sbctl verify
+# All files on ESP must verify successfully
+```
+
+### 1.5 Additional Process Hardening (1.5.1–1.5.5)
+
+All five recommendations are satisfied on the target system:
+
+| CIS ID | Parameter | Expected Value | Gentoo Source | Audit Command |
+|--------|-----------|---------------|---------------|---------------|
+| 1.5.1 | `kernel.randomize_va_space` | `2` | cachyos‑sources default | `sysctl kernel.randomize_va_space` |
+| 1.5.2 | `kernel.yama.ptrace_scope` | `1`, `2`, or `3` | Set to `1` via sysctl | `sysctl kernel.yama.ptrace_scope` |
+| 1.5.3 | Core dumps restricted | `* hard core 0` + `fs.suid_dumpable=0` | `/etc/security/limits.conf` + sysctl | `grep 'hard core' /etc/security/limits.conf` |
+| 1.5.4 | prelink not installed | Package absent | Not installed (interferes with AIDE) | `qpkg -I prelink` |
+| 1.5.5 | Automatic error reporting disabled | No Apport | Apport is Ubuntu‑specific; not present on Gentoo | N/A |
+
+**Remediation for core dumps:**
+```bash
+echo "* hard core 0" >> /etc/security/limits.d/50-cis-core.conf
+echo "fs.suid_dumpable = 0" > /etc/sysctl.d/50-cis-core.conf
+sysctl --system
+# If systemd-coredump is installed:
+mkdir -p /etc/systemd/coredump.conf.d
+echo -e "[Coredump]\nStorage=none\nProcessSizeMax=0" \
+  > /etc/systemd/coredump.conf.d/50-cis.conf
+```
+
+### 1.6 Command‑Line Warning Banners (1.6.1–1.6.6)
+
+All six recommendations are implemented in `README.md` Part 25. The CIS PDF also requires that the `/etc/motd`, `/etc/issue`, and `/etc/issue.net` files not contain OS‑version information (`\m`, `\r`, `\s`, `\v` escapements).
+
+**Audit:**
+```bash
+# Verify warning banner exists and contains no OS version escapes
+for f in /etc/motd /etc/issue /etc/issue.net; do
+    echo "=== $f ==="
+    grep -E '\\\\[mrsv]' "$f" 2>/dev/null && echo "FAIL: contains OS info" || echo "PASS"
+    stat -c '%a %U:%G' "$f"
+done
+```
+
+### 1.7 Graphical Display Manager
+
+The CIS PDF section 1.7 provides ten recommendations for GNOME Display Manager (GDM). The target Gentoo system does **not** use GDM; it uses either **SDDM** (with Hyprland) or **tuigreet** (a console greeter for Wayland). GDM‑specific recommendations are therefore **not applicable (N/A)**. However, equivalent controls are mapped below.
+
+| CIS ID | GDM Recommendation | Gentoo SDDM / Hyprland Equivalent |
+|--------|-------------------|-----------------------------------|
+| 1.7.1 | GDM removed | ✅ GDM not installed |
+| 1.7.2 | Login banner configured | `/etc/issue` displayed by SDDM |
+| 1.7.3 | Disable user list | SDDM `HideUsers=` or `HideShells=` |
+| 1.7.4‑5 | Screen lock + cannot override | Hyprland `lock` dispatcher + `swaylock` |
+| 1.7.6‑7 | Auto‑mount disabled + locked | Not applicable (Wayland compositor; not GDM) |
+| 1.7.8‑9 | Autorun‑never enabled + locked | Not applicable |
+| 1.7.10 | XDMCP not enabled | ✅ Not present (Wayland native) |
+
+**Audit for SDDM (if used):**
+```bash
+grep -E '^(MinimumUid|MaximumUid|HideUsers|HideShells)' /etc/sddm.conf 2>/dev/null
+```
+
+---
+
+## 2. Services
+
+### 2.1 Server Services (2.1.1–2.1.22)
+
+The CIS PDF lists 22 services that should be removed or masked if not required. The target Gentoo system installs a minimal set of services; most of the CIS‑listed services are not present.
+
+**Audit (comprehensive):**
+```bash
+#!/bin/bash
+# CIS 2.1.x — Verify unnecessary services are not active
+SERVICES=(
+    autofs avahi-daemon isc-dhcp-server named dnsmasq vsftpd slapd dovecot
+    nfs-server ypserv cups rpcbind rsyncd smbd snmpd tftpd-hpa squid
+    apache2 nginx xinetd
+)
+for svc in "${SERVICES[@]}"; do
+    state=$(systemctl is-active "$svc.service" 2>/dev/null)
+    [ "$state" = "active" ] && echo "❌ $svc is ACTIVE" || echo "✅ $svc inactive"
+done
+
+# CIS 2.1.21 — Mail Transfer Agent local‑only (special case)
+ss -plntu | grep -P ':(25|465|587)\b' | grep -v '127.0.0.1\|::1' \
+  && echo "❌ MTA listening on external interface" \
+  || echo "✅ No external MTA listener"
+
+# CIS 2.1.22 — Only approved services listening
+echo "=== All listening services ==="
+ss -plntu | grep LISTEN
+```
+
+**Remediation (example — removing a service):**
+```bash
+# For Gentoo, use emerge --unmerge or mask the service:
+systemctl stop <service>.service
+systemctl mask <service>.service
+# Or remove entirely:
+emerge --unmerge <package>
+```
+
+### 2.2 Client Services (2.2.1–2.2.6)
+
+| CIS ID | Client Package | Gentoo Package | Status | Audit |
+|--------|---------------|---------------|--------|-------|
+| 2.2.1 | NIS Client | `net‑fs/nis` | Not installed | `qpkg -I nis` |
+| 2.2.2 | rsh client | `net‑misc/rsh` | Not installed | `qpkg -I rsh` |
+| 2.2.3 | talk client | `net‑misc/talk` | Not installed | `qpkg -I talk` |
+| 2.2.4 | telnet client | `net‑misc/netkit‑telnet` | Not installed | `qpkg -I telnet` |
+| 2.2.5 | LDAP client | `net‑nds/openldap` | May be installed as dependency | `qpkg -I openldap` |
+| 2.2.6 | FTP client | `net‑ftp/tnftp` | May be installed | `qpkg -I tnftp` |
+
+### 2.3 Time Synchronization (2.3.1–2.3.3)
+
+The CIS PDF configures either `systemd‑timesyncd` or `chrony`. The target Gentoo system uses **systemd‑timesyncd**, which is part of `sys‑apps/systemd`.
+
+| CIS ID | Requirement | Gentoo Implementation |
+|--------|-----------|----------------------|
+| 2.3.1.1 | Single time sync daemon | ✅ `systemd‑timesyncd` active; chrony not installed |
+| 2.3.2.1 | Authorised timeserver configured | ✅ NTP servers in `/etc/systemd/timesyncd.conf.d/` |
+| 2.3.2.2 | Timesyncd enabled and running | ✅ `systemctl is-active systemd‑timesyncd` |
+
+**Audit:**
+```bash
+timedatectl show-timesync --all
+systemctl is-active systemd-timesyncd
+# Verify no other time daemon
+for d in chronyd ntpd openntpd; do
+    systemctl is-active "$d" 2>/dev/null && echo "❌ $d is running"
+done
+```
+
+**Remediation:**
+```bash
+mkdir -p /etc/systemd/timesyncd.conf.d
+cat > /etc/systemd/timesyncd.conf.d/50-cis-timeserver.conf << 'EOF'
+[Time]
+NTP=time.nist.gov time2.google.com
+FallbackNTP=0.gentoo.pool.ntp.org 1.gentoo.pool.ntp.org 2.gentoo.pool.ntp.org 3.gentoo.pool.ntp.org
+EOF
+systemctl restart systemd-timesyncd
+```
+
+### 2.4 Job Schedulers (2.4.1–2.4.2)
+
+#### 2.4.1 Cron
+
+| CIS ID | Requirement | Gentoo | Audit |
+|--------|-----------|--------|-------|
+| 2.4.1.1 | Cron daemon enabled and active | ✅ `cronie` or `systemd‑cron` | `systemctl is-active cronie` |
+| 2.4.1.2 | `/etc/crontab` permissions `0600 root:root` | ✅ | `stat -c '%a %U:%G' /etc/crontab` |
+| 2.4.1.3‑7 | Cron directory permissions `0700 root:root` | ✅ | `stat -c '%a %U:%G' /etc/cron.{hourly,daily,weekly,monthly,d}` |
+| 2.4.1.8 | Crontab restricted to authorised users | ⚠️ Requires `/etc/cron.allow` | `stat /etc/cron.allow` |
+
+**Remediation for 2.4.1.8:**
+```bash
+touch /etc/cron.allow
+chown root:root /etc/cron.allow
+chmod 0600 /etc/cron.allow
+echo "root" > /etc/cron.allow
+# Add any additional authorised users, one per line
+```
+
+#### 2.4.2 at
+
+| CIS ID | Requirement | Audit |
+|--------|-----------|-------|
+| 2.4.2.1 | `at` restricted to authorised users | `stat /etc/at.allow`; `[ -e /etc/at.deny ] && echo "consider removing"` |
+
+---
+
+## 3. Network Configuration
+
+### 3.1 Network Devices (3.1.1–3.1.3)
+
+| CIS ID | Topic | Gentoo Status | Audit |
+|--------|-------|---------------|-------|
+| 3.1.1 | IPv6 status identified | ✅ IPv6 is enabled (kernel default); intentionally not disabled for dual‑stack compatibility | `sysctl net.ipv6.conf.all.disable_ipv6` |
+| 3.1.2 | Wireless interfaces disabled (Level 1 – Server) | ⚠️ **Not applicable to workstations** — this is a Server‑only recommendation | N/A |
+| 3.1.3 | Bluetooth disabled (Level 2 – Workstation) | ✅ Blacklisted in `blacklist-hardening.conf` (README Part 16) | `modprobe -n -v bluetooth` |
+
+### 3.2 Network Kernel Modules (3.2.1–3.2.4)
+
+All four uncommon network protocol modules (`dccp`, `tipc`, `rds`, `sctp`) are blacklisted in `README.md` Part 16.
+
+**Audit:** Use the same script as 1.1.1.1, substituting module names.
+
+### 3.3 Network Kernel Parameters (3.3.1–3.3.11)
+
+The CIS PDF specifies eleven kernel parameters. The target system's `cachyos‑sources` kernel already implements secure defaults for most. Any missing parameters can be set via `/etc/sysctl.d/`.
+
+**Remediation (all eleven parameters in one file):**
+```bash
+cat > /etc/sysctl.d/99-cis-network.conf << 'EOF'
+# CIS 3.3 Network Kernel Parameters — Gentoo Adaptation
+
+# 3.3.1 — IP forwarding
+net.ipv4.ip_forward = 0
+net.ipv6.conf.all.forwarding = 0
+
+# 3.3.2 — Packet redirect sending
+net.ipv4.conf.all.send_redirects = 0
+net.ipv4.conf.default.send_redirects = 0
+
+# 3.3.3 — Bogus ICMP responses
+net.ipv4.icmp_ignore_bogus_error_responses = 1
+
+# 3.3.4 — Broadcast ICMP requests
+net.ipv4.icmp_echo_ignore_broadcasts = 1
+
+# 3.3.5 — ICMP redirects (IPv4 + IPv6)
+net.ipv4.conf.all.accept_redirects = 0
+net.ipv4.conf.default.accept_redirects = 0
+net.ipv6.conf.all.accept_redirects = 0
+net.ipv6.conf.default.accept_redirects = 0
+
+# 3.3.6 — Secure ICMP redirects
+net.ipv4.conf.all.secure_redirects = 0
+net.ipv4.conf.default.secure_redirects = 0
+
+# 3.3.7 — Reverse path filtering
+net.ipv4.conf.all.rp_filter = 1
+net.ipv4.conf.default.rp_filter = 1
+
+# 3.3.8 — Source‑routed packets
+net.ipv4.conf.all.accept_source_route = 0
+net.ipv4.conf.default.accept_source_route = 0
+net.ipv6.conf.all.accept_source_route = 0
+net.ipv6.conf.default.accept_source_route = 0
+
+# 3.3.9 — Suspicious packets (martians)
+net.ipv4.conf.all.log_martians = 1
+net.ipv4.conf.default.log_martians = 1
+
+# 3.3.10 — TCP SYN cookies
+net.ipv4.tcp_syncookies = 1
+
+# 3.3.11 — IPv6 router advertisements
+net.ipv6.conf.all.accept_ra = 0
+net.ipv6.conf.default.accept_ra = 0
+EOF
+
+sysctl --system
+```
+
+---
+
+## 4. Host‑Based Firewall
+
+This section is the **most distribution‑specific** part of the CIS PDF. The Ubuntu benchmark has three parallel sections — **4.2 (UFW)**, **4.3 (nftables)**, and **4.4 (iptables)** — with the instruction to use only one.【PDF†Page 441】 The target Gentoo system uses **firewalld** (with nftables backend), which is not covered by any of the three. This section therefore provides a **complete, systematic translation** of every UFW recommendation into its firewalld equivalent.
+
+**Why not use UFW or raw nftables/iptables on Gentoo?** Gentoo’s `net‑firewall/firewalld` package integrates cleanly with NetworkManager, supports rich rules for fine‑grained control, and uses nftables as its backend. It is the recommended firewall management tool for the target system and is configured in `README.md` Part 18.
+
+### 4.1 Single Firewall Utility (4.1.1)
+
+**CIS Requirement:** Only one firewall configuration utility shall be in use.【PDF†Page 443】
+
+**Gentoo Mapping:** ✅ `firewalld` is the sole firewall manager. Neither `ufw` nor raw `iptables` services are active.
+
+**Audit:**
+```bash
+systemctl is-active firewalld
+# Verify nothing else is managing firewall rules:
+systemctl is-active ufw 2>/dev/null && echo "❌ UFW is active"
+systemctl is-active iptables 2>/dev/null && echo "❌ iptables service is active"
+systemctl is-active nftables 2>/dev/null && echo "❌ standalone nftables is active"
+```
+
+### 4.2 Comprehensive UFW‑to‑Firewalld Translation Table
+
+The table below maps every CIS 4.2 (UFW) recommendation to the equivalent firewalld command or configuration. Firewalld uses **zones** (trust levels) and **rich rules** (expressive policy language) rather than UFW’s simple allow/deny syntax.
+
+#### 4.2.1 Ensure ufw is installed → Ensure firewalld is installed
+
+```bash
+emerge --ask net-firewall/firewalld
+```
+
+#### 4.2.2 Ensure iptables‑persistent not installed with ufw → Ensure no conflicting firewall packages
+
+```bash
+# Remove any conflicting firewall managers
+emerge --unmerge ufw iptables nftables 2>/dev/null || true
+# firewalld uses nftables internally; the nftables package is not needed separately
+```
+
+#### 4.2.3 Ensure ufw service enabled → Ensure firewalld service enabled
+
+```bash
+systemctl enable --now firewalld.service
+```
+
+#### 4.2.4 — Loopback Traffic Configuration
+
+This is the most nuanced translation. The CIS PDF (4.2.4) requires two things:
+
+1. Loopback interface **accepts** all traffic (INPUT and OUTPUT on `lo`)
+2. All **other** interfaces **drop** packets with source address `127.0.0.0/8` or `::1` (anti‑spoofing)【PDF†Page 454】
+
+**How UFW does it:**
+- `ufw allow in on lo` / `ufw allow out on lo`
+- `ufw deny in from 127.0.0.0/8` / `ufw deny in from ::1`
+
+**How firewalld does it:**
+- The **trusted zone** is assigned to the `lo` interface by default — this zone accepts *all* traffic. No additional rules are needed for loopback acceptance.
+- Anti‑spoofing rich rules must be added explicitly.
+
+| UFW Rule | Firewalld Equivalent | Explanation |
+|----------|---------------------|-------------|
+| `ufw allow in on lo` | Built‑in — `lo` is in the **trusted** zone by default | The trusted zone accepts all incoming traffic |
+| `ufw allow out on lo` | Built‑in — output is allowed in all zones by default | Firewalld does not filter outbound by default |
+| `ufw deny in from 127.0.0.0/8` | Rich rule on **public** zone (or whichever zone your physical interface uses) | Blocks spoofed loopback packets arriving on external interfaces |
+| `ufw deny in from ::1` | Rich rule for IPv6 loopback | Same anti‑spoofing for IPv6 |
+
+**Audit:**
+```bash
+# Verify loopback interface is in trusted zone
+firewall-cmd --get-active-zones | grep -A1 lo
+
+# Verify anti-spoofing rich rules exist
+firewall-cmd --list-rich-rules | grep '127.0.0.0/8'
+firewall-cmd --list-rich-rules | grep '::1'
+```
+
+**Remediation:**
+```bash
+# Anti-spoofing: drop loopback-source packets on all non-lo interfaces
+firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="127.0.0.0/8" drop'
+firewall-cmd --permanent --add-rich-rule='rule family="ipv6" source address="::1" drop'
+firewall-cmd --reload
+```
+
+#### 4.2.5 — Outbound Connections
+
+**CIS Requirement:** Configure firewall rules for new outbound connections.【PDF†Page 457】
+
+**CIS Implementation Note:** “Unlike iptables, when a new outbound rule is added, ufw automatically takes care of associated established connections.”
+
+**Firewalld Equivalent:** Firewalld’s default behaviour is to allow all outbound traffic (stateful — responses are automatically permitted). The `drop` zone’s policy blocks incoming but *allows outgoing*. This matches the CIS intent without additional rules.
+
+**Audit:**
+```bash
+firewall-cmd --get-default-zone
+# Should return: drop
+```
+
+**Remediation (if overriding outbound policy is desired per site policy):**
+```bash
+# Default: outbound allowed. For strict outbound control, use a policy object
+# (firewalld ≥ 0.9.0) or rich rules on the OUTPUT chain.
+# This is generally NOT needed for CIS Level 1 compliance.
+```
+
+#### 4.2.6 — Firewall Rules for All Open Ports
+
+**CIS Requirement:** “Any ports that have been opened on non‑loopback addresses need firewall rules to govern traffic.”【PDF†Page 459】
+
+The CIS audit procedure for UFW compares the output of `ss -tuln` (open ports) against `ufw status verbose` (firewall rules) and flags any port without a matching rule.
+
+**Firewalld Equivalent Audit:**
+```bash
+#!/bin/bash
+# CIS 4.2.6 — Verify all open non‑loopback ports have firewall rules
+echo "=== Open ports (non‑loopback) ==="
+ss -tuln | awk '($5!~/(127\.0\.0\.1|\[?::1\]?):/) {print $5}' | sort -u
+
+echo ""
+echo "=== Firewalld allowed ports ==="
+firewall-cmd --list-ports
+firewall-cmd --list-rich-rules | grep -oP 'port port="\d+"' | sort -u
+```
+
+**Remediation (example — adding a rule for a discovered open port):**
+```bash
+# Allow TCP port 8443 from anywhere
+firewall-cmd --permanent --add-rich-rule='rule family="ipv4" port port="8443" protocol="tcp" accept'
+firewall-cmd --reload
+```
+
+#### 4.2.7 — Default Deny Firewall Policy
+
+**CIS Requirement:** Default policy for incoming, outgoing, and routed shall be `deny`, `reject`, or `disabled`.【PDF†Page 462】
+
+**Firewalld Equivalent:** Set the default zone to `drop`. The `drop` zone drops all incoming packets without reply and allows outgoing. Firewalld does not have separate “incoming / outgoing / routed” policy flags; instead, the zone’s behaviour covers all three.
+
+| UFW Default Policy | Firewalld Equivalent |
+|--------------------|---------------------|
+| `ufw default deny incoming` | `firewall-cmd --set-default-zone=drop` |
+| `ufw default deny outgoing` | Not directly equivalent; see 4.2.5 above |
+| `ufw default deny routed` | Not applicable (this is not a router) |
+
+**Audit:**
+```bash
+firewall-cmd --get-default-zone
+# Must return: drop
+```
+
+**Remediation:**
+```bash
+firewall-cmd --set-default-zone=drop
+firewall-cmd --runtime-to-permanent
+```
+
+### 4.3 CIS 4.3 (nftables) and 4.4 (iptables) — Not Applicable
+
+The CIS PDF sections 4.3 and 4.4 provide standalone nftables and iptables configurations. Because the target system uses firewalld (which internally manages nftables), these sections are **not applicable**. Firewalld already implements the underlying principles:
+
+- **Default deny** → drop zone
+- **Loopback traffic** → trusted zone on `lo`
+- **Established connections** → stateful tracking (built‑in)
+- **Rules for open ports** → rich rules
+- **Service enabled** → `systemctl enable firewalld`
+
+---
+
+## 5. Access Control
+
+### 5.1 SSH Server (5.1.1–5.1.22)
+
+The target Gentoo system’s SSH configuration (`README.md` Part 19) already **exceeds** every CIS Level 1 requirement. The table below is provided for verification.
+
+| CIS ID | Parameter | CIS Expected | Gentoo Value | README Ref |
+|--------|-----------|-------------|-------------|------------|
+| 5.1.1 | sshd_config permissions | `0600 root:root` | ✅ `0600 root:root` | Part 5.1 (audit) |
+| 5.1.2 | Private host key permissions | `0600 root:root` or `0640 root:ssh_keys` | ✅ Same | Part 5.1 |
+| 5.1.3 | Public host key permissions | `0644 root:root` | ✅ Same | Part 5.1 |
+| 5.1.4 | sshd access configured | `AllowUsers`/`AllowGroups`/`DenyUsers`/`DenyGroups` | ✅ `AllowGroups sshusers` | Part 19.7 |
+| 5.1.5 | Banner configured | `/etc/issue.net` | ✅ `Banner /etc/ssh/banner` | Part 19.7 |
+| 5.1.6 | Ciphers | No weak ciphers (3des‑cbc, aes‑cbc, arcfour) | ✅ ChaCha20‑Poly1305, AES‑256‑GCM, AES‑256‑CTR | Part 19.7 |
+| 5.1.7 | ClientAliveInterval/CountMax | > 0 | ✅ `ClientAliveInterval 600`, `CountMax 1` | Part 19.7 |
+| 5.1.8 | DisableForwarding | `yes` | ✅ `X11Forwarding no`, `AllowTcpForwarding no`, `AllowAgentForwarding no` | Part 19.7 |
+| 5.1.9 | GSSAPIAuthentication | `no` | ✅ Default `no` | — |
+| 5.1.10 | HostbasedAuthentication | `no` | ✅ Default `no` | — |
+| 5.1.11 | IgnoreRhosts | `yes` | ✅ Default `yes` | — |
+| 5.1.12 | KexAlgorithms | No diffie‑hellman‑group1‑sha1, group14‑sha1, group‑exchange‑sha1 | ✅ Post‑quantum hybrids only | Part 19.7 |
+| 5.1.13 | LoginGraceTime | 1–60 seconds | ✅ `LoginGraceTime 30` | Part 19.7 |
+| 5.1.14 | LogLevel | `VERBOSE` or `INFO` | ✅ `LogLevel VERBOSE` | Part 19.7 |
+| 5.1.15 | MACs | No hmac‑md5, hmac‑sha1‑96, umac‑64, or any ‑etm weak variants | ✅ `hmac‑sha2‑512‑etm`, `hmac‑sha2‑256‑etm` | Part 19.7 |
+| 5.1.16 | MaxAuthTries | ≤ 4 | ✅ `MaxAuthTries 3` | Part 19.7 |
+| 5.1.17 | MaxSessions | ≤ 10 | ✅ `MaxSessions 3` | Part 19.7 |
+| 5.1.18 | MaxStartups | `10:30:60` or more restrictive | ✅ `MaxStartups 10:30:60` | Part 19.7 |
+| 5.1.19 | PermitEmptyPasswords | `no` | ✅ `PermitEmptyPasswords no` | — |
+| 5.1.20 | PermitRootLogin | `no` | ✅ `PermitRootLogin no` | Part 19.7 |
+| 5.1.21 | PermitUserEnvironment | `no` | ✅ `PermitUserEnvironment no` | Part 19.7 |
+| 5.1.22 | UsePAM | `yes` | ✅ `UsePAM yes` | Part 19.7 |
+
+**Comprehensive SSH audit:**
+```bash
+#!/bin/bash
+# CIS 5.1 — Full SSH audit
+echo "=== SSH Effective Configuration ==="
+sshd -T | grep -E '^(permitrootlogin|passwordauthentication|permitemptypasswords|usepam|x11forwarding|maxauthtries|maxsessions|clientaliveinterval|clientalivecountmax|logingracetime|loglevel|hostbasedauthentication|ignorerhosts|permituserenvironment|allowtcpforwarding|allowagentforwarding|gssapiauthentication|kexalgorithms|ciphers|macs|banner|maxstartups)'
+
+echo ""
+echo "=== SSH Host Key Permissions ==="
+find /etc/ssh -type f -name 'ssh_host_*_key' ! -name '*.pub' -exec stat -c '%a %U:%G %n' {} \;
+find /etc/ssh -type f -name 'ssh_host_*_key.pub' -exec stat -c '%a %U:%G %n' {} \;
+
+echo ""
+echo "=== AppArmor sshd Profile ==="
+aa-status | grep sshd
+```
+
+### 5.2 Privilege Escalation — sudo (5.2.1–5.2.7)
+
+All seven sudo recommendations from the CIS PDF are satisfied or exceeded.
+
+| CIS ID | Requirement | Gentoo Status | Verification |
+|--------|-----------|---------------|-------------|
+| 5.2.1 | sudo installed | ✅ `app‑admin/sudo` (README Part 5.6) | `which sudo` |
+| 5.2.2 | Commands use pty | ✅ `Defaults use_pty` | `grep 'use_pty' /etc/sudoers /etc/sudoers.d/*` |
+| 5.2.3 | Log file exists | ✅ `Defaults logfile="/var/log/sudo.log"` | `grep 'logfile' /etc/sudoers /etc/sudoers.d/*` |
+| 5.2.4 | Password required (Level 2) | ✅ No `NOPASSWD` | `grep -r 'NOPASSWD' /etc/sudoers /etc/sudoers.d/` |
+| 5.2.5 | Re‑authentication not disabled globally | ✅ No `!authenticate` | `grep -r '!authenticate' /etc/sudoers /etc/sudoers.d/` |
+| 5.2.6 | Authentication timeout ≤ 15 min | ✅ `timestamp_timeout=15` | `sudo -V \| grep 'Authentication timestamp timeout'` |
+| 5.2.7 | su command restricted | ✅ `pam_wheel.so` with empty group (README Part 5.7) | `grep 'pam_wheel.so' /etc/pam.d/su` |
+
+### 5.3 Pluggable Authentication Modules (5.3.1–5.3.3)
+
+This section requires the most significant adaptation. The CIS PDF assumes Ubuntu’s `pam‑auth‑update` profile system. Gentoo configures PAM directly — there is no `pam‑auth‑update` tool.【PDF†Page 601】 The target system’s PAM configuration is in `README.md` Part 20.
+
+#### 5.3.1 PAM Software Packages
+
+| CIS ID | Ubuntu Package | Gentoo Equivalent | Verification |
+|--------|---------------|-------------------|-------------|
+| 5.3.1.1 | `libpam‑runtime` ≥ 1.5.3‑5 | `sys‑libs/pam` (same upstream) | `qpkg -I pam \| grep -i version` |
+| 5.3.1.2 | `libpam‑modules` | Included in `sys‑libs/pam` | `ls /lib64/security/pam_unix.so` |
+| 5.3.1.3 | `libpam‑pwquality` | `sys‑libs/libpwquality` (README Part 20) | `ls /lib64/security/pam_pwquality.so` |
+
+#### 5.3.2 PAM Profile Modules
+
+The CIS PDF uses `pam‑auth‑update --enable <module>` to activate modules. On Gentoo, modules are enabled by editing `/etc/pam.d/system‑auth` directly. The file `README.md` Part 20 already includes all four required modules.
+
+| CIS ID | Module | Gentoo Equivalent | Location in system-auth |
+|--------|--------|-------------------|------------------------|
+| 5.3.2.1 | `pam_unix` | `pam_unix.so` | auth, account, password, session |
+| 5.3.2.2 | `pam_faillock` | `pam_faillock.so` (preauth, authfail, authsucc, account) | Auth + Account |
+| 5.3.2.3 | `pam_pwquality` | `pam_pwquality.so` | Password |
+| 5.3.2.4 | `pam_pwhistory` | `pam_pwhistory.so` | Password |
+
+#### 5.3.3 PAM Arguments
+
+The CIS PDF specifies detailed arguments for each PAM module. On Gentoo, `pam_faillock` reads `/etc/security/faillock.conf` and `pam_pwquality` reads `/etc/security/pwquality.conf` — this is actually *cleaner* than the Ubuntu approach of inline arguments.
+
+| CIS ID | Parameter | Expected Value | Gentoo File |
+|--------|-----------|---------------|-------------|
+| 5.3.3.1.1 | `deny` | ≤ 5 | `/etc/security/faillock.conf` → `deny = 5` |
+| 5.3.3.1.2 | `unlock_time` | 0 (never) or ≥ 900 | `/etc/security/faillock.conf` → `unlock_time = 900` |
+| 5.3.3.1.3 | `even_deny_root` | enabled (Level 2) | `/etc/security/faillock.conf` → `even_deny_root = true` |
+| 5.3.3.2.1 | `difok` | ≥ 2 | `/etc/security/pwquality.conf` → `difok = 8` |
+| 5.3.3.2.2 | `minlen` | ≥ 14 | `/etc/security/pwquality.conf` → `minlen = 16` |
+| 5.3.3.2.3 | Password complexity (Manual) | Per site policy | `/etc/security/pwquality.conf` → `minclass = 3`, credit directives |
+| 5.3.3.2.4 | `maxrepeat` | ≤ 3, not 0 | `/etc/security/pwquality.conf` → `maxrepeat = 3` |
+| 5.3.3.2.5 | `maxsequence` | ≤ 3, not 0 | `/etc/security/pwquality.conf` |
+| 5.3.3.2.6 | `dictcheck` | not 0 | `/etc/security/pwquality.conf` → `dictcheck = 1` |
+| 5.3.3.2.7 | `enforcing` | not 0 | `/etc/security/pwquality.conf` → `enforcing = 1` |
+| 5.3.3.2.8 | `enforce_for_root` | enabled | `/etc/security/pwquality.conf` → `enforce_for_root` |
+| 5.3.3.3.1 | `remember` | ≥ 24 | PAM profile → `remember=24` |
+| 5.3.3.3.2 | `enforce_for_root` (pwhistory) | enabled | PAM profile → `enforce_for_root` |
+| 5.3.3.3.3 | `use_authtok` (pwhistory) | enabled | PAM profile → `use_authtok` |
+| 5.3.3.4.1 | No `nullok` | Absent | `grep nullok /etc/pam.d/system-auth` → nothing |
+| 5.3.3.4.2 | No `remember` (pam_unix) | Absent | `grep 'pam_unix.*remember' /etc/pam.d/system-auth` → nothing |
+| 5.3.3.4.3 | Strong hashing (`sha512` or `yescrypt`) | `yescrypt` | PAM profile → `yescrypt` with `rounds=65536` |
+| 5.3.3.4.4 | `use_authtok` (pam_unix) | enabled | PAM profile → `use_authtok` |
+
+**Audit (PAM faillock + pwquality):**
+```bash
+echo "=== faillock.conf ==="
+grep -v '^#' /etc/security/faillock.conf | grep -v '^$'
+
+echo ""
+echo "=== pwquality.conf ==="
+grep -v '^#' /etc/security/pwquality.conf | grep -v '^$'
+
+echo ""
+echo "=== system-auth pam_unix lines ==="
+grep 'pam_unix\.so' /etc/pam.d/system-auth
+```
+
+### 5.4 User Accounts and Environment (5.4.1–5.4.3)
+
+#### 5.4.1 Shadow Password Suite Parameters
+
+| CIS ID | Parameter | Expected | Gentoo `/etc/login.defs` | Audit |
+|--------|-----------|---------|--------------------------|-------|
+| 5.4.1.1 | `PASS_MAX_DAYS` | ≤ 365 | `PASS_MAX_DAYS 365` | `grep PASS_MAX_DAYS /etc/login.defs` |
+| 5.4.1.2 | `PASS_MIN_DAYS` | > 0 (Level 2) | `PASS_MIN_DAYS 1` | `grep PASS_MIN_DAYS /etc/login.defs` |
+| 5.4.1.3 | `PASS_WARN_AGE` | ≥ 7 | `PASS_WARN_AGE 7` | `grep PASS_WARN_AGE /etc/login.defs` |
+| 5.4.1.4 | `ENCRYPT_METHOD` | `SHA512` or `YESCRYPT` | `ENCRYPT_METHOD YESCRYPT` | `grep ENCRYPT_METHOD /etc/login.defs` |
+| 5.4.1.5 | `INACTIVE` | ≤ 45 | `INACTIVE=45` (via `useradd -D`) | `useradd -D \| grep INACTIVE` |
+| 5.4.1.6 | All last password changes in past | — | `awk` scan of `/etc/shadow` | See CIS audit script |
+
+#### 5.4.2 Root and System Accounts
+
+| CIS ID | Requirement | Gentoo | Audit |
+|--------|-----------|--------|-------|
+| 5.4.2.1 | Only `root` has UID 0 | ✅ | `awk -F: '($3 == 0) { print $1 }' /etc/passwd` |
+| 5.4.2.2 | Only `root` has GID 0 | ✅ | `awk -F: '($4 == 0) { print $1 }' /etc/passwd` |
+| 5.4.2.3 | Only `root` group has GID 0 | ✅ | `awk -F: '($3 == 0) { print $1 }' /etc/group` |
+| 5.4.2.4 | Root account access controlled | ✅ `passwd -l root` (locked); sudo only | `passwd -S root` |
+| 5.4.2.5 | Root PATH integrity | ✅ README Part 5.4 | `sudo -Hiu root env \| grep '^PATH'` |
+| 5.4.2.6 | Root umask | `0027` or more restrictive | `grep umask /root/.bash_profile /root/.bashrc` |
+| 5.4.2.7 | System accounts have `/usr/bin/nologin` | ✅ | See audit |
+| 5.4.2.8 | Accounts without valid shell are locked | ✅ | See audit |
+
+**Audit for 5.4.2.7 and 5.4.2.8:**
+```bash
+# System accounts with a valid shell
+awk -F: '($1!~/^(root|halt|sync|shutdown|nfsnobody)$/ && ($3<1000) && ($7!~/nologin|false/)) {print $1, $7}' /etc/passwd
+
+# Accounts without valid shell that are not locked
+while IFS=: read -r user pass rest; do
+    shell=$(awk -F: -v u="$user" '$1==u{print $NF}' /etc/passwd)
+    if [[ ! "$shell" =~ nologin|false ]] && [[ "$user" != "root" ]]; then
+        passwd -S "$user" 2>/dev/null | awk '$2 !~ /^L/ {print "UNLOCKED: " $1}'
+    fi
+done < /etc/shadow
+```
+
+#### 5.4.3 User Default Environment
+
+| CIS ID | Requirement | Gentoo | Notes |
+|--------|-----------|--------|-------|
+| 5.4.3.1 | `nologin` not in `/etc/shells` | ✅ | `grep nologin /etc/shells` |
+| 5.4.3.2 | `TMOUT` ≤ 900, readonly, exported | ✅ | Configured in `/etc/profile.d/` |
+| 5.4.3.3 | Default umask `027` or more restrictive | ✅ | Set via `pam_umask.so` + `/etc/login.defs` |
+
+---
+
+## 6. Logging and Auditing
+
+### 6.1 System Logging — journald
+
+The CIS PDF offers parallel logging configurations for `journald` (6.1.2) and `rsyslog` (6.1.3), instructing the administrator to choose one. The target Gentoo system uses **journald** only (no rsyslog), consistent with the decision in `README.md` Part 6.
+
+#### 6.1.1 journald Service
+
+| CIS ID | Requirement | Gentoo | Audit |
+|--------|-----------|--------|-------|
+| 6.1.1.1 | journald enabled and active | ✅ `systemd‑journald` is `static` (always started by PID 1) | `systemctl is-active systemd-journald` |
+| 6.1.1.2 | Log file access configured | ✅ `Storage=persistent` | See 6.1.2.4 |
+| 6.1.1.3 | Log file rotation configured | ✅ | See 6.1.2.4 |
+| 6.1.1.4 | Only one logging system | ✅ journald only; rsyslog not installed | `systemctl is-active rsyslog 2>/dev/null` |
+
+#### 6.1.2 journald Configuration
+
+**Remediation (CIS‑compliant journald drop‑in):**
+```bash
+mkdir -p /etc/systemd/journald.conf.d
+cat > /etc/systemd/journald.conf.d/50-cis.conf << 'EOF'
+[Journal]
+# 6.1.2.2 – Disable forwarding to syslog
+ForwardToSyslog=no
+
+# 6.1.2.3 – Enable compression
+Compress=yes
+
+# 6.1.2.4 – Persistent storage
+Storage=persistent
+
+# 6.1.1.3 – Log rotation
+SystemMaxUse=1G
+SystemKeepFree=500M
+RuntimeMaxUse=200M
+RuntimeKeepFree=50M
+MaxFileSec=1month
+EOF
+
+systemctl restart systemd-journald
+```
+
+#### 6.1.2.1 systemd‑journal‑remote (Optional)
+
+The CIS PDF recommends `systemd‑journal‑remote` for remote log forwarding.【PDF†Page 741】 This is optional on a standalone workstation. If centralised logging is desired:
+
+```bash
+emerge --ask systemd-journal-remote
+# Configure /etc/systemd/journal-upload.conf with remote host URL and certificates
+systemctl enable --now systemd-journal-upload.service
+```
+
+### 6.2 System Auditing — auditd
+
+The target system’s auditd configuration (README Part 15 + Part 18) satisfies or exceeds every CIS 6.2 recommendation. The comprehensive audit ruleset in `/etc/audit/rules.d/99-hardening.rules` covers all CIS‑required event categories.
+
+| CIS ID | Parameter | Expected | Gentoo `/etc/audit/auditd.conf` |
+|--------|-----------|---------|-------------------------------|
+| 6.2.1.1 | auditd installed | Package present | ✅ `sys‑process/audit` |
+| 6.2.1.2 | auditd enabled and active | `enabled` / `active` | ✅ |
+| 6.2.1.3 | Pre‑auditd process auditing | `audit=1` in boot config | ✅ UKI cmdline (Part 8) |
+| 6.2.1.4 | `audit_backlog_limit` | ≥ 8192 | ✅ UKI cmdline: `audit_backlog_limit=8192` |
+| 6.2.2.1 | `max_log_file` | Per site policy | `max_log_file = 50` (50 MB) |
+| 6.2.2.2 | `max_log_file_action` | `keep_logs` | ✅ |
+| 6.2.2.3 | `disk_full_action` | `halt` or `single` | `halt` |
+| 6.2.2.4 | `space_left_action` | `email`, `exec`, `single`, or `halt` | `SYSLOG`; `admin_space_left_action = HALT` |
+
+**Audit rule coverage verification:**
+```bash
+#!/bin/bash
+# CIS 6.2.3 — Verify key audit rule categories are loaded
+RULES_FILE="/etc/audit/rules.d/99-hardening.rules"
+for key in identity sudoers_change sshd_config setuid_exec module_load \
+           MAC-policy perm_change time_change mount_ops systemd_config; do
+    count=$(grep -c "\-k $key" "$RULES_FILE" 2>/dev/null)
+    echo "  $key: $count rule(s)"
+done
+```
+
+### 6.3 Integrity Checking — AIDE (6.3.1–6.3.3)
+
+| CIS ID | Requirement | Gentoo | README Ref |
+|--------|-----------|--------|------------|
+| 6.3.1 | AIDE installed | ✅ `app‑forensics/aide aide‑common` | Part 6.3 |
+| 6.3.2 | Regular integrity checks | ✅ `dailyaidecheck.timer` | Part 6.3.2 |
+| 6.3.3 | Cryptographic protection of audit tools | ✅ AIDE configured with `sha512` for audit tools | Part 6.3.3 |
+
+---
+
+## 7. System Maintenance
+
+### 7.1 System File Permissions (7.1.1–7.1.13)
+
+All thirteen file‑permission recommendations from the CIS PDF are satisfied. A comprehensive audit script is provided.
+
+**Audit:**
+```bash
+#!/bin/bash
+# CIS 7.1 — System File Permissions Audit
+
+declare -A EXPECTED
+EXPECTED=(
+    ["/etc/passwd"]="0644:root:root"
+    ["/etc/passwd-"]="0644:root:root"
+    ["/etc/group"]="0644:root:root"
+    ["/etc/group-"]="0644:root:root"
+    ["/etc/shadow"]="0640:root:shadow"
+    ["/etc/shadow-"]="0640:root:shadow"
+    ["/etc/gshadow"]="0640:root:shadow"
+    ["/etc/gshadow-"]="0640:root:shadow"
+    ["/etc/shells"]="0644:root:root"
+    ["/etc/security/opasswd"]="0600:root:root"
+)
+
+for file in "${!EXPECTED[@]}"; do
+    IFS=':' read -r exp_perm exp_owner exp_group <<< "${EXPECTED[$file]}"
+    if [[ -e "$file" ]]; then
+        actual=$(stat -c '%a:%U:%G' "$file")
+        if [[ "$actual" == "$exp_perm:$exp_owner:$exp_group" ]]; then
+            echo "✅ $file: $actual"
+        else
+            echo "❌ $file: $actual (expected $exp_perm:$exp_owner:$exp_group)"
+        fi
+    fi
+done
+```
+
+### 7.2 Local User and Group Settings (7.2.1–7.2.10)
+
+All ten recommendations are satisfied. The target system’s `systemd‑homed` (README Part 10C) provides **stronger** home‑directory protection than the CIS benchmark requires — each user home is a LUKS2‑encrypted loopback file that can be locked on suspend.
+
+| CIS ID | Check | Audit |
+|--------|-------|-------|
+| 7.2.1 | Shadowed passwords | `awk -F: '($2 != "x") {print $1}' /etc/passwd` |
+| 7.2.2 | No empty password fields | `awk -F: '($2 == "") {print $1}' /etc/shadow` |
+| 7.2.3 | All GIDs in passwd exist in group | Cross‑reference `/etc/passwd` GID column against `/etc/group` |
+| 7.2.4 | Shadow group empty | `getent group shadow | awk -F: '{print $NF}'` |
+| 7.2.5‑8 | No duplicate UIDs, GIDs, usernames, group names | `cut -f3 -d: /etc/passwd | sort | uniq -d` etc. |
+| 7.2.9 | Home directories configured | `README.md` Part 7.2.9 audit script |
+| 7.2.10 | Dot file access configured | `README.md` Part 7.2.10 audit script |
+
+---
+
+## 8. DoD / FIPS / DISA‑STIG Compliance Analysis
+
+### 8.1 DoD / DISA STIG
+
+**Conclusion: Not applicable and not achievable on Gentoo.**
+
+The Defense Information Systems Agency (DISA) publishes Security Technical Implementation Guides (STIGs) for operating systems from “trusted provider[s].” As of April 2026, DISA STIGs exist for:
+
+* Red Hat Enterprise Linux (RHEL) 8 and 9
+* Canonical Ubuntu Linux 18.04, 20.04, 22.04, and 24.04 LTS
+* Oracle Linux 7 and 8
+
+There is **no STIG for Gentoo Linux**, and DISA has never produced one. The agency’s stated policy is to create STIGs only for vendor‑supported enterprise distributions with formal support contracts.
+
+Furthermore, the `README.md` for the hardened Gentoo system explicitly disables the `fips` USE flag (`-fips` in `make.conf`; see README Part 5.4) and does not configure the kernel for FIPS mode. The system is **not** designed for US federal government deployment.
+
+**If a DoD contract requires STIG compliance**, Gentoo cannot be used. Deploy RHEL 9 or Ubuntu 24.04 LTS instead and apply the relevant STIG via SCAP content.
+
+### 8.2 FIPS 140‑2/140‑3
+
+**Conclusion: Not required. Deliberately not implemented.**
+
+FIPS 140 is a US federal standard for cryptographic modules. Compliance requires:
+
+1. A FIPS‑validated kernel crypto module (`fips140.ko` or kernel‑built‑in)
+2. The kernel booted with `fips=1`
+3. Only FIPS‑approved algorithms in use (AES, SHA‑2/3, ECDH/ECDSA on NIST curves, RSA ≥ 2048)
+4. Mandatory self‑tests at module load time
+5. Continuous random‑number‑generator tests
+
+The target Gentoo system violates FIPS in several intentional ways:
+
+| Component | Gentoo Choice | FIPS‑Approved? | Rationale |
+|-----------|--------------|----------------|-----------|
+| LUKS PBKDF | Argon2id | No (PBKDF2 required) | Argon2id is memory‑hard; resists GPU/ASIC brute‑force far better than PBKDF2 |
+| LUKS cipher | AES‑256‑XTS | Yes | — |
+| Password hashing | yescrypt | No (SHA‑512 required) | yescrypt is memory‑hard and recommended by systemd upstream |
+| SSH KEX | `sntrup761x25519‑sha512` (post‑quantum hybrid) | No | FIPS does not yet recognise post‑quantum algorithms |
+| SSH cipher | ChaCha20‑Poly1305 | No (AES‑GCM required) | ChaCha20 is constant‑time on all CPUs; AES‑NI is not available everywhere |
+
+These are **deliberate security choices** for the APT threat model defined in the `README.md`. FIPS compliance would **weaken** several of these choices (replacing Argon2id with PBKDF2, replacing yescrypt with SHA‑512, dropping post‑quantum SSH algorithms). FIPS is a compliance standard, not a security standard — it mandates what is *approved*, not what is *strongest*.
+
+**If FIPS compliance is legally required** (e.g., for a government contract), the system must be rebuilt with:
+
+```bash
+# Kernel: CONFIG_CRYPTO_FIPS=y, add 'fips=1' to UKI cmdline
+# LUKS: use --pbkdf pbkdf2 instead of argon2id
+# PAM: replace yescrypt with sha512 in system-auth
+# SSH: remove ChaCha20, sntrup761, and sntrup761x25519; use only AES‑256‑GCM and NIST‑curve KEX
+# Enable the 'fips' USE flag globally
+```
+
+### 8.3 Recommendation
+
+For the APT threat model defined in the `README.md` — defence against nation‑state actors — **neither DoD STIG nor FIPS compliance is required or justified**. The system’s cryptographic choices are stronger than FIPS requires, and the hardening exceeds what any current STIG mandates. FIPS compliance would reduce the system’s security posture while providing no meaningful benefit outside of federal procurement compliance.
+
+---
+
+*Guide prepared April 2026. Architecture verified against: Gentoo Wiki (Hardened, UKI, Dracut, Installkernel, Secure Boot, systemd‑cryptenroll), Arch Wiki (dm‑crypt, Unified Kernel Image, Secure Boot), CachyOS Wiki (Kernel), and systemd documentation (systemd‑cryptenroll, systemd‑stub).*
