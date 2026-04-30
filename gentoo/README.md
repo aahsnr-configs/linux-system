@@ -6586,420 +6586,1428 @@ PCR mismatch detected at boot
 
 ---
 
-## Appendix D — CIS Ubuntu 24.04 LTS Desktop Benchmark – Gentoo Mapping  
 
-### Tailored CIS Hardening Guide for Gentoo Linux
+# Appendix D — Unified CIS Gentoo Hardening Guide
 
-**Based on:** CIS Ubuntu Linux 24.04 LTS Benchmark v1.0.0 (published 2024-08-26)  
-**Adapted for:** Hardened Gentoo Installation — APT Threat Model (April 2026)  
-**Primary Reference:** `README.md` (Hardened Gentoo Installation Guide)  
-**Target System:** Gentoo Linux · CachyOS-sources kernel · UKI direct UEFI boot · TPM2+PIN LUKS2 · AppArmor (apparmor.d) · systemd-homed · Btrfs · Firewalld (nftables backend)
+**Based on:**
+- CIS Ubuntu Linux 24.04 LTS Benchmark v1.0.0 (2024‑08‑26)
+- CIS Ubuntu Linux 24.04 LTS STIG Benchmark v1.0.0 (2025‑01‑28)
 
+**Adapted for:** Hardened Gentoo Installation — APT Threat Model (April 2026)
+**Primary Reference:** `README.md` (Hardened Gentoo Installation Guide)
+**Target System:** Gentoo Linux · CachyOS‑sources kernel · UKI direct UEFI boot · TPM2 + PIN LUKS2 · AppArmor (apparmor.d) · systemd‑homed · Btrfs · Firewalld (nftables backend)
 
-## Foreword: Why This Guide Exists
+---
 
-No official CIS Benchmark exists for Gentoo Linux. The Center for Internet Security publishes distribution‑specific benchmarks for Ubuntu, Red Hat Enterprise Linux, SUSE, and Oracle Linux, plus a “Distribution Independent Linux” benchmark—but Gentoo is not among them.
+## Foreword
 
-This document fills that gap. It takes every recommendation from the CIS Ubuntu Linux 24.04 LTS Benchmark v1.0.0 and maps it, one‑by‑one, to the equivalent—or superior—mechanism on the hardened Gentoo system described in the accompanying `README.md`. Where Gentoo uses a different tool (firewalld instead of ufw, direct PAM configuration instead of `pam‑auth‑update`, systemd‑homed instead of traditional `/home`), the mapping is explained in detail with complete audit and remediation procedures. Where the target system already exceeds the CIS requirement, this is noted explicitly.
+No official CIS Benchmark or DISA STIG exists for Gentoo Linux. This document fills that gap by translating every recommendation from both the CIS Desktop Benchmark and the DISA STIG overlay into concrete, verifiable steps for the hardened Gentoo workstation described in the accompanying `README.md`.
 
-The CIS benchmark defines two profiles: **Level 1 – Workstation** (practical, prudent, clear security benefit, does not inhibit utility) and **Level 2 – Workstation** (extends Level 1; defence‑in‑depth; may inhibit performance). This guide implements **Level 1 – Workstation** throughout, with select Level 2 recommendations adopted where they align with the APT threat model defined in the `README.md`.【PDF†Page 19】
+Two documents are merged here:
+- **CIS Ubuntu 24.04 LTS Benchmark** — the general-purpose hardening guide, with Level 1 (practical, prudent) and Level 2 (defence‑in‑depth) profiles.
+- **CIS Ubuntu 24.04 LTS STIG Benchmark** — the Department of Defense overlay, with CAT I (high), CAT II (medium), and CAT III (low) severity categories.
 
-### How to Read This Guide
+Where the STIG is stricter than the general CIS recommendation, the STIG requirement takes precedence in this guide unless a deliberate deviation is justified (see §8).
 
-* Each CIS recommendation is numbered exactly as in the CIS PDF (e.g., “1.1.1.1”).
-* **CIS Requirement** states what the original benchmark demands.
-* **Gentoo Mapping** explains how the requirement is satisfied on the target Gentoo system.
-* **Audit** provides a copy‑paste‑ready procedure to verify compliance.
-* **Remediation** provides the commands to bring a non‑compliant system into compliance.
-* The symbol `✅` means the default configuration already satisfies the requirement. The symbol `⚠️` means the configuration exists but must be verified or customised per site policy.
+---
 
+## How to Use This Guide
+
+Each recommendation is a self‑contained block:
+
+1. **Heading** — The CIS recommendation number (e.g., **1.1.1.1**). If a STIG rule applies, its ID is listed beneath (e.g., *STIG: UBTU‑24‑100030*).
+2. **Profile & Status** — Which CIS levels and STIG categories apply, plus a quick icon:
+   - ✅ **COMPLIANT** — The hardened Gentoo system already satisfies this requirement.
+   - ⚠️ **NEEDS REVIEW** — Mostly satisfied, but requires site‑specific customisation or verification.
+   - ❌ **INTENTIONAL DEVIATION** — Deliberately not applied, with rationale.
+   - 🔵 **NOT APPLICABLE** — Not relevant to a standalone workstation.
+3. **What's Required** — A concise, plain‑English description of the requirement.
+4. **Gentoo Implementation** — How the target system meets (or intentionally deviates from) the requirement, with references to relevant `README.md` sections.
+5. **Audit** — Copy‑paste‑ready commands to verify compliance. A successful audit produces no output or the expected value; anything else warrants investigation.
+6. **Remediation** — Copy‑paste‑ready commands to bring the system into compliance. Only shown when the default configuration does not already satisfy the requirement.
+
+> **Convention:** Prompts beginning with `#` denote commands run as root. Prompts beginning with `$` denote commands run as an unprivileged user.
+
+---
 
 ## 1. Initial Setup
 
-### 1.1 Filesystem Configuration
+### 1.1 Filesystem
 
-#### 1.1.1 Filesystem Kernel Modules
+#### 1.1.1 Configure Filesystem Kernel Modules
 
-The CIS benchmark requires disabling support for rarely‑used filesystem types to reduce the local attack surface. The `README.md` Part 16 implements a comprehensive module‑blacklisting regime via `/etc/modprobe.d/blacklist‑hardening.conf`.
+---
 
-##### 1.1.1.1 Ensure cramfs kernel module is not available (Automated)
+##### 1.1.1.1 Ensure cramfs kernel module is not available
 
-**CIS Requirement:** The cramfs module shall be unloadable, deny‑listed, and not loaded in the running kernel.【PDF†Page 24】
+*STIG: UBTU‑24‑100030 (telnetd, analogous principle)*
 
-**Gentoo Mapping:** ✅ Already implemented in `blacklist‑hardening.conf`. The directive `install cramfs /bin/true` prevents loading; `blacklist cramfs` prevents autoloading.
+**Profile:** CIS Level 1 – Server & Workstation | **Status:** ✅ COMPLIANT
 
-**Audit:**
+**What's Required**
+The `cramfs` kernel module must be prevented from loading. This reduces the local attack surface by removing support for a rarely‑used compressed ROM filesystem that has known vulnerabilities.
+
+**Gentoo Implementation**
+`cramfs` is blacklisted via `/etc/modprobe.d/blacklist-hardening.conf` (README Part 16). The configuration uses both `install cramfs /bin/true` (to prevent loading) and `blacklist cramfs` (to prevent auto‑loading).
+
+**Audit**
 ```bash
-#!/bin/bash
-# CIS 1.1.1.1 – Verify cramfs is blocked
-for mod in cramfs freevxfs jffs2 hfs hfsplus squashfs udf; do
-    echo -n "Module $mod: "
-    if modprobe -n -v "$mod" 2>&1 | grep -q 'install /bin/true'; then
-        echo "BLOCKED ✅"
-    elif lsmod | grep -q "$mod"; then
-        echo "LOADED ❌"
-    else
-        echo "BLACKLISTED ✅"
-    fi
-done
+modprobe -n -v cramfs 2>&1 | grep -q 'install /bin/true' && \
+  echo "✅ cramfs is blocked" || echo "❌ cramfs is NOT blocked"
 ```
 
-**Remediation:**
+**Remediation**
 ```bash
 echo "install cramfs /bin/true"  > /etc/modprobe.d/cramfs.conf
 echo "blacklist cramfs"         >> /etc/modprobe.d/cramfs.conf
+dracut --force --regenerate-all
 ```
 
-##### 1.1.1.2 – 1.1.1.8 (freevxfs, hfs, hfsplus, jffs2, overlayfs, squashfs, udf)
+---
 
-All seven modules are blocked in the same manner as 1.1.1.1. Use the unified audit script above.
+##### 1.1.1.2 Ensure freevxfs kernel module is not available
 
-> **Note on overlayfs (1.1.1.6):** The CIS PDF marks this as Level 2. It is conditionally blacklisted in `README.md` Part 16 because container runtimes (Docker, Podman) require overlayfs. If no containers are used on this workstation, the blacklist is safe and appropriate.【PDF†Page 49】
+**Profile:** CIS Level 1 – Server & Workstation | **Status:** ✅ COMPLIANT
 
-##### 1.1.1.9 Ensure usb‑storage kernel module is not available (Automated)
+**What's Required**
+The `freevxfs` (Veritas filesystem) module must be blocked.
 
-**CIS Requirement:** CIS Level 1 – Server; Level 2 – Workstation. The `usb‑storage` module shall be blocked.【PDF†Page 64】
+**Gentoo Implementation**
+Blacklisted in `blacklist-hardening.conf` (README Part 16).
 
-**Gentoo Mapping:** ⚠️ Conditionally blacklisted in `README.md` Part 16. The comment states it is “required for recovery USB boot.” For a workstation that does not routinely use USB storage, enable the blacklist.
-
-**Audit:** `modprobe -n -v usb-storage`
-
-**Remediation:**
+**Audit**
 ```bash
-echo "install usb-storage /bin/true" > /etc/modprobe.d/usb-storage.conf
-echo "blacklist usb-storage"       >> /etc/modprobe.d/usb-storage.conf
-dracut --force --regenerate-all      # apply to early boot
+modprobe -n -v freevxfs 2>&1 | grep -q 'install /bin/true' && \
+  echo "✅ freevxfs is blocked" || echo "❌ freevxfs is NOT blocked"
 ```
+
+**Remediation**
+```bash
+echo "install freevxfs /bin/true"  > /etc/modprobe.d/freevxfs.conf
+echo "blacklist freevxfs"         >> /etc/modprobe.d/freevxfs.conf
+dracut --force --regenerate-all
+```
+
+---
+
+##### 1.1.1.3 – 1.1.1.5 Ensure hfs, hfsplus, and jffs2 kernel modules are not available
+
+**Profile:** CIS Level 1 – Server & Workstation | **Status:** ✅ COMPLIANT
+
+**What's Required**
+The `hfs`, `hfsplus` (Mac filesystems), and `jffs2` (flash filesystem) modules must be blocked.
+
+**Gentoo Implementation**
+All three are blacklisted in `blacklist-hardening.conf` (README Part 16). The block follows the same pattern: `install <module> /bin/true` plus `blacklist <module>`.
+
+**Audit (unified)**
+```bash
+for mod in hfs hfsplus jffs2; do
+    modprobe -n -v "$mod" 2>&1 | grep -q 'install /bin/true' && \
+      echo "✅ $mod blocked" || echo "❌ $mod NOT blocked"
+done
+```
+
+**Remediation (per module)**
+```bash
+# Replace <module> with hfs, hfsplus, or jffs2
+echo "install <module> /bin/true"  > /etc/modprobe.d/<module>.conf
+echo "blacklist <module>"         >> /etc/modprobe.d/<module>.conf
+dracut --force --regenerate-all
+```
+
+---
+
+##### 1.1.1.6 Ensure overlayfs kernel module is not available
+
+**Profile:** CIS Level 2 – Server & Workstation | **Status:** ⚠️ NEEDS REVIEW
+
+**What's Required**
+The `overlayfs` module must be blocked. This is a Level 2 (defence‑in‑depth) recommendation because containers (Docker, Podman) depend on overlayfs.
+
+**Gentoo Implementation**
+Conditionally blacklisted in `blacklist-hardening.conf` (README Part 16). The comment states: "If you use Flatpak, snap, AppImage, or Docker, comment out the two lines below."
+
+**Audit**
+```bash
+modprobe -n -v overlay 2>&1 | grep -q 'install /bin/true' && \
+  echo "✅ overlay blocked" || echo "⚠️ overlay is loadable (containers may need it)"
+```
+
+**Remediation (if no containers are used)**
+```bash
+echo "install overlay /bin/true"  > /etc/modprobe.d/overlay.conf
+echo "blacklist overlay"         >> /etc/modprobe.d/overlay.conf
+dracut --force --regenerate-all
+```
+
+---
+
+##### 1.1.1.7 – 1.1.1.8 Ensure squashfs and udf kernel modules are not available
+
+**Profile:** CIS Level 2 – Server & Workstation | **Status:** ⚠️ NEEDS REVIEW
+
+**What's Required**
+`squashfs` (compressed read‑only, used by Snap/Flatpak) and `udf` (optical disc) modules must be blocked.
+
+**Gentoo Implementation**
+Both are conditionally blacklisted in `blacklist-hardening.conf`. Review whether your workload requires them before enabling the blacklist.
+
+**Audit**
+```bash
+for mod in squashfs udf; do
+    modprobe -n -v "$mod" 2>&1 | grep -q 'install /bin/true' && \
+      echo "✅ $mod blocked" || echo "⚠️ $mod is loadable"
+done
+```
+
+**Remediation (if neither Snap/Flatpak nor optical drives are needed)**
+```bash
+for mod in squashfs udf; do
+    echo "install $mod /bin/true"  > /etc/modprobe.d/$mod.conf
+    echo "blacklist $mod"         >> /etc/modprobe.d/$mod.conf
+done
+dracut --force --regenerate-all
+```
+
+---
+
+##### 1.1.1.9 Ensure usb‑storage kernel module is not available
+
+*STIG: UBTU‑24‑300039 (CAT II)*
+
+**Profile:** CIS Level 1 – Server / Level 2 – Workstation · STIG CAT II | **Status:** ⚠️ NEEDS REVIEW
+
+**What's Required**
+The `usb‑storage` module must be blocked to prevent USB mass storage devices from being used. The STIG requires both `install usb‑storage /bin/true` and `blacklist usb‑storage`.
+
+**Gentoo Implementation**
+Conditionally blacklisted in `blacklist-hardening.conf` (README Part 16). The comment states it is "required for recovery USB boot." If USB storage is not routinely needed, enable the blacklist. For a workstation that uses the STIG profile, this should be fully blocked.
+
+**Audit**
+```bash
+modprobe -n -v usb-storage 2>&1 | grep -q 'install /bin/true' && \
+  modprobe -n -v usb-storage 2>&1 | grep -q 'blacklist' && \
+  echo "✅ usb-storage fully blocked" || echo "❌ usb-storage NOT fully blocked"
+```
+
+**Remediation**
+```bash
+echo "install usb-storage /bin/true"  > /etc/modprobe.d/usb-storage.conf
+echo "blacklist usb-storage"         >> /etc/modprobe.d/usb-storage.conf
+dracut --force --regenerate-all
+```
+
+---
 
 ##### 1.1.1.10 Ensure unused filesystems kernel modules are not available (Manual)
 
-**CIS Requirement:** Review all loaded filesystem modules and disable any not needed.【PDF†Page 69】
+**Profile:** CIS Level 1 – Server & Workstation | **Status:** ✅ COMPLIANT
 
-**Gentoo Mapping:** The `README.md` Part 16 blacklists cover the most common attack vectors. The administrator must manually review the output of `lsmod | grep -E 'fs$|fs_'` and disable any additional modules that are not required for operation.
+**What's Required**
+Review all loaded filesystem modules and disable any not required for the system's function.
 
-#### 1.1.2 Filesystem Partitions
+**Gentoo Implementation**
+README Part 16 blacklists cover the most common attack vectors. The administrator must manually review loaded filesystem modules.
 
-The CIS PDF mandates that `/tmp`, `/dev/shm`, `/home`, `/var`, `/var/tmp`, `/var/log`, and `/var/log/audit` each reside on separate partitions with `nodev`, `nosuid`, and `noexec` mount options where applicable.【PDF†Pages 75‑137】
+**Audit**
+```bash
+# List all loaded filesystem-related modules
+lsmod | awk '{print $1}' | grep -E 'fs$|_fs'
+# Review each and determine if it is required for normal operation
+```
 
-The target Gentoo system uses Btrfs subvolumes rather than separate partitions. Each directory listed above is a distinct subvolume with mount options specified in `/etc/fstab` (README Part 11). This provides equivalent isolation: a subvolume can be snapshotted independently, and Btrfs honours the mount options identically to a separate partition.
+**Remediation**
+For any module identified as unnecessary, follow the pattern established in 1.1.1.1–1.1.1.9: create a `.conf` file in `/etc/modprobe.d/` with `install <module> /bin/true` and `blacklist <module>`, then rebuild the initramfs.
 
-| CIS ID | Directory | Required Options | Gentoo fstab Entry | Status |
-|--------|-----------|-----------------|-------------------|--------|
-| 1.1.2.1.1‑4 | `/tmp` | `nosuid,nodev,noexec` | `subvol=@/tmp` with `nosuid,nodev,noexec` | ✅ |
-| 1.1.2.2.1‑4 | `/dev/shm` | `nosuid,nodev,noexec` | tmpfs with `nosuid,nodev,noexec` | ✅ |
-| 1.1.2.3.1‑3 | `/home` | `nosuid,nodev` (Level 2: separate partition) | `subvol=@/home` + systemd‑homed LUKS2 per‑user encryption | ✅ |
-| 1.1.2.4.1‑3 | `/var` | `nosuid,nodev` | `subvol=@/var` with `nosuid,nodev` | ✅ |
-| 1.1.2.5.1‑4 | `/var/tmp` | `nosuid,nodev,noexec` | `subvol=@/var/tmp` with `nosuid,nodev,noexec` | ✅ |
-| 1.1.2.6.1‑4 | `/var/log` | `nosuid,nodev,noexec` | `subvol=@/var/log` with `nosuid,nodev,noexec` | ✅ |
-| 1.1.2.7.1‑4 | `/var/log/audit` | `nosuid,nodev,noexec` | `subvol=@/var/log/audit` with `nosuid,nodev,noexec` | ✅ |
+---
 
-**Audit (unified):**
+#### 1.1.2 Configure Filesystem Partitions
+
+The target Gentoo system uses **Btrfs subvolumes with appropriate mount options** rather than separate physical partitions for each directory. This provides equivalent — and in some cases superior — isolation because each subvolume can be snapshotted independently, and Btrfs honours mount options identically to a separate partition.
+
+All seven CIS partition requirements are satisfied by the layout described in README Part 4 (Btrfs subvolume creation) and Part 11 (fstab):
+
+| Directory | Required Mount Options | Gentoo Implementation |
+|-----------|----------------------|----------------------|
+| `/tmp` | `nosuid,nodev,noexec` | `subvol=@/tmp` — tmpfs with `nosuid,nodev,noexec` |
+| `/dev/shm` | `nosuid,nodev,noexec` | tmpfs with `nosuid,nodev,noexec` |
+| `/home` | `nosuid,nodev` (sep. partition at L2) | `subvol=@/home` + systemd‑homed LUKS2 per‑user encryption |
+| `/var` | `nosuid,nodev` (sep. partition at L2) | `subvol=@/var` (CoW disabled via `chattr +C`) |
+| `/var/tmp` | `nosuid,nodev,noexec` | `subvol=@/var/tmp` (CoW disabled) |
+| `/var/log` | `nosuid,nodev,noexec` | `subvol=@/var/log` |
+| `/var/log/audit` | `nosuid,nodev,noexec` | `subvol=@/var/log/audit` |
+
+**Unified Audit**
 ```bash
 #!/bin/bash
-# CIS 1.1.2 – Verify mount options on critical directories
+# Verify all critical directories have correct mount options
 for mp in /tmp /dev/shm /home /var /var/tmp /var/log /var/log/audit; do
     echo "=== $mp ==="
     findmnt -kn "$mp" 2>/dev/null || echo "  NOT MOUNTED"
 done
 ```
 
+---
+
 ### 1.2 Package Management
 
-The CIS PDF sections 1.2.1 and 1.2.2 are Ubuntu‑specific (apt, GPG key lists, `apt‑cache policy`). Gentoo uses Portage with a fundamentally different model.
+---
 
-| CIS ID | CIS Requirement | Gentoo Equivalent | README Ref |
-|--------|---------------|-------------------|------------|
-| 1.2.1.1 | GPG keys configured | Git commit signature verification via `sync‑git‑verify‑commit‑signature = yes` in `repos.conf` | Part 21.2 |
-| 1.2.1.2 | Package repositories configured | `eselect repository` list; multiple overlays (guru, CachyOS‑kernels, hyproverlay) | Part 6.3 |
-| 1.2.2.1 | Updates, patches, security software installed | `emerge --sync && emerge -uDNav @world` plus weekly GLSA scan | Part 21.4 |
+##### 1.2.1.1 Ensure GPG keys are configured (Manual)
 
-**Audit:**
+**Profile:** CIS Level 1 – Server & Workstation | **Status:** ✅ COMPLIANT
+
+**What's Required**
+Package manager must verify package integrity using GPG key signing.
+
+**Gentoo Implementation**
+Gentoo uses Portage with Git commit signature verification. The `repos.conf` entry for `::gentoo` includes `sync-git-verify-commit-signature = yes` and references the Gentoo release OpenPGP key. Additionally, `app-portage/gemato` provides full‑tree Manifest verification (README Part 21.2).
+
+**Audit**
 ```bash
-# Repository signature verification
 grep 'sync-git-verify-commit-signature' /etc/portage/repos.conf/gentoo.conf
-
-# Full-tree manifest verification (gemato)
-gemato verify -K /usr/share/openpgp-keys/gentoo-release.asc \
-  "$(portageq get_repo_path / gentoo)"
-
-# GLSA scan
-glsa-check --list affected
+# Must show: sync-git-verify-commit-signature = yes
 ```
+
+**Remediation**
+```bash
+cat > /etc/portage/repos.conf/gentoo.conf << 'EOF'
+[DEFAULT]
+main-repo = gentoo
+
+[gentoo]
+location = /var/db/repos/gentoo
+sync-type = git
+sync-uri = https://github.com/gentoo-mirror/gentoo.git
+auto-sync = yes
+sync-git-verify-commit-signature = yes
+sync-openpgp-key-path = /usr/share/openpgp-keys/gentoo-release.asc
+EOF
+```
+
+---
+
+##### 1.2.2.1 Ensure updates, patches, and additional security software are installed (Manual)
+
+*STIG: UBTU‑24‑700400 (vendor‑supported release, CAT II)*
+
+**Profile:** CIS Level 1 – Server & Workstation · STIG CAT II | **Status:** ✅ COMPLIANT
+
+**What's Required**
+The system must receive regular security updates from a supported source.
+
+**Gentoo Implementation**
+Gentoo is a rolling‑release distribution. As long as `emerge --sync` runs regularly, the system receives continuous security updates. The weekly GLSA scan (`glsa-check`) identifies any packages affected by published vulnerabilities (README Part 21.4).
+
+**Audit**
+```bash
+# Verify the Portage tree has been synced within the last 7 days
+find /var/db/repos/gentoo/metadata/timestamp.chk -mtime -7 2>/dev/null && \
+  echo "✅ Synced within last 7 days" || echo "⚠️ Tree may be stale"
+
+# Check for GLSA-affected packages
+glsa-check --list affected 2>/dev/null
+```
+
+**Remediation**
+```bash
+emerge --sync
+glsa-check --fix affected 2>/dev/null
+```
+
+---
 
 ### 1.3 Mandatory Access Control — AppArmor
 
-The CIS PDF section 1.3.1 configures AppArmor on Ubuntu. The target Gentoo system uses AppArmor with the `apparmor.d` profile set (~1500 profiles).
+---
 
-| CIS ID | Recommendation | Gentoo Status | README Ref |
-|--------|---------------|---------------|------------|
-| 1.3.1.1 | AppArmor installed | ✅ `sys‑apps/apparmor apparmor‑utils sec‑policy/apparmor‑profiles` | Part 14.1 |
-| 1.3.1.2 | AppArmor enabled in bootloader | ✅ UKI cmdline: `apparmor=1 security=apparmor`; kernel `lsm=lockdown,yama,apparmor,bpf` | Part 14.1 |
-| 1.3.1.3 | Profiles in enforce or complain mode | ✅ ~1500 profiles loaded | Part 14.3 |
-| 1.3.1.4 | All profiles enforcing (Level 2) | ⚠️ Partial — critical profiles enforced; others in complain | Part 14.6 |
+##### 1.3.1.1 Ensure AppArmor is installed
 
-**Audit:**
+*STIG: UBTU‑24‑100500 (CAT II)*
+
+**Profile:** CIS Level 1 – Server & Workstation · STIG CAT II | **Status:** ✅ COMPLIANT
+
+**What's Required**
+The `apparmor` package must be installed. The STIG also requires `apparmor‑utils`.
+
+**Gentoo Implementation**
+`sys‑apps/apparmor`, `sys‑apps/apparmor‑utils`, and `sec‑policy/apparmor‑profiles` are emerged. Additionally, the `apparmor.d` profile set (~1500 profiles) is installed from source (README Part 14.1).
+
+**Audit**
 ```bash
-aa-status | head -10
-# Verify at least: "apparmor module is loaded." and "N profiles are loaded."
-cat /proc/cmdline | grep -o 'apparmor=1'
-cat /sys/kernel/security/lsm
+qpkg -I apparmor && echo "✅ AppArmor installed" || echo "❌ AppArmor NOT installed"
+ls /lib64/security/pam_apparmor.so && echo "✅ PAM module present" || echo "⚠️ PAM module missing"
 ```
 
-### 1.4 Bootloader Configuration
+**Remediation**
+```bash
+emerge --ask sys-apps/apparmor sys-apps/apparmor-utils sec-policy/apparmor-profiles
+```
 
-The CIS PDF section 1.4 references GRUB2. The target system replaces GRUB entirely with **UKI + direct UEFI boot + Secure Boot** (README Parts 7‑9).
+---
 
-| CIS ID | CIS Requirement | Gentoo Implementation | Assessment |
-|--------|---------------|----------------------|------------|
-| 1.4.1 | Bootloader password set | TPM2+PIN required for LUKS unlock; Secure Boot prevents unauthorised UKI execution | **Exceeds** — the TPM provides hardware‑bound authentication; Secure Boot provides cryptographic verification |
-| 1.4.2 | Access to bootloader config restricted (`0600 root:root`) | UKI is a signed PE binary; ESP contains only `.efi` files; no GRUB config exists | **Exceeds** — no plaintext bootloader configuration to protect |
+##### 1.3.1.2 Ensure AppArmor is enabled in the bootloader configuration
 
-**Audit:**
+*STIG: UBTU‑24‑100510 (CAT II)*
+
+**Profile:** CIS Level 1 – Server & Workstation · STIG CAT II | **Status:** ✅ COMPLIANT — **exceeds requirement**
+
+**What's Required**
+AppArmor must be activated at boot time via `apparmor=1` and `security=apparmor` kernel parameters. The CIS benchmark assumes GRUB; the STIG requires the service to be enabled and active.
+
+**Gentoo Implementation**
+The target system does not use GRUB. Instead, the UKI (Unified Kernel Image) embeds `apparmor=1 security=apparmor` in its command line (README Part 8.2). The kernel is compiled with `CONFIG_LSM="lockdown,yama,apparmor,bpf"`. Secure Boot prevents tampering with the UKI. The `apparmor.service` is enabled and active.
+
+This **exceeds** the CIS requirement: there is no plaintext bootloader configuration to protect, and the UKI is cryptographically verified by Secure Boot before execution.
+
+**Audit**
+```bash
+cat /proc/cmdline | grep -o 'apparmor=1'
+# Must output: apparmor=1
+cat /proc/cmdline | grep -o 'security=apparmor'
+# Must output: security=apparmor
+systemctl is-active apparmor.service
+# Must output: active
+```
+
+**Remediation**
+```bash
+systemctl unmask apparmor.service 2>/dev/null || true
+systemctl enable --now apparmor.service
+```
+
+---
+
+##### 1.3.1.3 Ensure all AppArmor Profiles are in enforce or complain mode
+
+**Profile:** CIS Level 1 – Server & Workstation | **Status:** ✅ COMPLIANT
+
+**What's Required**
+All installed AppArmor profiles must be loaded and in either enforce or complain mode. No processes should be unconfined.
+
+**Gentoo Implementation**
+Approximately 1500 profiles from the `apparmor.d` project are loaded (README Part 14.3). The project recommends installing in complain mode first, then switching to enforce after a testing period.
+
+**Audit**
+```bash
+aa-status | head -10
+# Verify: "apparmor module is loaded." and "N profiles are loaded."
+aa-status | grep -E 'processes are unconfined'
+# Should show: 0 processes are unconfined
+```
+
+**Remediation**
+```bash
+# Load all profiles in complain mode (initial deployment)
+aa-complain /etc/apparmor.d/*
+# After testing, switch to enforce
+aa-enforce /etc/apparmor.d/*
+```
+
+---
+
+##### 1.3.1.4 Ensure all AppArmor Profiles are enforcing
+
+**Profile:** CIS Level 2 – Server & Workstation | **Status:** ⚠️ NEEDS REVIEW
+
+**What's Required**
+Every AppArmor profile must be in enforce mode — no profiles in complain mode.
+
+**Gentoo Implementation**
+Critical system profiles (sshd, systemd, dbus, polkit, firewalld) are in enforce mode. Some user‑application profiles remain in complain mode pending site‑specific tuning (README Part 14.6). The `apparmor.d` project strongly recommends a minimum one‑week testing period in complain mode before enforcing.
+
+**Audit**
+```bash
+aa-status | grep 'profiles are in complain mode'
+# The number should be as close to 0 as possible
+```
+
+**Remediation (after thorough testing)**
+```bash
+aa-enforce /etc/apparmor.d/*
+systemctl reload apparmor.service
+```
+
+---
+
+### 1.4 Configure Bootloader
+
+---
+
+##### 1.4.1 Ensure bootloader password is set
+
+*STIG: UBTU‑24‑102000 (CAT I)*
+
+**Profile:** CIS Level 1 – Server & Workstation · STIG CAT I | **Status:** ✅ COMPLIANT — **exceeds requirement**
+
+**What's Required**
+A password must be required to modify boot parameters or enter single‑user mode. The CIS benchmark assumes GRUB2 with `password_pbkdf2`. The STIG requires authentication before booting into single‑user or maintenance modes.
+
+**Gentoo Implementation**
+The target system **does not use GRUB2 at all**. It uses UKI + direct UEFI boot with Secure Boot (README Parts 7‑9). This architecture provides **stronger** protection:
+
+1. The UKI is a signed PE binary — any modification invalidates the Secure Boot signature, and the firmware refuses to load it.
+2. There is no GRUB shell, no single‑user mode accessible from the boot menu, and no kernel command‑line editor that an attacker could use.
+3. The TPM2 + PIN requirement (README Part 10) means the root filesystem cannot be decrypted without both physical possession of the TPM **and** knowledge of the PIN.
+
+There is no plaintext bootloader password because there is no bootloader. This is a deliberate architectural decision that **exceeds** the CIS and STIG requirements.
+
+**Audit**
 ```bash
 sbctl status
 # Must show: "Installed: ✓" and "Secure Boot: ✓ Enabled"
-sbctl verify
-# All files on ESP must verify successfully
+
+# Verify no GRUB installation exists
+qpkg -I grub 2>/dev/null && echo "⚠️ GRUB is installed (unexpected)" || echo "✅ GRUB not installed"
+
+# Verify UKIs on the ESP are signed
+sbctl verify | grep -E '/efi/EFI/Linux/.*\.efi'
+# All entries must show "✓ signed"
 ```
 
-### 1.5 Additional Process Hardening (1.5.1–1.5.5)
+---
 
-All five recommendations are satisfied on the target system:
+##### 1.4.2 Ensure access to bootloader config is configured
 
-| CIS ID | Parameter | Expected Value | Gentoo Source | Audit Command |
-|--------|-----------|---------------|---------------|---------------|
-| 1.5.1 | `kernel.randomize_va_space` | `2` | cachyos‑sources default | `sysctl kernel.randomize_va_space` |
-| 1.5.2 | `kernel.yama.ptrace_scope` | `1`, `2`, or `3` | Set to `1` via sysctl | `sysctl kernel.yama.ptrace_scope` |
-| 1.5.3 | Core dumps restricted | `* hard core 0` + `fs.suid_dumpable=0` | `/etc/security/limits.conf` + sysctl | `grep 'hard core' /etc/security/limits.conf` |
-| 1.5.4 | prelink not installed | Package absent | Not installed (interferes with AIDE) | `qpkg -I prelink` |
-| 1.5.5 | Automatic error reporting disabled | No Apport | Apport is Ubuntu‑specific; not present on Gentoo | N/A |
+**Profile:** CIS Level 1 – Server & Workstation | **Status:** ✅ COMPLIANT — **exceeds requirement**
 
-**Remediation for core dumps:**
+**What's Required**
+The GRUB configuration file (`/boot/grub/grub.cfg`) must be owned by `root:root` and have mode `0600` or more restrictive.
+
+**Gentoo Implementation**
+No GRUB configuration file exists. The ESP contains only signed `.efi` binaries (the UKIs). The ESP is mounted at `/efi` with `noatime` and does not contain any plaintext configuration files that could reveal boot parameters or weaken security.
+
+**Audit**
+```bash
+# Verify no GRUB config exists
+[ ! -f /boot/grub/grub.cfg ] && echo "✅ No GRUB config (UKI system)"
+
+# Verify ESP contents are only signed binaries
+ls -la /efi/EFI/Linux/
+# Should show only .efi files
+
+# Verify ESP mount options
+findmnt -kn /efi
+# Should include noatime
+```
+
+---
+
+### 1.5 Configure Additional Process Hardening
+
+---
+
+##### 1.5.1 Ensure address space layout randomization (ASLR) is enabled
+
+*STIG: UBTU‑24‑700310 (CAT II)*
+
+**Profile:** CIS Level 1 – Server & Workstation · STIG CAT II | **Status:** ✅ COMPLIANT
+
+**What's Required**
+`kernel.randomize_va_space` must be set to `2` (full randomization). The STIG audit specifically checks for value `2`; value `3` (which some kernels support) would cause a STIG audit failure despite being more secure.
+
+**Gentoo Implementation**
+The `cachyos‑sources` kernel defaults to `kernel.randomize_va_space=2`. The UKI cmdline includes `mitigations=auto` which enables all relevant CPU vulnerability mitigations (README Part 1.5).
+
+**Audit**
+```bash
+sysctl kernel.randomize_va_space
+# Must output: kernel.randomize_va_space = 2
+
+# Verify no override file sets a different value
+grep -R "^kernel.randomize_va_space=[^2]" /etc/sysctl.conf /etc/sysctl.d 2>/dev/null && \
+  echo "❌ Override found" || echo "✅ No incorrect override"
+```
+
+**Remediation**
+```bash
+printf '%s\n' "kernel.randomize_va_space = 2" > /etc/sysctl.d/60-aslr.conf
+sysctl -w kernel.randomize_va_space=2
+```
+
+---
+
+##### 1.5.2 Ensure ptrace_scope is restricted
+
+**Profile:** CIS Level 1 – Server & Workstation | **Status:** ✅ COMPLIANT
+
+**What's Required**
+`kernel.yama.ptrace_scope` must be set to `1`, `2`, or `3` to restrict the `ptrace()` system call.
+
+**Gentoo Implementation**
+Set to `1` (restricted ptrace) via sysctl. Value `1` allows a process to trace only its descendants; this is the recommended setting for a development workstation where debugging is needed. For stricter environments, value `2` (admin‑only) or `3` (completely disabled) may be used.
+
+**Audit**
+```bash
+sysctl kernel.yama.ptrace_scope
+# Must output: kernel.yama.ptrace_scope = 1 (or 2, or 3)
+```
+
+**Remediation**
+```bash
+printf '%s\n' "kernel.yama.ptrace_scope = 1" > /etc/sysctl.d/60-ptrace.conf
+sysctl -w kernel.yama.ptrace_scope=1
+```
+
+---
+
+##### 1.5.3 Ensure core dumps are restricted
+
+**Profile:** CIS Level 1 – Server & Workstation | **Status:** ✅ COMPLIANT
+
+**What's Required**
+Core dumps must be restricted via both `limits.conf` (`* hard core 0`) and the `fs.suid_dumpable` sysctl (`0`).
+
+**Gentoo Implementation**
+Both controls are implemented (README Part 1.5). The `systemd‑coredump` service is present but configured to store nothing.
+
+**Audit**
+```bash
+grep -P '^\*\s+hard\s+core\s+0\b' /etc/security/limits.conf /etc/security/limits.d/*.conf 2>/dev/null && \
+  echo "✅ Core dump limit set"
+sysctl fs.suid_dumpable
+# Must output: fs.suid_dumpable = 0
+```
+
+**Remediation**
 ```bash
 echo "* hard core 0" >> /etc/security/limits.d/50-cis-core.conf
-echo "fs.suid_dumpable = 0" > /etc/sysctl.d/50-cis-core.conf
-sysctl --system
-# If systemd-coredump is installed:
+printf '%s\n' "fs.suid_dumpable = 0" > /etc/sysctl.d/60-coredump.conf
+sysctl -w fs.suid_dumpable=0
+# If systemd-coredump is present:
 mkdir -p /etc/systemd/coredump.conf.d
-echo -e "[Coredump]\nStorage=none\nProcessSizeMax=0" \
-  > /etc/systemd/coredump.conf.d/50-cis.conf
+printf '[Coredump]\nStorage=none\nProcessSizeMax=0\n' > /etc/systemd/coredump.conf.d/50-cis.conf
+systemctl daemon-reload
 ```
 
-### 1.6 Command‑Line Warning Banners (1.6.1–1.6.6)
+---
 
-All six recommendations are implemented in `README.md` Part 25. The CIS PDF also requires that the `/etc/motd`, `/etc/issue`, and `/etc/issue.net` files not contain OS‑version information (`\m`, `\r`, `\s`, `\v` escapements).
+##### 1.5.4 Ensure prelink is not installed
 
-**Audit:**
+**Profile:** CIS Level 1 – Server & Workstation | **Status:** ✅ COMPLIANT
+
+**What's Required**
+The `prelink` package must not be installed, as it interferes with AIDE file integrity checking.
+
+**Gentoo Implementation**
+`prelink` is not installed on the target system and is not a dependency of any package in the world set.
+
+**Audit**
 ```bash
-# Verify warning banner exists and contains no OS version escapes
-for f in /etc/motd /etc/issue /etc/issue.net; do
+qpkg -I prelink 2>/dev/null && echo "❌ prelink is installed" || echo "✅ prelink is not installed"
+```
+
+**Remediation**
+```bash
+emerge --unmerge prelink 2>/dev/null || true
+```
+
+---
+
+##### 1.5.5 Ensure Automatic Error Reporting is not enabled
+
+**Profile:** CIS Level 1 – Server & Workstation | **Status:** ✅ COMPLIANT
+
+**What's Required**
+The Apport Error Reporting Service must be disabled. Apport collects potentially sensitive data including core dumps, stack traces, and log files.
+
+**Gentoo Implementation**
+Apport is an Ubuntu‑specific package and is not present on Gentoo. The equivalent functionality does not exist on the target system.
+
+**Audit**
+```bash
+qpkg -I apport 2>/dev/null && echo "❌ apport is installed" || echo "✅ apport is not installed"
+```
+
+---
+
+##### Additional STIG Rules: Process Hardening
+
+---
+
+##### UBTU‑24‑700300 — NX (No‑Execute) bit must be active
+
+*STIG: UBTU‑24‑700300 (CAT II)*
+
+**Status:** ✅ COMPLIANT
+
+**What's Required**
+The CPU must support and have active the NX (No‑Execute) bit, also called XD (Execute Disable) on Intel platforms.
+
+**Gentoo Implementation**
+The Intel i9‑13900K (Raptor Lake) supports hardware NX/XD. The `cachyos‑sources` kernel enables this by default.
+
+**Audit**
+```bash
+dmesg | grep -i "execute disable"
+# Expected output: "NX (Execute Disable) protection: active"
+grep -w nx /proc/cpuinfo | head -1
+# Must include "nx" in the flags field
+```
+
+---
+
+##### UBTU‑24‑600140 — Kernel message buffer must be restricted
+
+*STIG: UBTU‑24‑600140 (CAT III)*
+
+**Status:** ✅ COMPLIANT
+
+**What's Required**
+`kernel.dmesg_restrict` must be set to `1` to prevent unprivileged users from reading the kernel message buffer.
+
+**Gentoo Implementation**
+Set via sysctl. This is also enforced by the hardened Gentoo profile.
+
+**Audit**
+```bash
+sysctl kernel.dmesg_restrict
+# Must output: kernel.dmesg_restrict = 1
+```
+
+**Remediation**
+```bash
+printf '%s\n' "kernel.dmesg_restrict = 1" > /etc/sysctl.d/60-dmesg.conf
+sysctl -w kernel.dmesg_restrict=1
+```
+
+---
+
+##### UBTU‑24‑600190 — TCP syncookies must be enabled
+
+*STIG: UBTU‑24‑600190 (CAT II)*
+
+**Status:** ✅ COMPLIANT
+
+**What's Required**
+`net.ipv4.tcp_syncookies` must be set to `1`.
+
+**Gentoo Implementation**
+Enabled via the hardened kernel config and sysctl (README Part 3.3).
+
+**Audit**
+```bash
+sysctl net.ipv4.tcp_syncookies
+# Must output: net.ipv4.tcp_syncookies = 1
+```
+
+---
+
+##### UBTU‑24‑300025 / UBTU‑24‑300026 — Ctrl‑Alt‑Delete must be disabled
+
+*STIG: UBTU‑24‑300025 (CAT I, GUI) / UBTU‑24‑300026 (CAT I, system)*
+
+**Status:** ✅ COMPLIANT
+
+**What's Required**
+The Ctrl‑Alt‑Delete key sequence must be disabled both in the graphical environment and at the system level.
+
+**Gentoo Implementation**
+The `ctrl‑alt‑del.target` is masked (README Part 1.6). The Hyprland/Wayland compositor does not bind Ctrl‑Alt‑Delete to any reboot action.
+
+**Audit**
+```bash
+systemctl status ctrl-alt-del.target 2>&1 | grep -q "masked" && \
+  echo "✅ ctrl-alt-del.target is masked" || echo "❌ ctrl-alt-del.target is NOT masked"
+```
+
+**Remediation**
+```bash
+systemctl mask ctrl-alt-del.target
+systemctl daemon-reload
+```
+
+---
+
+##### UBTU‑24‑600070 — Kernel core dumps (kdump) must be disabled
+
+*STIG: UBTU‑24‑600070 (CAT II)*
+
+**Status:** ✅ COMPLIANT
+
+**What's Required**
+The `kdump` service must be disabled unless required and documented.
+
+**Gentoo Implementation**
+`kdump` is not installed on the target system. Kernel crash dumps are not configured.
+
+**Audit**
+```bash
+systemctl is-active kdump.service 2>/dev/null && echo "❌ kdump is active" || echo "✅ kdump not active / not installed"
+```
+
+---
+
+### 1.6 Configure Command‑Line Warning Banners
+
+---
+
+##### 1.6.1 Ensure message of the day is configured properly
+
+**Profile:** CIS Level 1 – Server & Workstation | **Status:** ✅ COMPLIANT
+
+**What's Required**
+The `/etc/motd` file must contain an appropriate warning banner and must not include OS version information (`\m`, `\r`, `\s`, `\v` escapes).
+
+**Gentoo Implementation**
+A custom warning banner is installed via README Part 25. No OS version escapes are present.
+
+**Audit**
+```bash
+cat /etc/motd
+grep -E '\\\\[mrsv]' /etc/motd && echo "❌ Contains OS version escapes" || echo "✅ No OS version escapes"
+```
+
+---
+
+##### 1.6.2 – 1.6.3 Ensure local and remote login warning banners are configured properly
+
+**Profile:** CIS Level 1 – Server & Workstation | **Status:** ✅ COMPLIANT
+
+**What's Required**
+Both `/etc/issue` (local login) and `/etc/issue.net` (remote login) must display appropriate warning banners without OS version information.
+
+**Gentoo Implementation**
+Both files contain the same custom banner from README Part 25. The SSH daemon is configured to display `/etc/issue.net` via the `Banner` directive (README Part 19.7).
+
+**Audit**
+```bash
+for f in /etc/issue /etc/issue.net; do
     echo "=== $f ==="
-    grep -E '\\\\[mrsv]' "$f" 2>/dev/null && echo "FAIL: contains OS info" || echo "PASS"
-    stat -c '%a %U:%G' "$f"
+    cat "$f"
+    grep -E '\\\\[mrsv]' "$f" && echo "❌ Contains OS info" || echo "✅ Clean"
+done
+grep -i '^Banner' /etc/ssh/sshd_config
+```
+
+---
+
+##### 1.6.4 – 1.6.6 Ensure access to banner files is configured
+
+**Profile:** CIS Level 1 – Server & Workstation | **Status:** ✅ COMPLIANT
+
+**What's Required**
+`/etc/motd`, `/etc/issue`, and `/etc/issue.net` must be owned by `root:root` and have mode `0644` or more restrictive.
+
+**Audit**
+```bash
+for f in /etc/motd /etc/issue /etc/issue.net; do
+    [ -f "$f" ] && stat -c '%a %U:%G %n' "$f"
+done
+# All should show: 644 root:root (or more restrictive)
+```
+
+**Remediation**
+```bash
+for f in /etc/motd /etc/issue /etc/issue.net; do
+    [ -f "$f" ] && chown root:root "$f" && chmod 644 "$f"
 done
 ```
 
-### 1.7 Graphical Display Manager
+---
 
-The CIS PDF section 1.7 provides ten recommendations for GNOME Display Manager (GDM). The target Gentoo system does **not** use GDM; it uses either **SDDM** (with Hyprland) or **tuigreet** (a console greeter for Wayland). GDM‑specific recommendations are therefore **not applicable (N/A)**. However, equivalent controls are mapped below.
+##### UBTU‑24‑200640 — SSH must display the Standard Mandatory DoD Notice and Consent Banner
 
-| CIS ID | GDM Recommendation | Gentoo SDDM / Hyprland Equivalent |
-|--------|-------------------|-----------------------------------|
-| 1.7.1 | GDM removed | ✅ GDM not installed |
-| 1.7.2 | Login banner configured | `/etc/issue` displayed by SDDM |
-| 1.7.3 | Disable user list | SDDM `HideUsers=` or `HideShells=` |
-| 1.7.4‑5 | Screen lock + cannot override | Hyprland `lock` dispatcher + `swaylock` |
-| 1.7.6‑7 | Auto‑mount disabled + locked | Not applicable (Wayland compositor; not GDM) |
-| 1.7.8‑9 | Autorun‑never enabled + locked | Not applicable |
-| 1.7.10 | XDMCP not enabled | ✅ Not present (Wayland native) |
+*STIG: UBTU‑24‑200640 (CAT II)*
 
-**Audit for SDDM (if used):**
+**Status:** ⚠️ NEEDS REVIEW
+
+**What's Required**
+The SSH banner must display the exact DoD‑mandated text before authentication.
+
+**Gentoo Implementation**
+The SSH daemon is configured with `Banner /etc/ssh/banner` (README Part 19.7). The banner content in README Part 25 is a general warning. For STIG compliance, it must be replaced with the exact DoD text.
+
+**Audit**
 ```bash
-grep -E '^(MinimumUid|MaximumUid|HideUsers|HideShells)' /etc/sddm.conf 2>/dev/null
+grep -i '^Banner' /etc/ssh/sshd_config
+cat /etc/ssh/banner
+# Content must match the DoD Standard Mandatory Notice exactly
 ```
+
+**Remediation (DoD‑compliant banner)**
+```bash
+cat > /etc/ssh/banner << 'BANNER'
+You are accessing a U.S. Government (USG) Information System (IS) that is provided for USG-authorized use only.
+
+By using this IS (which includes any device attached to this IS), you consent to the following conditions:
+
+-The USG routinely intercepts and monitors communications on this IS for purposes including, but not limited to, penetration testing, COMSEC monitoring, network operations and defense, personnel misconduct (PM), law enforcement (LE), and counterintelligence (CI) investigations.
+
+-At any time, the USG may inspect and seize data stored on this IS.
+
+-Communications using, or data stored on, this IS are not private, are subject to routine monitoring, interception, and search, and may be disclosed or used for any USG-authorized purpose.
+
+-This IS includes security measures (e.g., authentication and access controls) to protect USG interests--not for your personal benefit or privacy.
+
+-Notwithstanding the above, using this IS does not constitute consent to PM, LE or CI investigative searching or monitoring of the content of privileged communications, or work product, related to personal representation or services by attorneys, psychotherapists, or clergy, and their assistants. Such communications and work product are private and confidential. See User Agreement for details.
+BANNER
+systemctl reload sshd
+```
+
+---
+
+##### UBTU‑24‑200680 — SSH banner must be acknowledged by the user
+
+*STIG: UBTU‑24‑200680 (CAT II)*
+
+**Status:** ⚠️ NEEDS REVIEW
+
+**What's Required**
+Before granting access via SSH, the user must explicitly acknowledge the banner by typing `y` or `Y`.
+
+**Gentoo Implementation**
+The STIG provides a supplemental `ssh_confirm.sh` script. This must be installed on Gentoo.
+
+**Audit**
+```bash
+cat /etc/profile.d/ssh_confirm.sh 2>/dev/null || echo "❌ ssh_confirm.sh not installed"
+```
+
+**Remediation**
+```bash
+cat > /etc/profile.d/ssh_confirm.sh << 'SCRIPT'
+#!/bin/bash
+if [ -n "$SSH_CLIENT" ] || [ -n "$SSH_TTY" ]; then
+    while true; do
+        read -p "
+
+You are accessing a U.S. Government (USG) Information System (IS) that is provided for USG-authorized use only.
+
+By using this IS (which includes any device attached to this IS), you consent to the following conditions:
+
+- The USG routinely intercepts and monitors communications on this IS for purposes including, but not limited to, penetration testing, COMSEC monitoring, network operations and defense, personnel misconduct (PM), law enforcement (LE), and counterintelligence (CI) investigations.
+
+- At any time, the USG may inspect and seize data stored on this IS.
+
+- Communications using, or data stored on, this IS are not private, are subject to routine monitoring, interception, and search, and may be disclosed or used for any USG-authorized purpose.
+
+- This IS includes security measures (e.g., authentication and access controls) to protect USG interests--not for your personal benefit or privacy.
+
+- Notwithstanding the above, using this IS does not constitute consent to PM, LE or CI investigative searching or monitoring of the content of privileged communications, or work product, related to personal representation or services by attorneys, psychotherapists, or clergy, and their assistants. Such communications and work product are private and confidential. See User Agreement for details.
+
+Do you agree? [y/N] " yn
+        case $yn in
+            [Yy]* ) break ;;
+            [Nn]* ) exit 1 ;;
+        esac
+    done
+fi
+SCRIPT
+chmod +x /etc/profile.d/ssh_confirm.sh
+```
+
+---
+
+### 1.7 Configure GNOME Display Manager
+
+The target system uses **SDDM** (or `tuigreet` with `greetd`) with the **Hyprland** Wayland compositor — not GNOME/GDM. The following table maps each GDM recommendation to the equivalent SDDM/Hyprland control.
+
+---
+
+##### 1.7.1 Ensure GDM is removed (Level 2 – Server)
+
+**Profile:** CIS Level 2 – Server | **Status:** ✅ COMPLIANT
+
+**Audit**
+```bash
+qpkg -I gdm 2>/dev/null && echo "❌ GDM installed" || echo "✅ GDM not installed"
+```
+
+---
+
+##### 1.7.2 – 1.7.3 Ensure GDM login banner is configured and disable‑user‑list is enabled
+
+*STIG: UBTU‑24‑200650, UBTU‑24‑200660 (CAT II)*
+
+**Profile:** CIS Level 1 – Server & Workstation · STIG CAT II | **Status:** ⚠️ NEEDS REVIEW
+
+**What's Required**
+A warning banner must be displayed on the graphical login screen, and the user list must be hidden.
+
+**Gentoo Implementation**
+For SDDM, configure the theme to display `/etc/issue` and set `HideUsers=true` or `HideShells=/usr/bin/nologin`. For `tuigreet`, the banner is displayed as part of the greeter. These settings must be verified against site policy.
+
+**Audit (SDDM)**
+```bash
+grep -E '^(MessageFile|HideUsers|HideShells)' /etc/sddm.conf 2>/dev/null || \
+  echo "⚠️ SDDM banner not configured — verify theme settings"
+```
+
+---
+
+##### 1.7.4 – 1.7.5 Ensure GDM screen locks when user is idle and cannot be overridden
+
+**Profile:** CIS Level 1 – Server & Workstation | **Status:** ✅ COMPLIANT
+
+**What's Required**
+The screen must lock automatically after a period of inactivity (≤ 15 minutes), and users must not be able to override this setting.
+
+**Gentoo Implementation**
+`swayidle` is configured to trigger `swaylock` after 15 minutes of inactivity. The Hyprland configuration (`~/.config/hypr/hyprland.conf`) binds the lock to the `exec-once` directive (README Part 1.7).
+
+**Audit**
+```bash
+grep -E 'swayidle|swaylock' ~/.config/hypr/hyprland.conf 2>/dev/null && \
+  echo "✅ Screen lock configured" || echo "⚠️ Screen lock not found in Hyprland config"
+```
+
+---
+
+##### 1.7.6 – 1.7.10 Autorun, automount, and XDMCP
+
+**Profile:** CIS Level 1 – Server & Workstation | **Status:** ✅ COMPLIANT / 🔵 NOT APPLICABLE
+
+**Gentoo Implementation**
+Automount and autorun are not applicable to a Wayland compositor that does not use GVFS/GDM. USB storage is blacklisted at the kernel module level (see 1.1.1.9). XDMCP is not present because the system uses Wayland, not X11.
 
 ---
 
 ## 2. Services
 
-### 2.1 Server Services (2.1.1–2.1.22)
+### 2.1 Configure Server Services
 
-The CIS PDF lists 22 services that should be removed or masked if not required. The target Gentoo system installs a minimal set of services; most of the CIS‑listed services are not present.
+The CIS benchmark lists 22 services that should be removed or masked if not required. The target Gentoo system installs a minimal set of services; most CIS‑listed services are not present.
 
-**Audit (comprehensive):**
+---
+
+##### 2.1.1 – 2.1.20 Ensure unnecessary server services are not in use
+
+**Profile:** CIS Level 1 – Server & Workstation (varies by service) | **Status:** ✅ COMPLIANT
+
+**What's Required**
+The following services must not be installed or must be masked: autofs, avahi, dhcp, dns (bind9), dnsmasq, ftp (vsftpd), ldap (slapd), dovecot (imap/pop3), nfs‑kernel‑server, nis (ypserv), cups, rpcbind, rsync, samba, snmpd, tftpd‑hpa, squid, apache2/nginx, xinetd, X11 (xserver‑common).
+
+**Gentoo Implementation**
+None of these services are installed. The MTA is configured for local‑only delivery (see 2.1.21).
+
+**Unified Audit**
 ```bash
 #!/bin/bash
-# CIS 2.1.x — Verify unnecessary services are not active
-SERVICES=(
-    autofs avahi-daemon isc-dhcp-server named dnsmasq vsftpd slapd dovecot
+SERVICES=(autofs avahi-daemon isc-dhcp-server named dnsmasq vsftpd slapd dovecot
     nfs-server ypserv cups rpcbind rsyncd smbd snmpd tftpd-hpa squid
-    apache2 nginx xinetd
-)
+    apache2 nginx xinetd)
 for svc in "${SERVICES[@]}"; do
-    state=$(systemctl is-active "$svc.service" 2>/dev/null)
+    state=$(systemctl is-active "$svc.service" 2>/dev/null || echo "inactive")
     [ "$state" = "active" ] && echo "❌ $svc is ACTIVE" || echo "✅ $svc inactive"
 done
-
-# CIS 2.1.21 — Mail Transfer Agent local‑only (special case)
-ss -plntu | grep -P ':(25|465|587)\b' | grep -v '127.0.0.1\|::1' \
-  && echo "❌ MTA listening on external interface" \
-  || echo "✅ No external MTA listener"
-
-# CIS 2.1.22 — Only approved services listening
-echo "=== All listening services ==="
-ss -plntu | grep LISTEN
 ```
 
-**Remediation (example — removing a service):**
+---
+
+##### 2.1.21 Ensure mail transfer agent is configured for local‑only mode
+
+*STIG: implicit in UBTU‑24‑200090 (remote access logging)*
+
+**Profile:** CIS Level 1 – Server & Workstation | **Status:** ✅ COMPLIANT
+
+**What's Required**
+The MTA must not listen on external network interfaces. Only local mail delivery should be permitted.
+
+**Gentoo Implementation**
+No MTA (Postfix, Exim, Sendmail) is installed. `msmtp` is used for outbound mail relay only (README Part 22.1). It does not listen on any port.
+
+**Audit**
 ```bash
-# For Gentoo, use emerge --unmerge or mask the service:
+ss -plntu | grep -P ':(25|465|587)\b' | grep -v '127.0.0.1\|::1' && \
+  echo "❌ MTA listening on external interface" || echo "✅ No external MTA listener"
+```
+
+---
+
+##### 2.1.22 Ensure only approved services are listening on a network interface (Manual)
+
+*STIG: UBTU‑24‑300041 (CAT II)*
+
+**Profile:** CIS Level 1 – Server & Workstation · STIG CAT II | **Status:** ⚠️ NEEDS REVIEW
+
+**What's Required**
+Review all listening network services. Any service not explicitly approved must be stopped and its package removed or masked.
+
+**Gentoo Implementation**
+Firewalld is configured with a default‑drop zone. Only explicitly allowed ports (SSH on 2222, DNS over TLS on 853, HTTPS on 443, Cockpit on localhost:9090) are open (README Part 18.1). OpenSnitch provides per‑application outbound control (README Part 18.2).
+
+**Audit**
+```bash
+ss -plntu | grep LISTEN
+# Review the output. Expected services:
+#   - sshd on port 2222
+#   - dnscrypt-proxy on 127.0.0.1:5300
+#   - systemd-resolved on 127.0.0.53:53
+#   - cockpit on 127.0.0.1:9090 (if installed)
+```
+
+**Remediation (if unexpected services are found)**
+```bash
+# Stop and mask the service
 systemctl stop <service>.service
 systemctl mask <service>.service
 # Or remove entirely:
 emerge --unmerge <package>
 ```
 
-### 2.2 Client Services (2.2.1–2.2.6)
+---
 
-| CIS ID | Client Package | Gentoo Package | Status | Audit |
-|--------|---------------|---------------|--------|-------|
-| 2.2.1 | NIS Client | `net‑fs/nis` | Not installed | `qpkg -I nis` |
-| 2.2.2 | rsh client | `net‑misc/rsh` | Not installed | `qpkg -I rsh` |
-| 2.2.3 | talk client | `net‑misc/talk` | Not installed | `qpkg -I talk` |
-| 2.2.4 | telnet client | `net‑misc/netkit‑telnet` | Not installed | `qpkg -I telnet` |
-| 2.2.5 | LDAP client | `net‑nds/openldap` | May be installed as dependency | `qpkg -I openldap` |
-| 2.2.6 | FTP client | `net‑ftp/tnftp` | May be installed | `qpkg -I tnftp` |
+### 2.2 Configure Client Services
 
-### 2.3 Time Synchronization (2.3.1–2.3.3)
+---
 
-The CIS PDF configures either `systemd‑timesyncd` or `chrony`. The target Gentoo system uses **systemd‑timesyncd**, which is part of `sys‑apps/systemd`.
+##### 2.2.1 – 2.2.6 Ensure insecure client packages are not installed
 
-| CIS ID | Requirement | Gentoo Implementation |
-|--------|-----------|----------------------|
-| 2.3.1.1 | Single time sync daemon | ✅ `systemd‑timesyncd` active; chrony not installed |
-| 2.3.2.1 | Authorised timeserver configured | ✅ NTP servers in `/etc/systemd/timesyncd.conf.d/` |
-| 2.3.2.2 | Timesyncd enabled and running | ✅ `systemctl is-active systemd‑timesyncd` |
+**Profile:** CIS Level 1 – Server & Workstation | **Status:** ✅ COMPLIANT
 
-**Audit:**
+**What's Required**
+NIS client (`nis`), RSH client (`rsh-client`), talk client (`talk`), telnet client (`telnet`, `inetutils-telnet`), LDAP client (`ldap-utils`), and FTP client (`ftp`, `tnftp`) must not be installed.
+
+**Gentoo Implementation**
+None of these client packages are installed on the target system.
+
+**Unified Audit**
 ```bash
-timedatectl show-timesync --all
-systemctl is-active systemd-timesyncd
-# Verify no other time daemon
-for d in chronyd ntpd openntpd; do
-    systemctl is-active "$d" 2>/dev/null && echo "❌ $d is running"
+for pkg in nis rsh talk telnet inetutils-telnet ldap-utils ftp tnftp; do
+    qpkg -I "$pkg" 2>/dev/null && echo "❌ $pkg installed" || echo "✅ $pkg not installed"
 done
 ```
 
-**Remediation:**
+**Remediation**
 ```bash
-mkdir -p /etc/systemd/timesyncd.conf.d
-cat > /etc/systemd/timesyncd.conf.d/50-cis-timeserver.conf << 'EOF'
-[Time]
-NTP=time.nist.gov time2.google.com
-FallbackNTP=0.gentoo.pool.ntp.org 1.gentoo.pool.ntp.org 2.gentoo.pool.ntp.org 3.gentoo.pool.ntp.org
+emerge --unmerge nis rsh talk telnet inetutils-telnet ldap-utils ftp tnftp 2>/dev/null || true
+```
+
+---
+
+### 2.3 Configure Time Synchronization
+
+The target system uses **systemd‑timesyncd** by default (README Part 6). The STIG benchmark requires **chrony** and explicitly forbids both `systemd‑timesyncd` and `ntp`. This section documents the system's actual configuration and notes the STIG deviation.
+
+---
+
+##### 2.3.1.1 Ensure a single time synchronization daemon is in use
+
+**Profile:** CIS Level 1 – Server & Workstation | **Status:** ✅ COMPLIANT
+
+**What's Required**
+Only one time synchronization daemon must be active. The CIS benchmark supports either systemd‑timesyncd or chrony.
+
+**Gentoo Implementation**
+`systemd‑timesyncd` is active. `chrony` is not installed. `ntp` is not installed.
+
+**Audit**
+```bash
+systemctl is-active systemd-timesyncd.service
+systemctl is-active chronyd.service 2>/dev/null && echo "⚠️ chrony is also running"
+qpkg -I ntp 2>/dev/null && echo "⚠️ ntp is installed"
+```
+
+---
+
+##### 2.3.2.1 – 2.3.2.2 Ensure systemd‑timesyncd is configured and running
+
+**Profile:** CIS Level 1 – Server & Workstation | **Status:** ✅ COMPLIANT
+
+**What's Required**
+systemd‑timesyncd must be configured with authorised NTP servers and must be enabled and running.
+
+**Gentoo Implementation**
+Configured in `/etc/systemd/timesyncd.conf.d/60-timesyncd.conf` with `NTP=time.nist.gov` and fallback servers (README Part 6).
+
+**Audit**
+```bash
+systemctl is-active systemd-timesyncd.service
+# Must output: active
+grep -E '^(NTP|FallbackNTP)=' /etc/systemd/timesyncd.conf.d/*.conf 2>/dev/null || \
+  grep -E '^(NTP|FallbackNTP)=' /etc/systemd/timesyncd.conf 2>/dev/null
+```
+
+---
+
+##### STIG Deviation: Chrony Requirement
+
+*STIG: UBTU‑24‑100010, UBTU‑24‑100020, UBTU‑24‑100700*
+
+**Status:** ❌ INTENTIONAL DEVIATION
+
+**What the STIG Requires**
+- UBTU‑24‑100010 (CAT III): `systemd‑timesyncd` must be purged.
+- UBTU‑24‑100020 (CAT III): `ntp` must be purged.
+- UBTU‑24‑100700 (CAT III): `chrony` must be installed and configured with authorised servers and `makestep 1 -1`.
+
+**Gentoo Implementation**
+These three STIG rules are **not applied** for the following reasons:
+
+1. `systemd‑timesyncd` is part of `sys‑apps/systemd` and cannot be removed without breaking the init system. However, the service can be masked and chrony used instead if STIG compliance is legally required.
+2. `ntp` is not installed — this rule is satisfied.
+3. `chrony` is not installed. The system uses `systemd‑timesyncd` which, for a standalone workstation with internet connectivity, provides adequate time accuracy.
+
+**Remediation (if STIG compliance is required)**
+```bash
+emerge --ask net-misc/chrony
+systemctl mask systemd-timesyncd.service
+systemctl enable --now chronyd.service
+cat > /etc/chrony/chrony.conf << 'EOF'
+server time.nist.gov iburst maxpoll 16
+server time2.google.com iburst maxpoll 16
+makestep 1 -1
 EOF
-systemctl restart systemd-timesyncd
+systemctl restart chronyd
 ```
 
-### 2.4 Job Schedulers (2.4.1–2.4.2)
+---
 
-#### 2.4.1 Cron
+##### UBTU‑24‑901220 — Audit records must use UTC timestamps
 
-| CIS ID | Requirement | Gentoo | Audit |
-|--------|-----------|--------|-------|
-| 2.4.1.1 | Cron daemon enabled and active | ✅ `cronie` or `systemd‑cron` | `systemctl is-active cronie` |
-| 2.4.1.2 | `/etc/crontab` permissions `0600 root:root` | ✅ | `stat -c '%a %U:%G' /etc/crontab` |
-| 2.4.1.3‑7 | Cron directory permissions `0700 root:root` | ✅ | `stat -c '%a %U:%G' /etc/cron.{hourly,daily,weekly,monthly,d}` |
-| 2.4.1.8 | Crontab restricted to authorised users | ⚠️ Requires `/etc/cron.allow` | `stat /etc/cron.allow` |
+*STIG: UBTU‑24‑901220 (CAT III)*
 
-**Remediation for 2.4.1.8:**
+**Status:** ✅ COMPLIANT
+
+**What's Required**
+System timezone must be set to UTC.
+
+**Gentoo Implementation**
+The system timezone is set to `Etc/UTC` (README Part 6.1).
+
+**Audit**
 ```bash
-touch /etc/cron.allow
-chown root:root /etc/cron.allow
-chmod 0600 /etc/cron.allow
-echo "root" > /etc/cron.allow
-# Add any additional authorised users, one per line
+timedatectl status | grep -i "time zone"
+# Must show: Time zone: Etc/UTC (UTC, +0000)
 ```
 
-#### 2.4.2 at
+---
 
-| CIS ID | Requirement | Audit |
-|--------|-----------|-------|
-| 2.4.2.1 | `at` restricted to authorised users | `stat /etc/at.allow`; `[ -e /etc/at.deny ] && echo "consider removing"` |
+### 2.4 Job Schedulers
+
+---
+
+##### 2.4.1.1 Ensure cron daemon is enabled and active
+
+**Profile:** CIS Level 1 – Server & Workstation | **Status:** ✅ COMPLIANT
+
+**What's Required**
+A cron daemon must be installed and running to execute scheduled system maintenance jobs.
+
+**Gentoo Implementation**
+`cronie` (or `systemd‑cron`) is enabled and active.
+
+**Audit**
+```bash
+systemctl is-enabled cronie.service 2>/dev/null || systemctl is-enabled cron.service 2>/dev/null
+systemctl is-active cronie.service 2>/dev/null || systemctl is-active cron.service 2>/dev/null
+```
+
+---
+
+##### 2.4.1.2 – 2.4.1.8 Ensure cron directories and files are secured and access is restricted
+
+**Profile:** CIS Level 1 – Server & Workstation | **Status:** ⚠️ NEEDS REVIEW (cron.allow/at.allow)
+
+**What's Required**
+- `/etc/crontab` and cron directories (`/etc/cron.hourly`, `.daily`, `.weekly`, `.monthly`, `.d`) must be owned by `root:root` with mode `0700` (directories) or `0600` (crontab).
+- `/etc/cron.allow` must exist, be owned by `root:root` (or `root:crontab`), and have mode `0640` or more restrictive. If `/etc/cron.deny` exists, it must also be restricted.
+- `/etc/at.allow` must exist with similar restrictions.
+
+**Gentoo Implementation**
+Directory permissions are correct by default on Gentoo. However, `/etc/cron.allow` and `/etc/at.allow` may not exist and must be created.
+
+**Audit**
+```bash
+# Check directory permissions
+stat -c '%a %U:%G %n' /etc/crontab /etc/cron.hourly /etc/cron.daily /etc/cron.weekly /etc/cron.monthly /etc/cron.d
+
+# Check cron.allow exists
+[ -f /etc/cron.allow ] && stat -c '%a %U:%G %n' /etc/cron.allow || echo "⚠️ /etc/cron.allow does not exist"
+
+# Check at.allow exists
+[ -f /etc/at.allow ] && stat -c '%a %U:%G %n' /etc/at.allow || echo "⚠️ /etc/at.allow does not exist"
+```
+
+**Remediation**
+```bash
+# Create cron.allow
+[ ! -f /etc/cron.allow ] && touch /etc/cron.allow
+chown root:root /etc/cron.allow
+chmod 600 /etc/cron.allow
+echo "root" > /etc/cron.allow
+
+# Create at.allow
+[ ! -f /etc/at.allow ] && touch /etc/at.allow
+chown root:root /etc/at.allow
+chmod 600 /etc/at.allow
+echo "root" > /etc/at.allow
+```
 
 ---
 
 ## 3. Network Configuration
 
-### 3.1 Network Devices (3.1.1–3.1.3)
+### 3.1 Configure Network Devices
 
-| CIS ID | Topic | Gentoo Status | Audit |
-|--------|-------|---------------|-------|
-| 3.1.1 | IPv6 status identified | ✅ IPv6 is enabled (kernel default); intentionally not disabled for dual‑stack compatibility | `sysctl net.ipv6.conf.all.disable_ipv6` |
-| 3.1.2 | Wireless interfaces disabled (Level 1 – Server) | ⚠️ **Not applicable to workstations** — this is a Server‑only recommendation | N/A |
-| 3.1.3 | Bluetooth disabled (Level 2 – Workstation) | ✅ Blacklisted in `blacklist-hardening.conf` (README Part 16) | `modprobe -n -v bluetooth` |
+---
 
-### 3.2 Network Kernel Modules (3.2.1–3.2.4)
+##### 3.1.1 Ensure IPv6 status is identified (Manual)
 
-All four uncommon network protocol modules (`dccp`, `tipc`, `rds`, `sctp`) are blacklisted in `README.md` Part 16.
+**Profile:** CIS Level 1 – Server & Workstation | **Status:** ✅ COMPLIANT
 
-**Audit:** Use the same script as 1.1.1.1, substituting module names.
+**What's Required**
+The system administrator must determine whether IPv6 is enabled and configure it accordingly. IETF RFC 4038 recommends dual‑stack.
 
-### 3.3 Network Kernel Parameters (3.3.1–3.3.11)
+**Gentoo Implementation**
+IPv6 is enabled. It is not disabled because dual‑stack compatibility is preferred for a modern workstation.
 
-The CIS PDF specifies eleven kernel parameters. The target system's `cachyos‑sources` kernel already implements secure defaults for most. Any missing parameters can be set via `/etc/sysctl.d/`.
+**Audit**
+```bash
+sysctl net.ipv6.conf.all.disable_ipv6
+# 0 = enabled, 1 = disabled
+```
 
-**Remediation (all eleven parameters in one file):**
+---
+
+##### 3.1.2 Ensure wireless interfaces are disabled
+
+**Profile:** CIS Level 1 – Server (not workstation) | **Status:** ✅ COMPLIANT
+
+**What's Required**
+If the system is a server, wireless interfaces must be disabled to reduce the attack surface.
+
+**Gentoo Implementation**
+Wireless adapter drivers are blacklisted in `blacklist-hardening.conf` (README Part 16). This recommendation is for servers; workstations may require wireless.
+
+**Audit**
+```bash
+find /sys/class/net/* -type d -name wireless 2>/dev/null | while read iface; do
+    echo "Wireless interface found: $(basename $(dirname $iface))"
+done
+```
+
+---
+
+##### 3.1.3 Ensure bluetooth services are not in use
+
+*STIG: implicit in CIS 3.1.3*
+
+**Profile:** CIS Level 1 – Server / Level 2 – Workstation | **Status:** ✅ COMPLIANT
+
+**What's Required**
+Bluetooth must be disabled to prevent bluesnarfing and other Bluetooth‑based attacks.
+
+**Gentoo Implementation**
+Bluetooth kernel modules are blacklisted in `blacklist-hardening.conf` (README Part 16).
+
+**Audit**
+```bash
+modprobe -n -v bluetooth 2>&1 | grep -q 'install /bin/true' && \
+  echo "✅ bluetooth blocked" || echo "❌ bluetooth loadable"
+```
+
+---
+
+### 3.2 Configure Network Kernel Modules
+
+All four uncommon network protocol modules are blacklisted (README Part 16).
+
+---
+
+##### 3.2.1 – 3.2.4 Ensure dccp, tipc, rds, and sctp kernel modules are not available
+
+**Profile:** CIS Level 2 – Server & Workstation | **Status:** ✅ COMPLIANT
+
+**Unified Audit**
+```bash
+for mod in dccp tipc rds sctp; do
+    modprobe -n -v "$mod" 2>&1 | grep -q 'install /bin/true' && \
+      echo "✅ $mod blocked" || echo "❌ $mod NOT blocked"
+done
+```
+
+**Unified Remediation**
+```bash
+for mod in dccp tipc rds sctp; do
+    echo "install $mod /bin/true"  > /etc/modprobe.d/$mod.conf
+    echo "blacklist $mod"         >> /etc/modprobe.d/$mod.conf
+done
+dracut --force --regenerate-all
+```
+
+---
+
+### 3.3 Configure Network Kernel Parameters
+
+All eleven kernel parameters from CIS §3.3 are enforced via a unified sysctl file (README Part 3.3). The STIG adds `net.ipv4.tcp_syncookies` (covered in §1.5). All are pre‑configured on the target system.
+
+---
+
+##### 3.3.1 – 3.3.11 Unified Network Kernel Parameters
+
+**Profile:** CIS Level 1 – Server & Workstation | **Status:** ✅ COMPLIANT
+
+**What's Required**
+The following sysctl parameters must be set:
+
+| Parameter | Expected Value |
+|-----------|---------------|
+| `net.ipv4.ip_forward` | `0` |
+| `net.ipv6.conf.all.forwarding` | `0` |
+| `net.ipv4.conf.all.send_redirects` | `0` |
+| `net.ipv4.conf.default.send_redirects` | `0` |
+| `net.ipv4.icmp_ignore_bogus_error_responses` | `1` |
+| `net.ipv4.icmp_echo_ignore_broadcasts` | `1` |
+| `net.ipv4.conf.all.accept_redirects` | `0` |
+| `net.ipv4.conf.default.accept_redirects` | `0` |
+| `net.ipv6.conf.all.accept_redirects` | `0` |
+| `net.ipv6.conf.default.accept_redirects` | `0` |
+| `net.ipv4.conf.all.secure_redirects` | `0` |
+| `net.ipv4.conf.default.secure_redirects` | `0` |
+| `net.ipv4.conf.all.rp_filter` | `1` |
+| `net.ipv4.conf.default.rp_filter` | `1` |
+| `net.ipv4.conf.all.accept_source_route` | `0` |
+| `net.ipv4.conf.default.accept_source_route` | `0` |
+| `net.ipv6.conf.all.accept_source_route` | `0` |
+| `net.ipv6.conf.default.accept_source_route` | `0` |
+| `net.ipv4.conf.all.log_martians` | `1` |
+| `net.ipv4.conf.default.log_martians` | `1` |
+| `net.ipv4.tcp_syncookies` | `1` |
+| `net.ipv6.conf.all.accept_ra` | `0` |
+| `net.ipv6.conf.default.accept_ra` | `0` |
+
+**Gentoo Implementation**
+All parameters are set in `/etc/sysctl.d/99-cis-network.conf` (README Part 3.3).
+
+**Audit**
+```bash
+# Spot-check key parameters
+for param in net.ipv4.ip_forward net.ipv4.tcp_syncookies net.ipv4.conf.all.rp_filter net.ipv6.conf.all.accept_ra; do
+    val=$(sysctl -n "$param" 2>/dev/null)
+    echo "$param = $val"
+done
+```
+
+**Remediation**
 ```bash
 cat > /etc/sysctl.d/99-cis-network.conf << 'EOF'
-# CIS 3.3 Network Kernel Parameters — Gentoo Adaptation
-
-# 3.3.1 — IP forwarding
 net.ipv4.ip_forward = 0
 net.ipv6.conf.all.forwarding = 0
-
-# 3.3.2 — Packet redirect sending
 net.ipv4.conf.all.send_redirects = 0
 net.ipv4.conf.default.send_redirects = 0
-
-# 3.3.3 — Bogus ICMP responses
 net.ipv4.icmp_ignore_bogus_error_responses = 1
-
-# 3.3.4 — Broadcast ICMP requests
 net.ipv4.icmp_echo_ignore_broadcasts = 1
-
-# 3.3.5 — ICMP redirects (IPv4 + IPv6)
 net.ipv4.conf.all.accept_redirects = 0
 net.ipv4.conf.default.accept_redirects = 0
 net.ipv6.conf.all.accept_redirects = 0
 net.ipv6.conf.default.accept_redirects = 0
-
-# 3.3.6 — Secure ICMP redirects
 net.ipv4.conf.all.secure_redirects = 0
 net.ipv4.conf.default.secure_redirects = 0
-
-# 3.3.7 — Reverse path filtering
 net.ipv4.conf.all.rp_filter = 1
 net.ipv4.conf.default.rp_filter = 1
-
-# 3.3.8 — Source‑routed packets
 net.ipv4.conf.all.accept_source_route = 0
 net.ipv4.conf.default.accept_source_route = 0
 net.ipv6.conf.all.accept_source_route = 0
 net.ipv6.conf.default.accept_source_route = 0
-
-# 3.3.9 — Suspicious packets (martians)
 net.ipv4.conf.all.log_martians = 1
 net.ipv4.conf.default.log_martians = 1
-
-# 3.3.10 — TCP SYN cookies
 net.ipv4.tcp_syncookies = 1
-
-# 3.3.11 — IPv6 router advertisements
 net.ipv6.conf.all.accept_ra = 0
 net.ipv6.conf.default.accept_ra = 0
 EOF
-
 sysctl --system
 ```
 
@@ -7007,466 +8015,608 @@ sysctl --system
 
 ## 4. Host‑Based Firewall
 
-This section is the **most distribution‑specific** part of the CIS PDF. The Ubuntu benchmark has three parallel sections — **4.2 (UFW)**, **4.3 (nftables)**, and **4.4 (iptables)** — with the instruction to use only one.【PDF†Page 441】 The target Gentoo system uses **firewalld** (with nftables backend), which is not covered by any of the three. This section therefore provides a **complete, systematic translation** of every UFW recommendation into its firewalld equivalent.
+The target system uses **firewalld** with the **nftables** backend (README Part 18.1). The CIS benchmark covers UFW, nftables, and iptables in separate sections. This guide translates the requirements to firewalld equivalents.
 
-**Why not use UFW or raw nftables/iptables on Gentoo?** Gentoo’s `net‑firewall/firewalld` package integrates cleanly with NetworkManager, supports rich rules for fine‑grained control, and uses nftables as its backend. It is the recommended firewall management tool for the target system and is configured in `README.md` Part 18.
+---
 
-### 4.1 Single Firewall Utility (4.1.1)
+##### 4.1.1 Ensure a single firewall configuration utility is in use
 
-**CIS Requirement:** Only one firewall configuration utility shall be in use.【PDF†Page 443】
+**Profile:** CIS Level 1 – Server & Workstation | **Status:** ✅ COMPLIANT
 
-**Gentoo Mapping:** ✅ `firewalld` is the sole firewall manager. Neither `ufw` nor raw `iptables` services are active.
+**What's Required**
+Only one firewall management tool may be active. Running multiple tools (e.g., UFW + iptables + nftables simultaneously) causes conflicts.
 
-**Audit:**
+**Gentoo Implementation**
+`firewalld` is the sole firewall manager. Neither UFW, raw iptables, nor standalone nftables services are active.
+
+**Audit**
 ```bash
-systemctl is-active firewalld
-# Verify nothing else is managing firewall rules:
-systemctl is-active ufw 2>/dev/null && echo "❌ UFW is active"
-systemctl is-active iptables 2>/dev/null && echo "❌ iptables service is active"
-systemctl is-active nftables 2>/dev/null && echo "❌ standalone nftables is active"
+systemctl is-active firewalld.service
+systemctl is-active ufw.service 2>/dev/null && echo "❌ UFW is active"
+systemctl is-active nftables.service 2>/dev/null && echo "❌ standalone nftables is active"
+systemctl is-active iptables.service 2>/dev/null && echo "❌ standalone iptables is active"
 ```
 
-### 4.2 Comprehensive UFW‑to‑Firewalld Translation Table
+---
 
-The table below maps every CIS 4.2 (UFW) recommendation to the equivalent firewalld command or configuration. Firewalld uses **zones** (trust levels) and **rich rules** (expressive policy language) rather than UFW’s simple allow/deny syntax.
+##### 4.2.1 – 4.2.7 Mapping UFW Requirements to Firewalld
 
-#### 4.2.1 Ensure ufw is installed → Ensure firewalld is installed
+*STIG: UBTU‑24‑100300, UBTU‑24‑100310, UBTU‑24‑600200*
 
-```bash
-emerge --ask net-firewall/firewalld
-```
+| UFW Requirement | Firewalld Equivalent | Status |
+|-----------------|---------------------|--------|
+| UFW installed | `net‑firewall/firewalld` emerged | ✅ |
+| UFW enabled & active | `firewalld.service` enabled, default zone `drop` | ✅ |
+| Loopback traffic configured | `trusted` zone on `lo`; anti‑spoofing rich rules | ✅ |
+| Outbound connections | Outbound allowed by default (stateful tracking) | ✅ |
+| Rules for all open ports | Explicit accept rules for SSH, DNS, HTTPS | ⚠️ Verify |
+| Default deny policy | Default zone `drop` | ✅ |
+| Rate limiting (STIG) | Rich rules with limit directives | ⚠️ Site‑specific |
 
-#### 4.2.2 Ensure iptables‑persistent not installed with ufw → Ensure no conflicting firewall packages
-
-```bash
-# Remove any conflicting firewall managers
-emerge --unmerge ufw iptables nftables 2>/dev/null || true
-# firewalld uses nftables internally; the nftables package is not needed separately
-```
-
-#### 4.2.3 Ensure ufw service enabled → Ensure firewalld service enabled
-
-```bash
-systemctl enable --now firewalld.service
-```
-
-#### 4.2.4 — Loopback Traffic Configuration
-
-This is the most nuanced translation. The CIS PDF (4.2.4) requires two things:
-
-1. Loopback interface **accepts** all traffic (INPUT and OUTPUT on `lo`)
-2. All **other** interfaces **drop** packets with source address `127.0.0.0/8` or `::1` (anti‑spoofing)【PDF†Page 454】
-
-**How UFW does it:**
-- `ufw allow in on lo` / `ufw allow out on lo`
-- `ufw deny in from 127.0.0.0/8` / `ufw deny in from ::1`
-
-**How firewalld does it:**
-- The **trusted zone** is assigned to the `lo` interface by default — this zone accepts *all* traffic. No additional rules are needed for loopback acceptance.
-- Anti‑spoofing rich rules must be added explicitly.
-
-| UFW Rule | Firewalld Equivalent | Explanation |
-|----------|---------------------|-------------|
-| `ufw allow in on lo` | Built‑in — `lo` is in the **trusted** zone by default | The trusted zone accepts all incoming traffic |
-| `ufw allow out on lo` | Built‑in — output is allowed in all zones by default | Firewalld does not filter outbound by default |
-| `ufw deny in from 127.0.0.0/8` | Rich rule on **public** zone (or whichever zone your physical interface uses) | Blocks spoofed loopback packets arriving on external interfaces |
-| `ufw deny in from ::1` | Rich rule for IPv6 loopback | Same anti‑spoofing for IPv6 |
-
-**Audit:**
-```bash
-# Verify loopback interface is in trusted zone
-firewall-cmd --get-active-zones | grep -A1 lo
-
-# Verify anti-spoofing rich rules exist
-firewall-cmd --list-rich-rules | grep '127.0.0.0/8'
-firewall-cmd --list-rich-rules | grep '::1'
-```
-
-**Remediation:**
-```bash
-# Anti-spoofing: drop loopback-source packets on all non-lo interfaces
-firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="127.0.0.0/8" drop'
-firewall-cmd --permanent --add-rich-rule='rule family="ipv6" source address="::1" drop'
-firewall-cmd --reload
-```
-
-#### 4.2.5 — Outbound Connections
-
-**CIS Requirement:** Configure firewall rules for new outbound connections.【PDF†Page 457】
-
-**CIS Implementation Note:** “Unlike iptables, when a new outbound rule is added, ufw automatically takes care of associated established connections.”
-
-**Firewalld Equivalent:** Firewalld’s default behaviour is to allow all outbound traffic (stateful — responses are automatically permitted). The `drop` zone’s policy blocks incoming but *allows outgoing*. This matches the CIS intent without additional rules.
-
-**Audit:**
+**Audit (firewalld)**
 ```bash
 firewall-cmd --get-default-zone
-# Should return: drop
+# Must output: drop
+firewall-cmd --list-all --zone=drop
+firewall-cmd --get-active-zones
 ```
-
-**Remediation (if overriding outbound policy is desired per site policy):**
-```bash
-# Default: outbound allowed. For strict outbound control, use a policy object
-# (firewalld ≥ 0.9.0) or rich rules on the OUTPUT chain.
-# This is generally NOT needed for CIS Level 1 compliance.
-```
-
-#### 4.2.6 — Firewall Rules for All Open Ports
-
-**CIS Requirement:** “Any ports that have been opened on non‑loopback addresses need firewall rules to govern traffic.”【PDF†Page 459】
-
-The CIS audit procedure for UFW compares the output of `ss -tuln` (open ports) against `ufw status verbose` (firewall rules) and flags any port without a matching rule.
-
-**Firewalld Equivalent Audit:**
-```bash
-#!/bin/bash
-# CIS 4.2.6 — Verify all open non‑loopback ports have firewall rules
-echo "=== Open ports (non‑loopback) ==="
-ss -tuln | awk '($5!~/(127\.0\.0\.1|\[?::1\]?):/) {print $5}' | sort -u
-
-echo ""
-echo "=== Firewalld allowed ports ==="
-firewall-cmd --list-ports
-firewall-cmd --list-rich-rules | grep -oP 'port port="\d+"' | sort -u
-```
-
-**Remediation (example — adding a rule for a discovered open port):**
-```bash
-# Allow TCP port 8443 from anywhere
-firewall-cmd --permanent --add-rich-rule='rule family="ipv4" port port="8443" protocol="tcp" accept'
-firewall-cmd --reload
-```
-
-#### 4.2.7 — Default Deny Firewall Policy
-
-**CIS Requirement:** Default policy for incoming, outgoing, and routed shall be `deny`, `reject`, or `disabled`.【PDF†Page 462】
-
-**Firewalld Equivalent:** Set the default zone to `drop`. The `drop` zone drops all incoming packets without reply and allows outgoing. Firewalld does not have separate “incoming / outgoing / routed” policy flags; instead, the zone’s behaviour covers all three.
-
-| UFW Default Policy | Firewalld Equivalent |
-|--------------------|---------------------|
-| `ufw default deny incoming` | `firewall-cmd --set-default-zone=drop` |
-| `ufw default deny outgoing` | Not directly equivalent; see 4.2.5 above |
-| `ufw default deny routed` | Not applicable (this is not a router) |
-
-**Audit:**
-```bash
-firewall-cmd --get-default-zone
-# Must return: drop
-```
-
-**Remediation:**
-```bash
-firewall-cmd --set-default-zone=drop
-firewall-cmd --runtime-to-permanent
-```
-
-### 4.3 CIS 4.3 (nftables) and 4.4 (iptables) — Not Applicable
-
-The CIS PDF sections 4.3 and 4.4 provide standalone nftables and iptables configurations. Because the target system uses firewalld (which internally manages nftables), these sections are **not applicable**. Firewalld already implements the underlying principles:
-
-- **Default deny** → drop zone
-- **Loopback traffic** → trusted zone on `lo`
-- **Established connections** → stateful tracking (built‑in)
-- **Rules for open ports** → rich rules
-- **Service enabled** → `systemctl enable firewalld`
 
 ---
 
 ## 5. Access Control
 
-### 5.1 SSH Server (5.1.1–5.1.22)
+### 5.1 Configure SSH Server
 
-The target Gentoo system’s SSH configuration (`README.md` Part 19) already **exceeds** every CIS Level 1 requirement. The table below is provided for verification.
+The target system's SSH configuration (README Part 19.7) satisfies or exceeds every CIS Level 1 SSH recommendation. This section provides individual audits for each parameter.
 
-| CIS ID | Parameter | CIS Expected | Gentoo Value | README Ref |
-|--------|-----------|-------------|-------------|------------|
-| 5.1.1 | sshd_config permissions | `0600 root:root` | ✅ `0600 root:root` | Part 5.1 (audit) |
-| 5.1.2 | Private host key permissions | `0600 root:root` or `0640 root:ssh_keys` | ✅ Same | Part 5.1 |
-| 5.1.3 | Public host key permissions | `0644 root:root` | ✅ Same | Part 5.1 |
-| 5.1.4 | sshd access configured | `AllowUsers`/`AllowGroups`/`DenyUsers`/`DenyGroups` | ✅ `AllowGroups sshusers` | Part 19.7 |
-| 5.1.5 | Banner configured | `/etc/issue.net` | ✅ `Banner /etc/ssh/banner` | Part 19.7 |
-| 5.1.6 | Ciphers | No weak ciphers (3des‑cbc, aes‑cbc, arcfour) | ✅ ChaCha20‑Poly1305, AES‑256‑GCM, AES‑256‑CTR | Part 19.7 |
-| 5.1.7 | ClientAliveInterval/CountMax | > 0 | ✅ `ClientAliveInterval 600`, `CountMax 1` | Part 19.7 |
-| 5.1.8 | DisableForwarding | `yes` | ✅ `X11Forwarding no`, `AllowTcpForwarding no`, `AllowAgentForwarding no` | Part 19.7 |
-| 5.1.9 | GSSAPIAuthentication | `no` | ✅ Default `no` | — |
-| 5.1.10 | HostbasedAuthentication | `no` | ✅ Default `no` | — |
-| 5.1.11 | IgnoreRhosts | `yes` | ✅ Default `yes` | — |
-| 5.1.12 | KexAlgorithms | No diffie‑hellman‑group1‑sha1, group14‑sha1, group‑exchange‑sha1 | ✅ Post‑quantum hybrids only | Part 19.7 |
-| 5.1.13 | LoginGraceTime | 1–60 seconds | ✅ `LoginGraceTime 30` | Part 19.7 |
-| 5.1.14 | LogLevel | `VERBOSE` or `INFO` | ✅ `LogLevel VERBOSE` | Part 19.7 |
-| 5.1.15 | MACs | No hmac‑md5, hmac‑sha1‑96, umac‑64, or any ‑etm weak variants | ✅ `hmac‑sha2‑512‑etm`, `hmac‑sha2‑256‑etm` | Part 19.7 |
-| 5.1.16 | MaxAuthTries | ≤ 4 | ✅ `MaxAuthTries 3` | Part 19.7 |
-| 5.1.17 | MaxSessions | ≤ 10 | ✅ `MaxSessions 3` | Part 19.7 |
-| 5.1.18 | MaxStartups | `10:30:60` or more restrictive | ✅ `MaxStartups 10:30:60` | Part 19.7 |
-| 5.1.19 | PermitEmptyPasswords | `no` | ✅ `PermitEmptyPasswords no` | — |
-| 5.1.20 | PermitRootLogin | `no` | ✅ `PermitRootLogin no` | Part 19.7 |
-| 5.1.21 | PermitUserEnvironment | `no` | ✅ `PermitUserEnvironment no` | Part 19.7 |
-| 5.1.22 | UsePAM | `yes` | ✅ `UsePAM yes` | Part 19.7 |
+---
 
-**Comprehensive SSH audit:**
+##### 5.1.1 Ensure permissions on /etc/ssh/sshd_config are configured
+
+**Profile:** CIS Level 1 – Server & Workstation | **Status:** ✅ COMPLIANT
+
+**Audit**
 ```bash
-#!/bin/bash
-# CIS 5.1 — Full SSH audit
-echo "=== SSH Effective Configuration ==="
-sshd -T | grep -E '^(permitrootlogin|passwordauthentication|permitemptypasswords|usepam|x11forwarding|maxauthtries|maxsessions|clientaliveinterval|clientalivecountmax|logingracetime|loglevel|hostbasedauthentication|ignorerhosts|permituserenvironment|allowtcpforwarding|allowagentforwarding|gssapiauthentication|kexalgorithms|ciphers|macs|banner|maxstartups)'
+stat -c '%a %U:%G' /etc/ssh/sshd_config
+# Must show: 600 root:root
+```
 
-echo ""
-echo "=== SSH Host Key Permissions ==="
+**Remediation**
+```bash
+chown root:root /etc/ssh/sshd_config
+chmod 600 /etc/ssh/sshd_config
+```
+
+---
+
+##### 5.1.2 – 5.1.3 Ensure permissions on SSH host key files are configured
+
+**Profile:** CIS Level 1 – Server & Workstation | **Status:** ✅ COMPLIANT
+
+**Audit**
+```bash
+# Private keys: 600 root:root (or 640 root:ssh_keys)
 find /etc/ssh -type f -name 'ssh_host_*_key' ! -name '*.pub' -exec stat -c '%a %U:%G %n' {} \;
+# Public keys: 644 root:root
 find /etc/ssh -type f -name 'ssh_host_*_key.pub' -exec stat -c '%a %U:%G %n' {} \;
-
-echo ""
-echo "=== AppArmor sshd Profile ==="
-aa-status | grep sshd
 ```
 
-### 5.2 Privilege Escalation — sudo (5.2.1–5.2.7)
+---
 
-All seven sudo recommendations from the CIS PDF are satisfied or exceeded.
+##### 5.1.4 Ensure sshd access is configured
 
-| CIS ID | Requirement | Gentoo Status | Verification |
-|--------|-----------|---------------|-------------|
-| 5.2.1 | sudo installed | ✅ `app‑admin/sudo` (README Part 5.6) | `which sudo` |
-| 5.2.2 | Commands use pty | ✅ `Defaults use_pty` | `grep 'use_pty' /etc/sudoers /etc/sudoers.d/*` |
-| 5.2.3 | Log file exists | ✅ `Defaults logfile="/var/log/sudo.log"` | `grep 'logfile' /etc/sudoers /etc/sudoers.d/*` |
-| 5.2.4 | Password required (Level 2) | ✅ No `NOPASSWD` | `grep -r 'NOPASSWD' /etc/sudoers /etc/sudoers.d/` |
-| 5.2.5 | Re‑authentication not disabled globally | ✅ No `!authenticate` | `grep -r '!authenticate' /etc/sudoers /etc/sudoers.d/` |
-| 5.2.6 | Authentication timeout ≤ 15 min | ✅ `timestamp_timeout=15` | `sudo -V \| grep 'Authentication timestamp timeout'` |
-| 5.2.7 | su command restricted | ✅ `pam_wheel.so` with empty group (README Part 5.7) | `grep 'pam_wheel.so' /etc/pam.d/su` |
+**Profile:** CIS Level 1 – Server & Workstation | **Status:** ✅ COMPLIANT
 
-### 5.3 Pluggable Authentication Modules (5.3.1–5.3.3)
+**What's Required**
+At least one of `AllowUsers`, `AllowGroups`, `DenyUsers`, or `DenyGroups` must be configured.
 
-This section requires the most significant adaptation. The CIS PDF assumes Ubuntu’s `pam‑auth‑update` profile system. Gentoo configures PAM directly — there is no `pam‑auth‑update` tool.【PDF†Page 601】 The target system’s PAM configuration is in `README.md` Part 20.
+**Gentoo Implementation**
+`AllowGroups sshusers` is set (README Part 19.7). Only members of the `sshusers` group may authenticate via SSH.
 
-#### 5.3.1 PAM Software Packages
-
-| CIS ID | Ubuntu Package | Gentoo Equivalent | Verification |
-|--------|---------------|-------------------|-------------|
-| 5.3.1.1 | `libpam‑runtime` ≥ 1.5.3‑5 | `sys‑libs/pam` (same upstream) | `qpkg -I pam \| grep -i version` |
-| 5.3.1.2 | `libpam‑modules` | Included in `sys‑libs/pam` | `ls /lib64/security/pam_unix.so` |
-| 5.3.1.3 | `libpam‑pwquality` | `sys‑libs/libpwquality` (README Part 20) | `ls /lib64/security/pam_pwquality.so` |
-
-#### 5.3.2 PAM Profile Modules
-
-The CIS PDF uses `pam‑auth‑update --enable <module>` to activate modules. On Gentoo, modules are enabled by editing `/etc/pam.d/system‑auth` directly. The file `README.md` Part 20 already includes all four required modules.
-
-| CIS ID | Module | Gentoo Equivalent | Location in system-auth |
-|--------|--------|-------------------|------------------------|
-| 5.3.2.1 | `pam_unix` | `pam_unix.so` | auth, account, password, session |
-| 5.3.2.2 | `pam_faillock` | `pam_faillock.so` (preauth, authfail, authsucc, account) | Auth + Account |
-| 5.3.2.3 | `pam_pwquality` | `pam_pwquality.so` | Password |
-| 5.3.2.4 | `pam_pwhistory` | `pam_pwhistory.so` | Password |
-
-#### 5.3.3 PAM Arguments
-
-The CIS PDF specifies detailed arguments for each PAM module. On Gentoo, `pam_faillock` reads `/etc/security/faillock.conf` and `pam_pwquality` reads `/etc/security/pwquality.conf` — this is actually *cleaner* than the Ubuntu approach of inline arguments.
-
-| CIS ID | Parameter | Expected Value | Gentoo File |
-|--------|-----------|---------------|-------------|
-| 5.3.3.1.1 | `deny` | ≤ 5 | `/etc/security/faillock.conf` → `deny = 5` |
-| 5.3.3.1.2 | `unlock_time` | 0 (never) or ≥ 900 | `/etc/security/faillock.conf` → `unlock_time = 900` |
-| 5.3.3.1.3 | `even_deny_root` | enabled (Level 2) | `/etc/security/faillock.conf` → `even_deny_root = true` |
-| 5.3.3.2.1 | `difok` | ≥ 2 | `/etc/security/pwquality.conf` → `difok = 8` |
-| 5.3.3.2.2 | `minlen` | ≥ 14 | `/etc/security/pwquality.conf` → `minlen = 16` |
-| 5.3.3.2.3 | Password complexity (Manual) | Per site policy | `/etc/security/pwquality.conf` → `minclass = 3`, credit directives |
-| 5.3.3.2.4 | `maxrepeat` | ≤ 3, not 0 | `/etc/security/pwquality.conf` → `maxrepeat = 3` |
-| 5.3.3.2.5 | `maxsequence` | ≤ 3, not 0 | `/etc/security/pwquality.conf` |
-| 5.3.3.2.6 | `dictcheck` | not 0 | `/etc/security/pwquality.conf` → `dictcheck = 1` |
-| 5.3.3.2.7 | `enforcing` | not 0 | `/etc/security/pwquality.conf` → `enforcing = 1` |
-| 5.3.3.2.8 | `enforce_for_root` | enabled | `/etc/security/pwquality.conf` → `enforce_for_root` |
-| 5.3.3.3.1 | `remember` | ≥ 24 | PAM profile → `remember=24` |
-| 5.3.3.3.2 | `enforce_for_root` (pwhistory) | enabled | PAM profile → `enforce_for_root` |
-| 5.3.3.3.3 | `use_authtok` (pwhistory) | enabled | PAM profile → `use_authtok` |
-| 5.3.3.4.1 | No `nullok` | Absent | `grep nullok /etc/pam.d/system-auth` → nothing |
-| 5.3.3.4.2 | No `remember` (pam_unix) | Absent | `grep 'pam_unix.*remember' /etc/pam.d/system-auth` → nothing |
-| 5.3.3.4.3 | Strong hashing (`sha512` or `yescrypt`) | `yescrypt` | PAM profile → `yescrypt` with `rounds=65536` |
-| 5.3.3.4.4 | `use_authtok` (pam_unix) | enabled | PAM profile → `use_authtok` |
-
-**Audit (PAM faillock + pwquality):**
+**Audit**
 ```bash
-echo "=== faillock.conf ==="
+sshd -T | grep -Pi '^\h*(allow|deny)(users|groups)\h+\H+'
+# Must show at least one configured restriction
+```
+
+---
+
+##### 5.1.5 Ensure sshd Banner is configured
+
+*STIG: UBTU‑24‑200640 (CAT II)*
+
+**Profile:** CIS Level 1 – Server & Workstation · STIG CAT II | **Status:** ✅ COMPLIANT (see §1.6 for STIG content)
+
+**Audit**
+```bash
+sshd -T | grep -i '^banner '
+# Must output: banner /etc/ssh/banner (or similar)
+```
+
+---
+
+##### 5.1.6 Ensure sshd Ciphers are configured
+
+*STIG: UBTU‑24‑100820 (CAT II)*
+
+**Profile:** CIS Level 1 – Server & Workstation · STIG CAT II | **Status:** ❌ INTENTIONAL DEVIATION (from STIG)
+
+**What's Required**
+- **CIS**: No weak ciphers (3des‑cbc, aes128‑cbc, aes192‑cbc, aes256‑cbc, arcfour, blowfish‑cbc, cast128‑cbc).
+- **STIG**: Only FIPS‑approved ciphers: `aes256‑gcm@openssh.com, aes128‑gcm@openssh.com, aes256‑ctr, aes128‑ctr`.
+
+**Gentoo Implementation**
+The target system uses `chacha20‑poly1305@openssh.com, aes256‑gcm@openssh.com, aes256‑ctr` (README Part 19.7). ChaCha20‑Poly1305 is **not** FIPS‑approved but is **cryptographically stronger** than AES‑128 variants. It is constant‑time on all CPUs, provides better security on machines without AES‑NI, and is recommended by the cryptographic community.
+
+**Audit**
+```bash
+sshd -T | grep -i '^ciphers '
+```
+
+---
+
+##### 5.1.12 Ensure sshd KexAlgorithms is configured
+
+*STIG: UBTU‑24‑100840 (CAT II)*
+
+**Profile:** CIS Level 1 – Server & Workstation · STIG CAT II | **Status:** ❌ INTENTIONAL DEVIATION (from STIG)
+
+**What's Required**
+- **CIS**: No weak KEX algorithms (`diffie‑hellman‑group1‑sha1`, `diffie‑hellman‑group14‑sha1`, `diffie‑hellman‑group‑exchange‑sha1`).
+- **STIG**: Only NIST P‑curve ECDH and Diffie‑Hellman with SHA‑256 or SHA‑512.
+
+**Gentoo Implementation**
+The target system uses post‑quantum hybrid key exchange: `sntrup761x25519‑sha512, mlkem768x25519‑sha256, curve25519‑sha256` (README Part 19.7). These algorithms provide protection against future quantum‑computer attacks that NIST curves do not. They are **not** FIPS‑approved but represent the current state of the art in SSH key exchange security.
+
+**Audit**
+```bash
+sshd -T | grep -i '^kexalgorithms '
+```
+
+---
+
+##### 5.1.15 Ensure sshd MACs are configured
+
+*STIG: UBTU‑24‑100830 (CAT II)*
+
+**Profile:** CIS Level 1 – Server & Workstation · STIG CAT II | **Status:** ✅ COMPLIANT
+
+**Audit**
+```bash
+sshd -T | grep -i '^macs '
+# Must include only hmac‑sha2‑256 and hmac‑sha2‑512 variants
+```
+
+---
+
+##### 5.1.7 – 5.1.22 Quick Reference: All Remaining SSH Parameters
+
+The following parameters are correctly configured in README Part 19.7. Each can be verified with `sshd -T | grep <parameter>`:
+
+| Parameter | Expected Value | CIS ID | STIG ID |
+|-----------|---------------|--------|---------|
+| `clientaliveinterval` | `600` | 5.1.7 | UBTU‑24‑600010 |
+| `clientalivecountmax` | `1` | 5.1.7 | UBTU‑24‑600000 |
+| `disableforwarding` | `yes` (or individual directives set to `no`) | 5.1.8 | – |
+| `gssapiauthentication` | `no` | 5.1.9 | – |
+| `hostbasedauthentication` | `no` | 5.1.10 | – |
+| `ignorerhosts` | `yes` | 5.1.11 | – |
+| `logingracetime` | `60` or less | 5.1.13 | – |
+| `loglevel` | `VERBOSE` or `INFO` | 5.1.14 | – |
+| `maxauthtries` | `4` or less | 5.1.16 | – |
+| `maxsessions` | `10` or less | 5.1.17 | – |
+| `maxstartups` | `10:30:60` or more restrictive | 5.1.18 | – |
+| `permitemptypasswords` | `no` | 5.1.19 | – |
+| `permitrootlogin` | `no` | 5.1.20 | – |
+| `permituserenvironment` | `no` | 5.1.21 | – |
+| `usepam` | `yes` | 5.1.22 | UBTU‑24‑500050 |
+| `x11forwarding` | `no` | – | UBTU‑24‑300022 |
+
+---
+
+### 5.2 Configure Privilege Escalation — sudo
+
+---
+
+##### 5.2.1 – 5.2.7 Quick Reference: All sudo Parameters
+
+All seven sudo recommendations are satisfied. Each can be verified individually.
+
+| CIS ID | Requirement | Audit Command | STIG ID |
+|--------|-------------|---------------|---------|
+| 5.2.1 | sudo installed | `which sudo` | – |
+| 5.2.2 | Commands use pty | `grep 'use_pty' /etc/sudoers /etc/sudoers.d/*` | – |
+| 5.2.3 | Log file exists | `grep 'logfile' /etc/sudoers /etc/sudoers.d/*` | – |
+| 5.2.4 | Password required (L2) | `grep -r 'NOPASSWD' /etc/sudoers /etc/sudoers.d/` | – |
+| 5.2.5 | Re‑authentication not disabled | `grep -r '!authenticate' /etc/sudoers /etc/sudoers.d/` | UBTU‑24‑300021 |
+| 5.2.6 | Authentication timeout ≤ 15 min | `sudo -V \| grep 'Authentication timestamp timeout'` | – |
+| 5.2.7 | su command restricted | `grep 'pam_wheel.so' /etc/pam.d/su` | – |
+
+---
+
+##### UBTU‑24‑600130 — Only authorised users in sudo group
+
+*STIG: UBTU‑24‑600130 (CAT I)*
+
+**Status:** ✅ COMPLIANT
+
+**What's Required**
+Only users who require access to security functions may be members of the sudo (or wheel) group.
+
+**Gentoo Implementation**
+Only the `ahsan` user is in the `wheel` group (README Part 5.6).
+
+**Audit**
+```bash
+getent group wheel
+# Verify only authorised users are listed
+```
+
+---
+
+### 5.3 Pluggable Authentication Modules (PAM)
+
+Gentoo configures PAM directly in `/etc/pam.d/system-auth`. There is no `pam‑auth‑update` tool. The PAM stack is fully configured in README Part 20.
+
+---
+
+##### 5.3.1.3 Ensure libpam‑pwquality is installed
+
+*STIG: UBTU‑24‑100600 (CAT II)*
+
+**Profile:** CIS Level 1 – Server & Workstation · STIG CAT II | **Status:** ✅ COMPLIANT
+
+**Audit**
+```bash
+ls /lib64/security/pam_pwquality.so && echo "✅ installed" || echo "❌ NOT installed"
+```
+
+**Remediation**
+```bash
+emerge --ask sys-libs/libpwquality
+```
+
+---
+
+##### 5.3.3.1.1 – 5.3.3.4.4 Quick Reference: All PAM Module Arguments
+
+All PAM arguments are configured via `faillock.conf` and `pwquality.conf` (README Part 20). The following table shows the key STIG‑mapped settings:
+
+| Setting | File | CIS Recommended | STIG Required | Gentoo Value | Status |
+|---------|------|----------------|---------------|--------------|--------|
+| `deny` | `faillock.conf` | ≤ 5 | ≤ 3 | `deny = 5` | ⚠️ (STIG wants 3) |
+| `unlock_time` | `faillock.conf` | ≥ 900 or 0 (never) | `0` (never) | `unlock_time = 900` | ⚠️ (STIG wants 0) |
+| `minlen` | `pwquality.conf` | ≥ 14 | ≥ 15 | `minlen = 16` | ✅ (exceeds both) |
+| `difok` | `pwquality.conf` | ≥ 2 | ≥ 8 | `difok = 8` | ✅ |
+| `dictcheck` | `pwquality.conf` | `1` | `1` | `dictcheck = 1` | ✅ |
+| `enforcing` | `pwquality.conf` | `1` | `1` | `enforcing = 1` | ✅ |
+| Hash algorithm | PAM `pam_unix.so` | `sha512` or `yescrypt` | `SHA512` | `yescrypt` | ✅ (stronger) |
+| `remember` | PAM `pam_pwhistory.so` | ≥ 24 | N/A | `remember=24` | ✅ |
+
+**Audit (PAM faillock)**
+```bash
 grep -v '^#' /etc/security/faillock.conf | grep -v '^$'
-
-echo ""
-echo "=== pwquality.conf ==="
-grep -v '^#' /etc/security/pwquality.conf | grep -v '^$'
-
-echo ""
-echo "=== system-auth pam_unix lines ==="
-grep 'pam_unix\.so' /etc/pam.d/system-auth
 ```
 
-### 5.4 User Accounts and Environment (5.4.1–5.4.3)
-
-#### 5.4.1 Shadow Password Suite Parameters
-
-| CIS ID | Parameter | Expected | Gentoo `/etc/login.defs` | Audit |
-|--------|-----------|---------|--------------------------|-------|
-| 5.4.1.1 | `PASS_MAX_DAYS` | ≤ 365 | `PASS_MAX_DAYS 365` | `grep PASS_MAX_DAYS /etc/login.defs` |
-| 5.4.1.2 | `PASS_MIN_DAYS` | > 0 (Level 2) | `PASS_MIN_DAYS 1` | `grep PASS_MIN_DAYS /etc/login.defs` |
-| 5.4.1.3 | `PASS_WARN_AGE` | ≥ 7 | `PASS_WARN_AGE 7` | `grep PASS_WARN_AGE /etc/login.defs` |
-| 5.4.1.4 | `ENCRYPT_METHOD` | `SHA512` or `YESCRYPT` | `ENCRYPT_METHOD YESCRYPT` | `grep ENCRYPT_METHOD /etc/login.defs` |
-| 5.4.1.5 | `INACTIVE` | ≤ 45 | `INACTIVE=45` (via `useradd -D`) | `useradd -D \| grep INACTIVE` |
-| 5.4.1.6 | All last password changes in past | — | `awk` scan of `/etc/shadow` | See CIS audit script |
-
-#### 5.4.2 Root and System Accounts
-
-| CIS ID | Requirement | Gentoo | Audit |
-|--------|-----------|--------|-------|
-| 5.4.2.1 | Only `root` has UID 0 | ✅ | `awk -F: '($3 == 0) { print $1 }' /etc/passwd` |
-| 5.4.2.2 | Only `root` has GID 0 | ✅ | `awk -F: '($4 == 0) { print $1 }' /etc/passwd` |
-| 5.4.2.3 | Only `root` group has GID 0 | ✅ | `awk -F: '($3 == 0) { print $1 }' /etc/group` |
-| 5.4.2.4 | Root account access controlled | ✅ `passwd -l root` (locked); sudo only | `passwd -S root` |
-| 5.4.2.5 | Root PATH integrity | ✅ README Part 5.4 | `sudo -Hiu root env \| grep '^PATH'` |
-| 5.4.2.6 | Root umask | `0027` or more restrictive | `grep umask /root/.bash_profile /root/.bashrc` |
-| 5.4.2.7 | System accounts have `/usr/bin/nologin` | ✅ | See audit |
-| 5.4.2.8 | Accounts without valid shell are locked | ✅ | See audit |
-
-**Audit for 5.4.2.7 and 5.4.2.8:**
+**Audit (PAM pwquality)**
 ```bash
-# System accounts with a valid shell
-awk -F: '($1!~/^(root|halt|sync|shutdown|nfsnobody)$/ && ($3<1000) && ($7!~/nologin|false/)) {print $1, $7}' /etc/passwd
-
-# Accounts without valid shell that are not locked
-while IFS=: read -r user pass rest; do
-    shell=$(awk -F: -v u="$user" '$1==u{print $NF}' /etc/passwd)
-    if [[ ! "$shell" =~ nologin|false ]] && [[ "$user" != "root" ]]; then
-        passwd -S "$user" 2>/dev/null | awk '$2 !~ /^L/ {print "UNLOCKED: " $1}'
-    fi
-done < /etc/shadow
+grep -v '^#' /etc/security/pwquality.conf | grep -v '^$'
 ```
 
-#### 5.4.3 User Default Environment
+**Audit (PAM system‑auth)**
+```bash
+grep 'pam_unix.so\|pam_faillock.so\|pam_pwquality.so\|pam_pwhistory.so' /etc/pam.d/system-auth
+```
 
-| CIS ID | Requirement | Gentoo | Notes |
-|--------|-----------|--------|-------|
-| 5.4.3.1 | `nologin` not in `/etc/shells` | ✅ | `grep nologin /etc/shells` |
-| 5.4.3.2 | `TMOUT` ≤ 900, readonly, exported | ✅ | Configured in `/etc/profile.d/` |
-| 5.4.3.3 | Default umask `027` or more restrictive | ✅ | Set via `pam_umask.so` + `/etc/login.defs` |
+---
+
+### 5.4 User Accounts and Environment
+
+---
+
+##### 5.4.1.1 – 5.4.3.3 Quick Reference: Password Aging, Root, and User Environment
+
+All CIS §5.4 recommendations are satisfied. Key settings:
+
+| Setting | File | Value | CIS ID | STIG ID |
+|---------|------|-------|--------|---------|
+| `PASS_MAX_DAYS` | `/etc/login.defs` | `365` | 5.4.1.1 | UBTU‑24‑400310 |
+| `PASS_MIN_DAYS` | `/etc/login.defs` | `1` | 5.4.1.2 | UBTU‑24‑400300 |
+| `PASS_WARN_AGE` | `/etc/login.defs` | `7` | 5.4.1.3 | – |
+| `ENCRYPT_METHOD` | `/etc/login.defs` | `YESCRYPT` | 5.4.1.4 | UBTU‑24‑400400 |
+| `INACTIVE` | `/etc/default/useradd` | `35` | 5.4.1.5 | UBTU‑24‑200260 |
+| Root account locked | `passwd -S root` | `L` (locked) | 5.4.2.4 | UBTU‑24‑400110 |
+| `TMOUT` | `/etc/profile.d/` | `600` | 5.4.3.2 | UBTU‑24‑200060 |
+| Default umask | `/etc/login.defs` | `027` (or `077` for STIG) | 5.4.3.3 | UBTU‑24‑300030 |
 
 ---
 
 ## 6. Logging and Auditing
 
-### 6.1 System Logging — journald
+### 6.1 System Logging
 
-The CIS PDF offers parallel logging configurations for `journald` (6.1.2) and `rsyslog` (6.1.3), instructing the administrator to choose one. The target Gentoo system uses **journald** only (no rsyslog), consistent with the decision in `README.md` Part 6.
+The target system uses **systemd‑journald** exclusively (README Part 6). rsyslog is not installed. The STIG requires rsyslog for certain rules; this deviation is documented.
 
-#### 6.1.1 journald Service
+---
 
-| CIS ID | Requirement | Gentoo | Audit |
-|--------|-----------|--------|-------|
-| 6.1.1.1 | journald enabled and active | ✅ `systemd‑journald` is `static` (always started by PID 1) | `systemctl is-active systemd-journald` |
-| 6.1.1.2 | Log file access configured | ✅ `Storage=persistent` | See 6.1.2.4 |
-| 6.1.1.3 | Log file rotation configured | ✅ | See 6.1.2.4 |
-| 6.1.1.4 | Only one logging system | ✅ journald only; rsyslog not installed | `systemctl is-active rsyslog 2>/dev/null` |
+##### 6.1.1.1 Ensure journald service is enabled and active
 
-#### 6.1.2 journald Configuration
+**Profile:** CIS Level 1 – Server & Workstation | **Status:** ✅ COMPLIANT
 
-**Remediation (CIS‑compliant journald drop‑in):**
+**Audit**
 ```bash
-mkdir -p /etc/systemd/journald.conf.d
-cat > /etc/systemd/journald.conf.d/50-cis.conf << 'EOF'
-[Journal]
-# 6.1.2.2 – Disable forwarding to syslog
-ForwardToSyslog=no
-
-# 6.1.2.3 – Enable compression
-Compress=yes
-
-# 6.1.2.4 – Persistent storage
-Storage=persistent
-
-# 6.1.1.3 – Log rotation
-SystemMaxUse=1G
-SystemKeepFree=500M
-RuntimeMaxUse=200M
-RuntimeKeepFree=50M
-MaxFileSec=1month
-EOF
-
-systemctl restart systemd-journald
+systemctl is-active systemd-journald.service
+# Must output: active
 ```
 
-#### 6.1.2.1 systemd‑journal‑remote (Optional)
+---
 
-The CIS PDF recommends `systemd‑journal‑remote` for remote log forwarding.【PDF†Page 741】 This is optional on a standalone workstation. If centralised logging is desired:
+##### 6.1.1.2 – 6.1.1.3 Ensure journald log file access and rotation are configured
 
+**Profile:** CIS Level 1 – Server & Workstation | **Status:** ✅ COMPLIANT
+
+**What's Required**
+Journal files must have correct permissions (`0640`), and log rotation must be configured to prevent disk exhaustion.
+
+**Gentoo Implementation**
+journald is configured with persistent storage, compression, and size‑based rotation in `/etc/systemd/journald.conf.d/60-journald.conf` (README Part 6).
+
+**Audit**
 ```bash
-emerge --ask systemd-journal-remote
-# Configure /etc/systemd/journal-upload.conf with remote host URL and certificates
-systemctl enable --now systemd-journal-upload.service
+grep -E '^(Storage|Compress|SystemMaxUse|MaxFileSec)=' /etc/systemd/journald.conf /etc/systemd/journald.conf.d/*.conf 2>/dev/null
 ```
+
+---
+
+##### 6.1.1.4 Ensure only one logging system is in use
+
+**Profile:** CIS Level 1 – Server & Workstation | **Status:** ✅ COMPLIANT
+
+**Audit**
+```bash
+systemctl is-active systemd-journald.service
+systemctl is-active rsyslog.service 2>/dev/null && echo "⚠️ rsyslog is also running"
+```
+
+---
+
+##### STIG Deviation: rsyslog Requirement
+
+*STIG: UBTU‑24‑100200, UBTU‑24‑200090*
+
+**Status:** ❌ INTENTIONAL DEVIATION
+
+**What the STIG Requires**
+`rsyslog` must be installed, enabled, and active. Remote access methods must be logged via `auth.*`, `authpriv.*`, and `daemon.*`.
+
+**Gentoo Implementation**
+The target system uses `systemd‑journald` with persistent storage. Journald provides equivalent logging functionality with structured, indexed binary logs. The `audit` subsystem captures authentication and privilege escalation events (README Part 15). If STIG compliance is legally required, `rsyslog` can be emerged alongside journald.
+
+**Remediation (if STIG compliance is required)**
+```bash
+emerge --ask app-admin/rsyslog
+systemctl enable --now rsyslog.service
+```
+
+---
 
 ### 6.2 System Auditing — auditd
 
-The target system’s auditd configuration (README Part 15 + Part 18) satisfies or exceeds every CIS 6.2 recommendation. The comprehensive audit ruleset in `/etc/audit/rules.d/99-hardening.rules` covers all CIS‑required event categories.
+The auditd configuration (README Part 15) satisfies all CIS §6.2 and STIG audit requirements. The comprehensive ruleset in `/etc/audit/rules.d/99-hardening.rules` covers every STIG‑required audit event.
 
-| CIS ID | Parameter | Expected | Gentoo `/etc/audit/auditd.conf` |
-|--------|-----------|---------|-------------------------------|
-| 6.2.1.1 | auditd installed | Package present | ✅ `sys‑process/audit` |
-| 6.2.1.2 | auditd enabled and active | `enabled` / `active` | ✅ |
-| 6.2.1.3 | Pre‑auditd process auditing | `audit=1` in boot config | ✅ UKI cmdline (Part 8) |
-| 6.2.1.4 | `audit_backlog_limit` | ≥ 8192 | ✅ UKI cmdline: `audit_backlog_limit=8192` |
-| 6.2.2.1 | `max_log_file` | Per site policy | `max_log_file = 50` (50 MB) |
-| 6.2.2.2 | `max_log_file_action` | `keep_logs` | ✅ |
-| 6.2.2.3 | `disk_full_action` | `halt` or `single` | `halt` |
-| 6.2.2.4 | `space_left_action` | `email`, `exec`, `single`, or `halt` | `SYSLOG`; `admin_space_left_action = HALT` |
+---
 
-**Audit rule coverage verification:**
+##### 6.2.1.1 – 6.2.1.4 Quick Reference: auditd Service
+
+| Requirement | CIS ID | STIG ID | Audit |
+|-------------|--------|---------|-------|
+| auditd installed | 6.2.1.1 | UBTU‑24‑100400 | `qpkg -I audit` |
+| auditd enabled & active | 6.2.1.2 | UBTU‑24‑100410 | `systemctl is-active auditd` |
+| Early process auditing | 6.2.1.3 | UBTU‑24‑102010 | `grep 'audit=1' /proc/cmdline` |
+| backlog limit sufficient | 6.2.1.4 | – | `grep 'audit_backlog_limit' /proc/cmdline` |
+
+**Status on Target System:** ✅ All compliant.
+
+---
+
+##### 6.2.2.1 – 6.2.2.4 Quick Reference: Data Retention
+
+All four retention settings are configured in `/etc/audit/auditd.conf` (README Part 15.2): `max_log_file = 50`, `max_log_file_action = keep_logs`, `disk_full_action = halt`, `space_left_action = SYSLOG` with `admin_space_left_action = halt`.
+
+**Audit**
 ```bash
-#!/bin/bash
-# CIS 6.2.3 — Verify key audit rule categories are loaded
-RULES_FILE="/etc/audit/rules.d/99-hardening.rules"
-for key in identity sudoers_change sshd_config setuid_exec module_load \
-           MAC-policy perm_change time_change mount_ops systemd_config; do
-    count=$(grep -c "\-k $key" "$RULES_FILE" 2>/dev/null)
-    echo "  $key: $count rule(s)"
-done
+grep -E '^(max_log_file |max_log_file_action |disk_full_action |disk_error_action |space_left_action |admin_space_left_action )' /etc/audit/auditd.conf
 ```
 
-### 6.3 Integrity Checking — AIDE (6.3.1–6.3.3)
+---
 
-| CIS ID | Requirement | Gentoo | README Ref |
-|--------|-----------|--------|------------|
-| 6.3.1 | AIDE installed | ✅ `app‑forensics/aide aide‑common` | Part 6.3 |
-| 6.3.2 | Regular integrity checks | ✅ `dailyaidecheck.timer` | Part 6.3.2 |
-| 6.3.3 | Cryptographic protection of audit tools | ✅ AIDE configured with `sha512` for audit tools | Part 6.3.3 |
+##### 6.2.3.1 – 6.2.3.21 Quick Reference: Audit Rules
+
+The full audit ruleset is in `/etc/audit/rules.d/99-hardening.rules` (README Part 15.3). This covers all CIS §6.2.3 and STIG audit rules (UBTU‑24‑200280 through UBTU‑24‑900750). Key rule categories:
+
+| CIS ID | STIG IDs Covered | Event Category | Rule Key |
+|--------|-----------------|----------------|----------|
+| 6.2.3.1 | – | sudoers changes | `scope` / `sudoers_change` |
+| 6.2.3.2 | UBTU‑24‑200580 | Actions as another user | `setuid_exec` / `setgid_exec` |
+| 6.2.3.3 | UBTU‑24‑500010 | sudo log modifications | `sudo_cmd` |
+| 6.2.3.4 | – | Date/time modifications | `time_change` |
+| 6.2.3.5 | – | Network environment changes | `system_locale` |
+| 6.2.3.6 | – | Privileged commands | `privileged` |
+| 6.2.3.7 | UBTU‑24‑900160 | Unsuccessful file access | `access` |
+| 6.2.3.8 | UBTU‑24‑200280‑320 | User/group modifications | `identity` |
+| 6.2.3.9 | UBTU‑24‑900130‑150 | DAC permission modifications | `perm_mod` / `perm_chng` |
+| 6.2.3.10 | UBTU‑24‑900090‑100 | File system mounts | `mounts` |
+| 6.2.3.11 | UBTU‑24‑900590‑610 | Session initiation | `session` / `logins` |
+| 6.2.3.12 | UBTU‑24‑900250‑260 | Login/logout events | `logins` |
+| 6.2.3.13 | UBTU‑24‑900540 | File deletion | `delete` |
+| 6.2.3.14 | UBTU‑24‑900220 | MAC (AppArmor) changes | `MAC_policy` / `apparmor_policy` |
+| 6.2.3.19 | UBTU‑24‑900340‑350, 900730‑740 | Kernel module changes | `module_load` / `module_unload` / `kmod_exec` |
+| 6.2.3.20 | UBTU‑24‑909000 | Immutable config | `-e 2` |
+
+**Unified Audit**
+```bash
+# Check all loaded audit rules
+auditctl -l | wc -l
+# Should show a significant number of rules (50+)
+
+# Verify immutable configuration
+grep '^-e 2' /etc/audit/rules.d/99-hardening.rules
+```
+
+**Remediation (if rules are missing)**
+```bash
+augenrules --load
+# If immutable, reboot required:
+auditctl -s | grep "enabled" | grep -q "2" && echo "Reboot required to load immutable rules"
+```
+
+---
+
+##### 6.2.4.1 – 6.2.4.10 Quick Reference: Audit File Access
+
+*STIG: UBTU‑24‑900040‑060, 901230‑380*
+
+All audit configuration files, log files, and audit tools have correct permissions and ownership:
+- Audit config files (`/etc/audit/audit.rules`, `/etc/audit/rules.d/*`, `/etc/audit/auditd.conf`): mode `0640`, owned by `root:root`
+- Audit log files: mode `0600`, owned by `root:root`
+- Audit tools (`/sbin/auditctl`, etc.): mode `0755`, owned by `root:root`
+- Audit log directory: mode `0750`
+
+**Unified Audit**
+```bash
+stat -c '%a %U:%G %n' /etc/audit/auditd.conf /etc/audit/audit.rules
+stat -c '%a %U:%G %n' /sbin/auditctl /sbin/ausearch /sbin/aureport /sbin/autrace /sbin/auditd /sbin/augenrules
+stat -c '%a %U:%G %n' /var/log/audit
+find /var/log/audit -type f -exec stat -c '%a %U:%G %n' {} \;
+```
+
+---
+
+### 6.3 Configure Integrity Checking — AIDE
+
+---
+
+##### 6.3.1 Ensure AIDE is installed
+
+*STIG: UBTU‑24‑100100 (CAT II)*
+
+**Profile:** CIS Level 1 – Server & Workstation · STIG CAT II | **Status:** ✅ COMPLIANT
+
+**Audit**
+```bash
+qpkg -I aide && echo "✅ AIDE installed" || echo "❌ AIDE NOT installed"
+```
+
+**Remediation**
+```bash
+emerge --ask app-forensics/aide
+aide --init
+mv /var/lib/aide/aide.db.new /var/lib/aide/aide.db
+```
+
+---
+
+##### 6.3.2 Ensure filesystem integrity is regularly checked
+
+*STIG: UBTU‑24‑100110, UBTU‑24‑100120 (CAT II)*
+
+**Profile:** CIS Level 1 – Server & Workstation · STIG CAT II | **Status:** ✅ COMPLIANT
+
+**What's Required**
+AIDE must run regularly (at least weekly) and its database must be verified against the default configuration.
+
+**Gentoo Implementation**
+A weekly AIDE check is integrated into the `weekly-security-scan.timer` and script (README Part 18.4.3). Results are emailed to the administrator.
+
+**Audit**
+```bash
+systemctl list-timers | grep -i aide || \
+  grep -r aide /etc/cron* /etc/crontab 2>/dev/null
+```
+
+---
+
+##### 6.3.3 Ensure cryptographic mechanisms protect audit tools' integrity
+
+*STIG: UBTU‑24‑90890 (CAT II)*
+
+**Profile:** CIS Level 2 – Server & Workstation · STIG CAT II | **Status:** ⚠️ NEEDS REVIEW
+
+**What's Required**
+AIDE must be configured to use SHA‑512 checksums for all audit tools.
+
+**Gentoo Implementation**
+The AIDE configuration must include specific rules for audit tools with `sha512`. The default AIDE configuration uses `sha256`; this must be verified or updated.
+
+**Audit**
+```bash
+grep -E '(/sbin/(audit|au))' /etc/aide/aide.conf 2>/dev/null | grep sha512 || \
+  echo "⚠️ SHA-512 not configured for audit tools in AIDE"
+```
+
+**Remediation**
+```bash
+cat >> /etc/aide/aide.conf << 'EOF'
+# Audit Tools — STIG compliance (SHA-512)
+/sbin/auditctl    p+i+n+u+g+s+b+acl+xattrs+sha512
+/sbin/auditd      p+i+n+u+g+s+b+acl+xattrs+sha512
+/sbin/ausearch    p+i+n+u+g+s+b+acl+xattrs+sha512
+/sbin/aureport    p+i+n+u+g+s+b+acl+xattrs+sha512
+/sbin/autrace     p+i+n+u+g+s+b+acl+xattrs+sha512
+/sbin/augenrules  p+i+n+u+g+s+b+acl+xattrs+sha512
+EOF
+aide --update
+mv /var/lib/aide/aide.db.new /var/lib/aide/aide.db
+```
 
 ---
 
 ## 7. System Maintenance
 
-### 7.1 System File Permissions (7.1.1–7.1.13)
+### 7.1 System File Permissions
 
-All thirteen file‑permission recommendations from the CIS PDF are satisfied. A comprehensive audit script is provided.
+---
 
-**Audit:**
+##### 7.1.1 – 7.1.13 Quick Reference: All System File Permissions
+
+All thirteen CIS §7.1 file permission recommendations are satisfied. The following files are verified:
+
+| File | Expected Mode | Expected Owner:Group | CIS ID |
+|------|--------------|---------------------|--------|
+| `/etc/passwd` | `0644` | `root:root` | 7.1.1 |
+| `/etc/passwd-` | `0644` | `root:root` | 7.1.2 |
+| `/etc/group` | `0644` | `root:root` | 7.1.3 |
+| `/etc/group-` | `0644` | `root:root` | 7.1.4 |
+| `/etc/shadow` | `0640` | `root:root` or `root:shadow` | 7.1.5 |
+| `/etc/shadow-` | `0640` | `root:root` or `root:shadow` | 7.1.6 |
+| `/etc/gshadow` | `0640` | `root:root` or `root:shadow` | 7.1.7 |
+| `/etc/gshadow-` | `0640` | `root:root` or `root:shadow` | 7.1.8 |
+| `/etc/shells` | `0644` | `root:root` | 7.1.9 |
+| `/etc/security/opasswd` | `0600` | `root:root` | 7.1.10 |
+
+**Unified Audit**
 ```bash
 #!/bin/bash
-# CIS 7.1 — System File Permissions Audit
-
 declare -A EXPECTED
 EXPECTED=(
     ["/etc/passwd"]="0644:root:root"
     ["/etc/passwd-"]="0644:root:root"
     ["/etc/group"]="0644:root:root"
     ["/etc/group-"]="0644:root:root"
-    ["/etc/shadow"]="0640:root:shadow"
-    ["/etc/shadow-"]="0640:root:shadow"
-    ["/etc/gshadow"]="0640:root:shadow"
-    ["/etc/gshadow-"]="0640:root:shadow"
+    ["/etc/shadow"]="0640:root:root"
+    ["/etc/shadow-"]="0640:root:root"
+    ["/etc/gshadow"]="0640:root:root"
+    ["/etc/gshadow-"]="0640:root:root"
     ["/etc/shells"]="0644:root:root"
     ["/etc/security/opasswd"]="0600:root:root"
 )
-
 for file in "${!EXPECTED[@]}"; do
-    IFS=':' read -r exp_perm exp_owner exp_group <<< "${EXPECTED[$file]}"
-    if [[ -e "$file" ]]; then
+    if [ -f "$file" ]; then
+        IFS=':' read -r exp_perm exp_owner exp_group <<< "${EXPECTED[$file]}"
         actual=$(stat -c '%a:%U:%G' "$file")
-        if [[ "$actual" == "$exp_perm:$exp_owner:$exp_group" ]]; then
-            echo "✅ $file: $actual"
+        if [[ "$actual" == "$exp_perm:$exp_owner:$exp_group" ]] || \
+           [[ "$file" =~ shadow|gshadow && "$actual" =~ ^06[04]0:root:(root|shadow)$ ]]; then
+            echo "✅ $file"
         else
             echo "❌ $file: $actual (expected $exp_perm:$exp_owner:$exp_group)"
         fi
@@ -7474,78 +8624,125 @@ for file in "${!EXPECTED[@]}"; do
 done
 ```
 
-### 7.2 Local User and Group Settings (7.2.1–7.2.10)
-
-All ten recommendations are satisfied. The target system’s `systemd‑homed` (README Part 10C) provides **stronger** home‑directory protection than the CIS benchmark requires — each user home is a LUKS2‑encrypted loopback file that can be locked on suspend.
-
-| CIS ID | Check | Audit |
-|--------|-------|-------|
-| 7.2.1 | Shadowed passwords | `awk -F: '($2 != "x") {print $1}' /etc/passwd` |
-| 7.2.2 | No empty password fields | `awk -F: '($2 == "") {print $1}' /etc/shadow` |
-| 7.2.3 | All GIDs in passwd exist in group | Cross‑reference `/etc/passwd` GID column against `/etc/group` |
-| 7.2.4 | Shadow group empty | `getent group shadow | awk -F: '{print $NF}'` |
-| 7.2.5‑8 | No duplicate UIDs, GIDs, usernames, group names | `cut -f3 -d: /etc/passwd | sort | uniq -d` etc. |
-| 7.2.9 | Home directories configured | `README.md` Part 7.2.9 audit script |
-| 7.2.10 | Dot file access configured | `README.md` Part 7.2.10 audit script |
-
 ---
 
-## 8. DoD / FIPS / DISA‑STIG Compliance Analysis
+### 7.2 Local User and Group Settings
 
-### 8.1 DoD / DISA STIG
+All ten CIS §7.2 recommendations are satisfied. Key checks:
 
-**Conclusion: Not applicable and not achievable on Gentoo.**
+- **7.2.1**: All accounts in `/etc/passwd` use shadowed passwords (`x` in second field).
+- **7.2.2**: No empty password fields in `/etc/shadow`.
+- **7.2.3**: All GIDs in `/etc/passwd` exist in `/etc/group`.
+- **7.2.4**: Shadow group is empty.
+- **7.2.5–8**: No duplicate UIDs, GIDs, usernames, or group names.
+- **7.2.9**: All local interactive user home directories exist, are owned by the user, and have mode `0750` or less.
+- **7.2.10**: User dot files (`.forward`, `.rhost`, `.netrc`, `.bash_history`) have correct permissions.
 
-The Defense Information Systems Agency (DISA) publishes Security Technical Implementation Guides (STIGs) for operating systems from “trusted provider[s].” As of April 2026, DISA STIGs exist for:
-
-* Red Hat Enterprise Linux (RHEL) 8 and 9
-* Canonical Ubuntu Linux 18.04, 20.04, 22.04, and 24.04 LTS
-* Oracle Linux 7 and 8
-
-There is **no STIG for Gentoo Linux**, and DISA has never produced one. The agency’s stated policy is to create STIGs only for vendor‑supported enterprise distributions with formal support contracts.
-
-Furthermore, the `README.md` for the hardened Gentoo system explicitly disables the `fips` USE flag (`-fips` in `make.conf`; see README Part 5.4) and does not configure the kernel for FIPS mode. The system is **not** designed for US federal government deployment.
-
-**If a DoD contract requires STIG compliance**, Gentoo cannot be used. Deploy RHEL 9 or Ubuntu 24.04 LTS instead and apply the relevant STIG via SCAP content.
-
-### 8.2 FIPS 140‑2/140‑3
-
-**Conclusion: Not required. Deliberately not implemented.**
-
-FIPS 140 is a US federal standard for cryptographic modules. Compliance requires:
-
-1. A FIPS‑validated kernel crypto module (`fips140.ko` or kernel‑built‑in)
-2. The kernel booted with `fips=1`
-3. Only FIPS‑approved algorithms in use (AES, SHA‑2/3, ECDH/ECDSA on NIST curves, RSA ≥ 2048)
-4. Mandatory self‑tests at module load time
-5. Continuous random‑number‑generator tests
-
-The target Gentoo system violates FIPS in several intentional ways:
-
-| Component | Gentoo Choice | FIPS‑Approved? | Rationale |
-|-----------|--------------|----------------|-----------|
-| LUKS PBKDF | Argon2id | No (PBKDF2 required) | Argon2id is memory‑hard; resists GPU/ASIC brute‑force far better than PBKDF2 |
-| LUKS cipher | AES‑256‑XTS | Yes | — |
-| Password hashing | yescrypt | No (SHA‑512 required) | yescrypt is memory‑hard and recommended by systemd upstream |
-| SSH KEX | `sntrup761x25519‑sha512` (post‑quantum hybrid) | No | FIPS does not yet recognise post‑quantum algorithms |
-| SSH cipher | ChaCha20‑Poly1305 | No (AES‑GCM required) | ChaCha20 is constant‑time on all CPUs; AES‑NI is not available everywhere |
-
-These are **deliberate security choices** for the APT threat model defined in the `README.md`. FIPS compliance would **weaken** several of these choices (replacing Argon2id with PBKDF2, replacing yescrypt with SHA‑512, dropping post‑quantum SSH algorithms). FIPS is a compliance standard, not a security standard — it mandates what is *approved*, not what is *strongest*.
-
-**If FIPS compliance is legally required** (e.g., for a government contract), the system must be rebuilt with:
-
+**Unified Audit (key checks)**
 ```bash
-# Kernel: CONFIG_CRYPTO_FIPS=y, add 'fips=1' to UKI cmdline
-# LUKS: use --pbkdf pbkdf2 instead of argon2id
-# PAM: replace yescrypt with sha512 in system-auth
-# SSH: remove ChaCha20, sntrup761, and sntrup761x25519; use only AES‑256‑GCM and NIST‑curve KEX
-# Enable the 'fips' USE flag globally
+# 7.2.1 - Shadowed passwords
+awk -F: '($2 != "x") {print "User: " $1 " not shadowed"}' /etc/passwd
+
+# 7.2.2 - Empty passwords
+awk -F: '($2 == "") {print $1 " has empty password"}' /etc/shadow
+
+# 7.2.5 - Duplicate UIDs
+cut -f3 -d: /etc/passwd | sort -n | uniq -d | while read uid; do
+    echo "Duplicate UID $uid: $(awk -F: -v u=$uid '$3==u{print $1}' /etc/passwd | xargs)"
+done
 ```
 
-### 8.3 Recommendation
+---
 
-For the APT threat model defined in the `README.md` — defence against nation‑state actors — **neither DoD STIG nor FIPS compliance is required or justified**. The system’s cryptographic choices are stronger than FIPS requires, and the hardening exceeds what any current STIG mandates. FIPS compliance would reduce the system’s security posture while providing no meaningful benefit outside of federal procurement compliance.
+## 8. Cryptographic Requirements
 
 ---
 
-*Guide prepared April 2026. Architecture verified against: Gentoo Wiki (Hardened, UKI, Dracut, Installkernel, Secure Boot, systemd‑cryptenroll), Arch Wiki (dm‑crypt, Unified Kernel Image, Secure Boot), CachyOS Wiki (Kernel), and systemd documentation (systemd‑cryptenroll, systemd‑stub).*
+##### UBTU‑24‑600030 — FIPS 140‑3 mode must be enabled
+
+*STIG: UBTU‑24‑600030 (CAT I)*
+
+**Status:** ❌ INTENTIONAL DEVIATION
+
+**What the STIG Requires**
+The system must run in FIPS mode (`fips=1` on the kernel command line) and use only FIPS‑validated cryptographic modules.
+
+**Gentoo Implementation**
+FIPS mode is **not enabled**. This is a deliberate, risk‑informed decision documented in the README (Appendix D, §8.2). The cryptographic choices made for the APT threat model are **stronger** than their FIPS‑approved equivalents:
+
+| Cryptographic Use | Gentoo Choice | FIPS‑Approved Equivalent | Rationale |
+|-------------------|---------------|--------------------------|-----------|
+| LUKS key derivation | Argon2id (1 GiB memory cost) | PBKDF2 | Argon2id is memory‑hard; resists GPU/ASIC brute‑force |
+| Password hashing | yescrypt | SHA‑512 | yescrypt is memory‑hard; recommended by systemd upstream |
+| SSH encryption | ChaCha20‑Poly1305 | AES‑128‑GCM | Constant‑time on all CPUs; no AES‑NI dependency |
+| SSH key exchange | sntrup761x25519‑sha512 | ECDH NIST P‑256/384/521 | Post‑quantum hybrid; quantum‑safe |
+
+FIPS is a **compliance standard**, not a security standard. Enabling it would require downgrading several cryptographic choices, weakening the system against the nation‑state APT threat model.
+
+**If FIPS compliance is legally required:**
+```bash
+# Add fips=1 to /etc/kernel/cmdline
+# Rebuild LUKS with: cryptsetup luksFormat --pbkdf pbkdf2 ...
+# Replace yescrypt with sha512 in PAM
+# Remove ChaCha20 and post‑quantum algorithms from SSH
+# Enable 'fips' USE flag globally and rebuild @world
+```
+
+---
+
+##### UBTU‑24‑600090 — Full disk encryption must be implemented
+
+*STIG: UBTU‑24‑600090 (CAT II)*
+
+**Status:** ✅ COMPLIANT — **exceeds requirement**
+
+**What's Required**
+All persistent disk partitions must be encrypted at rest.
+
+**Gentoo Implementation**
+The target system uses **LUKS2 with Argon2id** on all data partitions (README Parts 2‑3). Additionally, `systemd‑homed` provides **per‑user LUKS2 encryption** with lock‑on‑suspend (README Part 10B). This provides two independent encryption layers — full‑disk and per‑user — exceeding the STIG requirement.
+
+**Audit**
+```bash
+cat /etc/crypttab
+# Every persistent data partition must have an entry
+lsblk -f | grep -i luks
+# All non‑ESP partitions should show crypto_LUKS
+```
+
+---
+
+## Appendix A: Compliance Summary
+
+| CIS Section | Topic | Key Requirements | Status |
+|-------------|-------|-----------------|--------|
+| 1.1 | Filesystem kernel modules | 10 modules blacklisted | ✅ |
+| 1.1.2 | Filesystem partitions | All mount options correct | ✅ |
+| 1.2 | Package management | GPG verification, updates, GLSA scanning | ✅ |
+| 1.3 | AppArmor | Installed, enabled, ~1500 profiles loaded | ✅ |
+| 1.4 | Bootloader | UKI + Secure Boot (exceeds CIS) | ✅ |
+| 1.5 | Process hardening | ASLR, ptrace, core dumps, NX, syncookies, Ctrl‑Alt‑Del | ✅ |
+| 1.6 | Warning banners | All banner files configured | ⚠️ STIG banner text needed |
+| 1.7 | Display manager | SDDM/Hyprland equivalents configured | ✅ |
+| 2.1 | Server services | All unnecessary services removed | ✅ |
+| 2.2 | Client services | Insecure clients not installed | ✅ |
+| 2.3 | Time sync | systemd‑timesyncd active | ❌ STIG wants chrony |
+| 3.1–3.3 | Network | Kernel modules blacklisted, sysctl hardened | ✅ |
+| 4 | Firewall | firewalld with default‑drop zone | ✅ |
+| 5.1 | SSH | Fully hardened sshd_config | ❌ FIPS ciphers/KEX deviation |
+| 5.2 | sudo | All hardening directives applied | ✅ |
+| 5.3 | PAM | faillock, pwquality, pwhistory configured | ⚠️ Some STIG values differ |
+| 5.4 | User accounts | Password aging, root locked, umask set | ✅ |
+| 6.1 | System logging | journald configured | ❌ STIG wants rsyslog |
+| 6.2 | auditd | Comprehensive ruleset, immutable, correct permissions | ✅ |
+| 6.3 | AIDE | Installed, weekly checks, audit tools hashed | ⚠️ SHA‑512 may need config |
+| 7.1 | File permissions | All system files correctly configured | ✅ |
+| 7.2 | User/group settings | All checks pass | ✅ |
+| 8 | Cryptography | LUKS2 + homed encryption | ❌ FIPS not enabled (intentional) |
+
+**Overall Compliance:**
+- ~88% of CIS Level 1 Workstation recommendations are fully satisfied.
+- ~72% of STIG rules are fully satisfied; ~15% require site‑specific customisation.
+- 4 intentional deviations are documented with rationale (FIPS, SSH ciphers/KEX, time sync, logging).
+
+---
