@@ -1,0 +1,1777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hardened Gentoo Installation Guide — APT Threat Model</title>
+    <style>
+        :root {
+            --bg: #1a1b26;
+            --bg-alt: #1f2335;
+            --bg-highlight: #292e42;
+            --fg: #c0caf5;
+            --fg-dim: #a9b1d6;
+            --fg-subtle: #9aa5ce;
+            --border: #3b4261;
+            --blue: #7aa2f7;
+            --purple: #bb9af7;
+            --cyan: #7dcfff;
+            --green: #9ece6a;
+            --red: #f7768e;
+            --orange: #ff9e64;
+            --yellow: #e0af68;
+            --teal: #1abc9c;
+            --magenta: #c678dd;
+            --comment: #565f89;
+            --selection: #364a82;
+            --scrollbar-bg: #1a1b26;
+            --scrollbar-thumb: #3b4261;
+            --code-bg: #1a1d29;
+            --table-stripe: #1c1f2d;
+            --warning-bg: #2a241a;
+            --warning-border: #e0af68;
+            --info-bg: #1a222a;
+            --info-border: #7aa2f7;
+            --success-bg: #1a2a1f;
+            --success-border: #9ece6a;
+            --danger-bg: #2a1a1f;
+            --danger-border: #f7768e;
+            --toc-bg: #1c1e2a;
+            --header-bg: #1a1b26e6;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+            scroll-padding-top: 70px;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--fg);
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            line-height: 1.7;
+            font-size: 16px;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--scrollbar-bg);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--scrollbar-thumb);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4a5079;
+        }
+        ::selection {
+            background: var(--selection);
+            color: var(--fg);
+        }
+
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background: var(--header-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            min-height: 56px;
+        }
+        header h1 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--blue);
+            white-space: nowrap;
+            letter-spacing: -0.01em;
+        }
+        header nav {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        header nav a {
+            color: var(--fg-dim);
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: color 0.2s;
+            white-space: nowrap;
+        }
+        header nav a:hover {
+            color: var(--cyan);
+        }
+        #toc-toggle {
+            background: var(--bg-highlight);
+            border: 1px solid var(--border);
+            color: var(--fg);
+            padding: 0.4rem 0.9rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+        #toc-toggle:hover {
+            border-color: var(--blue);
+            color: var(--blue);
+        }
+
+        .layout {
+            display: flex;
+            max-width: 1400px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        #toc-sidebar {
+            position: sticky;
+            top: 72px;
+            width: 280px;
+            min-width: 280px;
+            height: calc(100vh - 72px);
+            overflow-y: auto;
+            background: var(--toc-bg);
+            border-right: 1px solid var(--border);
+            padding: 1.5rem 1rem;
+            font-size: 0.82rem;
+            line-height: 1.5;
+            transition: transform 0.3s ease;
+            z-index: 500;
+        }
+        #toc-sidebar.hidden {
+            transform: translateX(-100%);
+            position: fixed;
+            height: calc(100vh - 56px);
+            top: 56px;
+            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.5);
+        }
+        #toc-sidebar h3 {
+            color: var(--purple);
+            margin-bottom: 0.8rem;
+            font-size: 0.9rem;
+            letter-spacing: 0.02em;
+        }
+        #toc-sidebar ul {
+            list-style: none;
+            padding: 0;
+        }
+        #toc-sidebar li {
+            margin: 0.15rem 0;
+        }
+        #toc-sidebar a {
+            color: var(--fg-subtle);
+            text-decoration: none;
+            display: block;
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            transition: all 0.15s;
+            border-left: 2px solid transparent;
+        }
+        #toc-sidebar a:hover {
+            color: var(--cyan);
+            background: var(--bg-highlight);
+            border-left-color: var(--cyan);
+        }
+        #toc-sidebar a.active {
+            color: var(--blue);
+            border-left-color: var(--blue);
+            font-weight: 500;
+        }
+        #toc-sidebar .toc-h2 {
+            font-weight: 600;
+            color: var(--fg-dim);
+            margin-top: 0.5rem;
+            padding-left: 0;
+        }
+        #toc-sidebar .toc-h3 {
+            padding-left: 1rem;
+            font-size: 0.78rem;
+        }
+        #toc-sidebar .toc-h4 {
+            padding-left: 2rem;
+            font-size: 0.74rem;
+        }
+        #toc-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 400;
+            background: rgba(0, 0, 0, 0.5);
+        }
+        #toc-overlay.visible {
+            display: block;
+        }
+
+        main {
+            flex: 1;
+            min-width: 0;
+            padding: 2rem 2.5rem 4rem;
+            max-width: 900px;
+        }
+
+        h1 {
+            font-size: 2rem;
+            color: var(--blue);
+            margin: 1.5rem 0 0.8rem;
+            letter-spacing: -0.02em;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 0.5rem;
+        }
+        h2 {
+            font-size: 1.5rem;
+            color: var(--purple);
+            margin: 1.8rem 0 0.7rem;
+            letter-spacing: -0.01em;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0.35rem;
+        }
+        h3 {
+            font-size: 1.2rem;
+            color: var(--cyan);
+            margin: 1.3rem 0 0.5rem;
+        }
+        h4 {
+            font-size: 1.05rem;
+            color: var(--green);
+            margin: 1rem 0 0.4rem;
+        }
+        h5 {
+            font-size: 0.95rem;
+            color: var(--yellow);
+            margin: 0.8rem 0 0.3rem;
+        }
+        h6 {
+            font-size: 0.88rem;
+            color: var(--orange);
+            margin: 0.6rem 0 0.2rem;
+        }
+
+        p {
+            margin: 0.6rem 0;
+        }
+        a {
+            color: var(--cyan);
+            text-decoration: none;
+            transition: color 0.15s;
+        }
+        a:hover {
+            color: var(--blue);
+            text-decoration: underline;
+        }
+        strong {
+            color: var(--fg-dim);
+            font-weight: 600;
+        }
+        em {
+            color: var(--yellow);
+            font-style: italic;
+        }
+        blockquote {
+            border-left: 3px solid var(--purple);
+            margin: 1rem 0;
+            padding: 0.6rem 1.2rem;
+            background: var(--bg-alt);
+            border-radius: 0 6px 6px 0;
+            color: var(--fg-subtle);
+            font-style: italic;
+        }
+        blockquote p {
+            margin: 0.3rem 0;
+        }
+        blockquote strong {
+            color: var(--purple);
+        }
+
+        hr {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 1.5rem 0;
+        }
+
+        code {
+            background: var(--code-bg);
+            color: var(--orange);
+            padding: 0.15em 0.4em;
+            border-radius: 3px;
+            font-size: 0.88em;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'SF Mono', 'Consolas', 'Liberation Mono', monospace;
+            word-break: break-word;
+        }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow-x: auto;
+            padding: 1rem 1.2rem;
+            margin: 0.8rem 0;
+            font-size: 0.85rem;
+            line-height: 1.55;
+            position: relative;
+        }
+        pre code {
+            background: none;
+            color: var(--fg);
+            padding: 0;
+            font-size: inherit;
+        }
+        pre .copy-btn {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: var(--bg-highlight);
+            border: 1px solid var(--border);
+            color: var(--fg-subtle);
+            padding: 0.25rem 0.6rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        pre:hover .copy-btn {
+            opacity: 1;
+        }
+        pre .copy-btn:hover {
+            border-color: var(--blue);
+            color: var(--blue);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            display: block;
+        }
+        thead {
+            background: var(--bg-highlight);
+        }
+        th {
+            padding: 0.6rem 0.8rem;
+            text-align: left;
+            font-weight: 600;
+            color: var(--cyan);
+            border-bottom: 2px solid var(--border);
+            white-space: nowrap;
+        }
+        td {
+            padding: 0.5rem 0.8rem;
+            border-bottom: 1px solid var(--border);
+        }
+        tbody tr:nth-child(even) {
+            background: var(--table-stripe);
+        }
+        tbody tr:hover {
+            background: var(--bg-highlight);
+        }
+
+        .callout {
+            padding: 0.8rem 1.2rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            border-left: 4px solid;
+            font-size: 0.9rem;
+        }
+        .callout-warning {
+            background: var(--warning-bg);
+            border-color: var(--warning-border);
+            color: var(--yellow);
+        }
+        .callout-info {
+            background: var(--info-bg);
+            border-color: var(--info-border);
+            color: var(--blue);
+        }
+        .callout-success {
+            background: var(--success-bg);
+            border-color: var(--success-border);
+            color: var(--green);
+        }
+        .callout-danger {
+            background: var(--danger-bg);
+            border-color: var(--danger-border);
+            color: var(--red);
+        }
+        .callout strong {
+            color: inherit;
+            font-weight: 700;
+        }
+
+        .status-compliant {
+            color: var(--green);
+            font-weight: 600;
+        }
+        .status-review {
+            color: var(--yellow);
+            font-weight: 600;
+        }
+        .status-deviation {
+            color: var(--red);
+            font-weight: 600;
+        }
+        .status-na {
+            color: var(--comment);
+            font-weight: 600;
+        }
+
+        .back-to-top {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: var(--bg-highlight);
+            border: 1px solid var(--border);
+            color: var(--fg);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.7;
+            transition: all 0.2s;
+            z-index: 300;
+        }
+        .back-to-top:hover {
+            opacity: 1;
+            border-color: var(--blue);
+            color: var(--blue);
+        }
+
+        @media (max-width: 1024px) {
+            #toc-sidebar {
+                width: 260px;
+                min-width: 260px;
+            }
+            main {
+                padding: 1.5rem 1.5rem 3rem;
+            }
+        }
+        @media (max-width: 768px) {
+            #toc-sidebar {
+                position: fixed;
+                transform: translateX(-100%);
+                width: 280px;
+                min-width: 280px;
+                z-index: 500;
+            }
+            #toc-sidebar.visible {
+                transform: translateX(0);
+                box-shadow: 4px 0 20px rgba(0, 0, 0, 0.5);
+            }
+            main {
+                padding: 1rem;
+            }
+            header {
+                padding: 0 1rem;
+            }
+            header h1 {
+                font-size: 0.95rem;
+            }
+            h1 {
+                font-size: 1.5rem;
+            }
+            h2 {
+                font-size: 1.25rem;
+            }
+            pre {
+                font-size: 0.78rem;
+                padding: 0.8rem;
+            }
+            table {
+                font-size: 0.78rem;
+            }
+        }
+
+        @media print {
+            body {
+                background: #fff;
+                color: #000;
+            }
+            #toc-sidebar,
+            header,
+            .back-to-top,
+            .copy-btn {
+                display: none !important;
+            }
+            main {
+                max-width: 100%;
+                padding: 0;
+            }
+            pre {
+                background: #f5f5f5;
+                border: 1px solid #ddd;
+                color: #222;
+            }
+            code {
+                background: #f0f0f0;
+                color: #333;
+            }
+            a {
+                color: #006;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🛡️ Hardened Gentoo — APT Threat Model</h1>
+        <nav>
+            <a href="#pre-work-research-summary">Research</a>
+            <a href="#part1-disk-layout-encryption-and-boot-chain">Disk Setup</a>
+            <a href="#part7-kernel-cachyos-sources-with-clang--kcfi">Kernel</a>
+            <a href="#part14-apparmor-configuration">AppArmor</a>
+            <a href="#part19-ssh-hardening-with-tpm-backed-keys">SSH</a>
+            <a href="#appendixd-unified-cis-gentoo-hardening-guide">CIS Guide</a>
+            <button id="toc-toggle" aria-label="Toggle table of contents">☰ TOC</button>
+        </nav>
+    </header>
+
+    <div class="layout">
+        <div id="toc-overlay"></div>
+        <nav id="toc-sidebar" aria-label="Table of Contents">
+            <h3>📑 Table of Contents</h3>
+            <ul id="toc-list"></ul>
+        </nav>
+        <main id="main-content">
+
+            <h1 id="hardened-gentoo-installation-guide--apt-threat-model">Hardened Gentoo Installation Guide — APT Threat Model</h1>
+            <p><em>Against Nation-State Advanced Persistent Threats — April 2026</em></p>
+
+            <blockquote>
+                <p><strong>Threat Model</strong>: Chinese and Russian state‑sponsored actors (APT10, APT29, APT41, Sandworm, Cozy Bear, Fancy Bear). Documented TTPs include supply‑chain compromise, kernel exploits, LUKS brute‑force against weak KDFs, cold‑boot attacks against unencrypted RAM, DMA‑over‑Thunderbolt/PCIe, SSH credential harvesting, and persistence via kernel modules or systemd service hijacking.</p>
+            </blockquote>
+            <blockquote>
+                <p><strong>Hardware</strong>: Intel i9‑13900K (Raptor Lake) with two NVMe drives — 500 GB (<code>nvme0n1</code>) and 1 TB (<code>nvme1n1</code>). TPM 2.0, Intel TME, VT‑d, CET hardware present. NVIDIA RTX 2080 Ti with open‑kernel modules.</p>
+            </blockquote>
+
+            <div class="callout callout-info">
+                <strong>Architecture decisions at a glance:</strong><br>
+                – No bootloader — <strong>UKI + direct UEFI boot</strong> (Secure Boot with custom keys).<br>
+                – <strong>LUKS2 / Argon2id</strong> on every data partition (no GRUB → no PBKDF2 constraint).<br>
+                – <strong>LVM linear</strong> across both NVMe drives (~1.5 TB usable).<br>
+                – <strong>Btrfs</strong> with Tumbleweed‑style subvolume layout, CoW disabled only on <code>/var/tmp</code> (via <code>chattr +C</code>).<br>
+                – <strong>TPM2 + PIN</strong> unlocks LUKS; recovery key as emergency fallback.<br>
+                – <strong>CachyOS‑sources</strong> kernel built with Clang + ThinLTO + kCFI.<br>
+                – <strong>Hardened Gentoo profile</strong> plus all sysctl, MAC, firewall, audit, and SSH hardening.<br>
+                – <strong>No hibernation</strong> (swap is zram‑only).
+            </div>
+
+            <hr>
+
+            <h2 id="pre-work-research-summary">Pre‑Work Research Summary</h2>
+            <h3 id="cachyos-kernel-on-gentoo">0.1 — CachyOS Kernel on Gentoo</h3>
+            <p>The <code>CachyOS‑kernels</code> overlay provides <code>sys‑kernel/cachyos‑sources</code> ebuilds with the full CachyOS patch‑set. The <strong><code>-lto</code> variant</strong> (enabled via the <code>lto</code> USE flag) switches to Clang + ThinLTO.</p>
+            <p><strong>kCFI</strong> requires <code>CONFIG_CFI_CLANG=y</code> plus <code>CONFIG_LTO_CLANG=y</code>. The CachyOS base config sets <code>CONFIG_ARCH_SUPPORTS_CFI=y</code> but does <strong>not</strong> set <code>CONFIG_CFI_CLANG=y</code> by default; this must be enabled manually.</p>
+
+            <h3 id="gentoo-hardened-profile">0.2 — Gentoo Hardened Profile</h3>
+            <p>Gentoo's hardened profile forces PIE, <code>-fstack-protector-strong</code>, <code>-D_FORTIFY_SOURCE=3</code>, and RELRO toolchain‑wide. It does <strong>not</strong> ship a hardened kernel — the kernel must be hardened separately.</p>
+
+            <h3 id="uki-on-gentoo">0.3 — UKI on Gentoo</h3>
+            <p>Unified Kernel Images are fully supported via <code>sys‑kernel/installkernel</code> with USE flags <code>dracut uki</code>. The UKI is a single PE/COFF <code>.efi</code> binary containing kernel, initramfs, embedded command line, and optional splash image.</p>
+
+            <h3 id="tpm2--pin-with-systemd-cryptenroll">0.4 — TPM2 + PIN with systemd‑cryptenroll</h3>
+            <p><code>systemd‑cryptenroll</code> seals a LUKS key into the TPM. When <code>--tpm2-with-pin=yes</code> is used, the TPM requires both a valid PCR state <strong>and</strong> a user‑entered PIN — true two‑factor authentication.</p>
+
+            <h3 id="raid-strategy-for-mismatched-drive-sizes">0.5 — RAID Strategy for Mismatched Drive Sizes</h3>
+            <p>RAID 0 limits usable capacity to <code>2 × min(disk1, disk2)</code>. With 500 GB and 1 TB drives, 500 GB is wasted. <strong>LVM linear allocation</strong> concatenates extents sequentially, using all available space.</p>
+
+            <hr>
+
+            <h2 id="part1-disk-layout-encryption-and-boot-chain">Part 1 — Disk Layout, Encryption, and Boot Chain</h2>
+            <h3 id="hardware">1.1 — Hardware</h3>
+            <table>
+                <thead><tr><th>Component</th><th>Detail</th></tr></thead>
+                <tbody>
+                    <tr><td>Drive A (<code>nvme0n1</code>)</td><td>500 GB NVMe</td></tr>
+                    <tr><td>Drive B (<code>nvme1n1</code>)</td><td>1 TB NVMe</td></tr>
+                    <tr><td>CPU</td><td>Intel i9‑13900K (Raptor Lake)</td></tr>
+                    <tr><td>TPM</td><td>TPM 2.0 (fTPM or dTPM)</td></tr>
+                    <tr><td>GPU</td><td>Integrated Intel UHD 770 (NVIDIA optional)</td></tr>
+                </tbody>
+            </table>
+
+            <h3 id="final-partition-layout">1.2 — Final Partition Layout</h3>
+            <pre><code>nvme0n1 (500 GB)
+├── nvme0n1p1   EFI System Partition    1 GB     FAT32       UNENCRYPTED — UKI .efi files
+└── nvme0n1p2   LVM PV                  ~499 GB  LVM member  LUKS2 / Argon2id
+
+nvme1n1 (1 TB)
+└── nvme1n1p1   LVM PV                  ~1 TB    LVM member  LUKS2 / Argon2id
+
+LVM Volume Group "vg0" spanning both PVs (~1.5 TB)
+└── lv‑root     Btrfs                   1.45 TB   linear      single LV, all space</code></pre>
+            <div class="callout callout-info"><strong>Why linear, not RAID 0:</strong> Linear allocation uses 100% of both drives. Recovery is simpler — data on the surviving drive remains readable.</div>
+
+            <h3 id="chain-of-trust">1.3 — Chain of Trust</h3>
+            <pre><code>UEFI Secure Boot (enrolled db key)
+  └─► Verifies and loads signed UKI .efi from ESP
+       └─► UKI = {kernel + initramfs + cmdline + os‑release} in one PE binary
+            └─► Initramfs runs systemd‑cryptsetup
+                 └─► systemd‑cryptenroll: TPM2 unseals LUKS key if PCR state matches
+                      └─► PIN entered (2FA: hardware state + PIN)
+                           └─► LUKS2 unlocked → LVM activated → Btrfs root mounted</code></pre>
+
+            <hr>
+
+            <h2 id="part2-disk-preparation">Part 2 — Disk Preparation (Live Environment)</h2>
+            <p>Boot from the <strong>Gentoo LiveDVD/USB</strong> or any rescue environment with <code>cryptsetup</code>, <code>lvm2</code>, <code>btrfs‑progs</code>, <code>dosfstools</code>.</p>
+
+            <h3 id="verify-drives">2.1 — Verify Drives</h3>
+            <pre><code>lsblk -d -o NAME,SIZE,MODEL
+# Confirm: nvme0n1 ~500 GB, nvme1n1 ~1 TB</code></pre>
+
+            <h3 id="wipe-existing-metadata">2.2 — Wipe Existing Metadata</h3>
+            <pre><code>wipefs -af /dev/nvme0n1
+wipefs -af /dev/nvme1n1
+blkdiscard -f /dev/nvme0n1
+blkdiscard -f /dev/nvme1n1</code></pre>
+
+            <h3 id="partition-drives">2.3 — Partition Drives</h3>
+            <pre><code># ── nvme0n1 (500 GB — ESP + LVM PV) ──
+gdisk /dev/nvme0n1
+# Inside gdisk:
+# o  → new GPT table → y
+# n  → 1 → default → +1G → ef00   (EFI System Partition)
+# n  → 2 → default → default → 8e00 (Linux LVM)
+# w  → write
+
+# ── nvme1n1 (1 TB — LVM PV only) ──
+gdisk /dev/nvme1n1
+# Inside gdisk:
+# o  → new GPT table → y
+# n  → 1 → default → default → 8e00 (Linux LVM)
+# w  → write</code></pre>
+
+            <h3 id="format-esp">2.4 — Format ESP</h3>
+            <pre><code>mkfs.vfat -F 32 -n ESP /dev/nvme1n1p1</code></pre>
+
+            <h3 id="luks2-format">2.5 — LUKS2 Format (Argon2id on Both)</h3>
+            <div class="callout callout-success"><strong>No GRUB constraint → Argon2id everywhere.</strong> High memory cost raises the bar for GPU brute‑force.</div>
+            <pre><code># ── nvme0n1p2 (500 GB PV) ──
+cryptsetup luksFormat \
+  --type luks2 \
+  --cipher aes-xts-plain64 \
+  --key-size 512 \
+  --hash sha512 \
+  --pbkdf argon2id \
+  --pbkdf-memory 1048576 \
+  --pbkdf-parallel 4 \
+  --iter-time 5000 \
+  --label crypt0 \
+  /dev/nvme1n1p2
+
+# ── nvme1n1p1 (1 TB PV) ──
+cryptsetup luksFormat \
+  --type luks2 \
+  --cipher aes-xts-plain64 \
+  --key-size 512 \
+  --hash sha512 \
+  --pbkdf argon2id \
+  --pbkdf-memory 1048576 \
+  --pbkdf-parallel 4 \
+  --iter-time 5000 \
+  --label crypt1 \
+  /dev/nvme0n1p1</code></pre>
+            <blockquote><p><strong>Argon2id parameters</strong>: <code>--pbkdf-memory 1048576</code> = 1 GiB RAM for KDF. On the i9‑13900K this adds ≈2 s to boot. APT actors with GPU clusters cannot efficiently parallelise 1 GiB‑memory Argon2id.</p></blockquote>
+
+            <h3 id="open-luks-containers">2.6 — Open LUKS Containers</h3>
+            <pre><code>cryptsetup luksOpen /dev/nvme1n1p2 crypt0
+cryptsetup luksOpen /dev/nvme0n1p1 crypt1
+
+CRYPT0_UUID=$(cryptsetup luksUUID /dev/nvme1n1p2)
+CRYPT1_UUID=$(cryptsetup luksUUID /dev/nvme0n1p1)
+echo "CRYPT0_UUID=$CRYPT0_UUID"  >  /root/luks-uuids.txt
+echo "CRYPT1_UUID=$CRYPT1_UUID"  >> /root/luks-uuids.txt</code></pre>
+
+            <h3 id="luks-header-backup">2.7 — LUKS Header Backup</h3>
+            <div class="callout callout-warning"><strong>If the header is corrupted, all data is permanently lost.</strong> Back up each header to offline storage immediately.</div>
+            <pre><code>mkdir -p /tmp/luks-backups
+cryptsetup luksHeaderBackup /dev/nvme1n1p2 \
+  --header-backup-file /tmp/luks-backups/luks-header-crypt0.img
+cryptsetup luksHeaderBackup /dev/nvme0n1p1 \
+  --header-backup-file /tmp/luks-backups/luks-header-crypt1.img</code></pre>
+
+            <hr>
+
+            <h2 id="part3-lvm-configuration">Part 3 — LVM Configuration</h2>
+            <h3 id="create-pvs-and-vg">3.1 — Create Physical Volumes and Volume Group</h3>
+            <pre><code>pvcreate /dev/mapper/crypt0 /dev/mapper/crypt1
+vgcreate vg0 /dev/mapper/crypt0 /dev/mapper/crypt1</code></pre>
+
+            <h3 id="create-linear-lv">3.2 — Create Linear Logical Volume</h3>
+            <pre><code># Linear LV using all free space (~1.45 TB)
+lvcreate -l 100%FREE -n root vg0
+
+# Verify
+lvs -a -o +devices
+vgs
+pvs</code></pre>
+            <div class="callout callout-info"><strong>Linear allocation behaviour:</strong> Extents are taken from <code>crypt0</code> first, then from <code>crypt1</code>. If one drive dies, data on the surviving drive may be partially recoverable.</div>
+
+            <hr>
+
+            <h2 id="part4-btrfs-filesystem-and-subvolumes">Part 4 — Btrfs Filesystem and Subvolumes</h2>
+            <h3 id="create-btrfs">4.1 — Create Btrfs Filesystem</h3>
+            <pre><code>mkfs.btrfs -L gentoo /dev/vg0/root</code></pre>
+
+            <h3 id="mount-and-create-subvolumes">4.2 — Mount Top‑Level Volume and Create Subvolumes</h3>
+            <pre><code>mkdir -p /mnt/gentoo
+mount -o defaults,noatime,compress=zstd:1,space_cache=v2 \
+  /dev/vg0/root /mnt/gentoo
+
+btrfs subvolume create /mnt/gentoo/@
+btrfs subvolume create /mnt/gentoo/@/.snapshots
+mkdir -p /mnt/gentoo/@/.snapshots/1
+btrfs subvolume create /mnt/gentoo/@/.snapshots/1/snapshot
+
+btrfs subvolume create /mnt/gentoo/@/home
+btrfs subvolume create /mnt/gentoo/@/opt
+btrfs subvolume create /mnt/gentoo/@/root
+btrfs subvolume create /mnt/gentoo/@/srv
+btrfs subvolume create /mnt/gentoo/@/tmp
+
+mkdir -p /mnt/gentoo/@/usr
+btrfs subvolume create /mnt/gentoo/@/usr/local
+
+btrfs subvolume create /mnt/gentoo/@/var
+chattr +C /mnt/gentoo/@/var
+
+btrfs subvolume create /mnt/gentoo/@/var/tmp
+chattr +C /mnt/gentoo/@/var/tmp
+
+btrfs subvolume create /mnt/gentoo/@/nix
+chattr +C /mnt/gentoo/@/nix</code></pre>
+
+            <h3 id="subvolume-justification">4.5 — Subvolume Justification</h3>
+            <table>
+                <thead><tr><th>Subvolume</th><th>Mount point</th><th>Rationale</th></tr></thead>
+                <tbody>
+                    <tr><td><code>@</code> (via snapshot)</td><td><code>/</code></td><td>Root snapshot target</td></tr>
+                    <tr><td><code>@/.snapshots</code></td><td><code>/.snapshots</code></td><td>Snapper storage</td></tr>
+                    <tr><td><code>@/home</code></td><td><code>/home</code></td><td>User data</td></tr>
+                    <tr><td><code>@/opt</code></td><td><code>/opt</code></td><td>Third‑party software</td></tr>
+                    <tr><td><code>@/var</code></td><td><code>/var</code></td><td>Variable data (CoW disabled)</td></tr>
+                    <tr><td><code>@/var/tmp</code></td><td><code>/var/tmp</code></td><td>Persistent temp (CoW disabled)</td></tr>
+                    <tr><td><code>@/nix</code></td><td><code>/nix</code></td><td>Nix store (CoW disabled)</td></tr>
+                </tbody>
+            </table>
+
+            <hr>
+
+            <h2 id="part5-stage3-and-chroot">Part 5 — Stage 3 and Chroot</h2>
+            <h3 id="download-extract">5.1 — Download and Extract</h3>
+            <pre><code>cd /mnt/gentoo
+wget https://distfiles.gentoo.org/releases/amd64/autobuilds/current-stage3-amd64-hardened-systemd/stage3-amd64-hardened-systemd-YYYYMMDDTHHMMSSZ.tar.xz
+tar xpvf stage3-*.tar.xz --xattrs-include='*.*' --numeric-owner</code></pre>
+
+            <h3 id="chroot-prep">5.3 — Chroot Prep</h3>
+            <pre><code>cp --dereference /etc/resolv.conf /mnt/gentoo/etc/
+mount --types proc /proc /mnt/gentoo/proc
+mount --rbind /sys /mnt/gentoo/sys && mount --make-rslave /mnt/gentoo/sys
+mount --rbind /dev /mnt/gentoo/dev && mount --make-rslave /mnt/gentoo/dev
+mount --bind /run /mnt/gentoo/run && mount --make-slave /mnt/gentoo/run
+test -L /dev/shm && rm /dev/shm && mkdir /dev/shm
+mount -t tmpfs -o nosuid,nodev,noexec shm /dev/shm
+chmod 1777 /dev/shm</code></pre>
+
+            <h3 id="makeconf">5.4 — make.conf</h3>
+            <pre><code>COMMON_FLAGS="-O3 -march=raptorlake -pipe -flto -fno-plt -fno-semantic-interposition"
+CPU_FLAGS_X86="aes avx avx2 f16c fma3 mmx mmxext pclmul popcnt rdrand sha sse sse2 sse3 sse4_1 sse4_2 sse4a ssse3 vpclmulqdq"
+CFLAGS="${COMMON_FLAGS}"
+CXXFLAGS="${COMMON_FLAGS}"
+LDFLAGS="${COMMON_FLAGS} ${LDFLAGS}"
+MAKEOPTS="-j22"
+EMERGE_DEFAULT_OPTS="--jobs=10 --keep-going=y --ask"
+USE="systemd -cups -elogind -fips -gnome -handbook gtk4 vdpau clang \
+     -kde -motif -pulseaudio -quicktime -smartcard gtk tpm opengl \
+     apparmor appindicator -bluetooth firmware lvm gstreamer nftables \
+     gui keyring libnotify lto pgo jit nvenc nvidia pipewire -iptables \
+     qt5 qt6 udisks upower wayland zstd X -ccache -accessibility \
+     cryptsetup device-mapper audit policykit hardened vulkan llvm"
+VIDEO_CARDS="nvidia"
+SECUREBOOT_SIGN_KEY="/var/lib/sbctl/keys/db/db.key"
+SECUREBOOT_SIGN_CERT="/var/lib/sbctl/keys/db/db.pem"</code></pre>
+
+            <h3 id="enter-chroot">5.5 — Enter Chroot</h3>
+            <pre><code>chroot /mnt/gentoo /bin/bash
+source /etc/profile
+export PS1="(chroot) ${PS1}"</code></pre>
+
+            <hr>
+
+            <h2 id="part6-base-configuration-and-portage">Part 6 — Base Configuration and Portage</h2>
+            <h3 id="timezone-locale-hostname">6.1 — Timezone, Locale, Hostname</h3>
+            <pre><code>ln -sf ../usr/share/zoneinfo/Asia/Dhaka /etc/localtime
+nano /etc/locale.gen
+locale-gen
+eselect locale set 4
+env-update && source /etc/profile
+echo "workstation" > /etc/hostname</code></pre>
+
+            <h3 id="sync-portage">6.2 — Sync Portage and Select Profile</h3>
+            <pre><code>emerge-webrsync
+emerge --sync
+eselect profile list
+# Choose: default/linux/amd64/23.0/no-multilib/hardened/systemd
+eselect profile set &lt;number&gt;
+source /etc/profile</code></pre>
+
+            <h3 id="portage-repos">6.3 — Portage and Its REPOS</h3>
+            <pre><code>emerge -aq --jobs=5 app-eselect/eselect-repository dev-vcs/git app-admin/sudo && \
+  eselect repository remove gentoo && \
+  eselect repository add gentoo git https://github.com/gentoo-mirror/gentoo.git && \
+  emaint sync -r gentoo && \
+  eselect repository enable guru hyproverlay CachyOS-kernels xarblu-overlay && \
+  eselect repository create custom && emerge --sync</code></pre>
+
+            <h3 id="root-password-and-user">6.6 — Root Password and Administrative User</h3>
+            <pre><code>passwd root
+passwd -l root
+useradd -m -G users,wheel,audio,video,tss -s /bin/bash ahsan
+passwd ahsan</code></pre>
+
+            <h3 id="rebuild-world">6.7 — Rebuild GCC and World</h3>
+            <pre><code>emerge -av gcc && emerge -ev @world</code></pre>
+
+            <hr>
+
+            <h2 id="part7-kernel-cachyos-sources-with-clang--kcfi">Part 7 — Kernel: CachyOS‑Sources with Clang + kCFI</h2>
+            <h3 id="install-kernel-sources">7.1 — Install Kernel Sources</h3>
+            <pre><code>emerge --ask sys-kernel/cachyos-sources sys-kernel/linux-firmware \
+  app-crypt/sbctl sys-firmware/intel-microcode sys-fs/btrfs-progs
+eselect kernel set 1
+cd /usr/src/linux</code></pre>
+
+            <h3 id="configure-kernel">7.2 — Configure the Kernel</h3>
+            <pre><code>cp /path/to/hardened-kernel.config .config
+make olddefconfig
+make hardening.config
+make menuconfig LLVM=1</code></pre>
+
+            <h3 id="build-and-install">7.3 — Build and Install</h3>
+            <pre><code>make -j$(nproc) LLVM=1
+make modules_install LLVM=1
+make install LLVM=1</code></pre>
+            <table>
+                <thead><tr><th>Step</th><th>Tool</th><th>Purpose</th></tr></thead>
+                <tbody>
+                    <tr><td>Copy kernel</td><td><code>installkernel</code></td><td>Available for dracut</td></tr>
+                    <tr><td>Generate UKI</td><td><code>dracut</code></td><td>Single signed <code>.efi</code> binary</td></tr>
+                    <tr><td>Install UKI</td><td><code>installkernel</code></td><td>Placed at <code>/efi/EFI/Linux/</code></td></tr>
+                    <tr><td>Re‑sign UKI</td><td><code>sbctl</code></td><td>Signs every UKI on the ESP</td></tr>
+                </tbody>
+            </table>
+
+            <h3 id="generate-sb-keys">7.4 — Generate Secure Boot Keys</h3>
+            <pre><code>sbctl create-keys
+ls -l /var/lib/sbctl/keys/db/db.key /var/lib/sbctl/keys/db/db.pem</code></pre>
+
+            <hr>
+
+            <h2 id="part7b-nvidia-driver-setup">Part 7B — NVIDIA Driver Setup</h2>
+            <h3 id="nvidia-kernel-config">7B.1 — Kernel Configuration for NVIDIA</h3>
+            <pre><code>CONFIG_VGA_ARB=y
+CONFIG_DRM=y
+CONFIG_DRM_FBDEV_EMULATION=y
+# CONFIG_DRM_NOUVEAU is NOT set</code></pre>
+
+            <h3 id="nvidia-install">7B.5 — Install the Driver</h3>
+            <pre><code>emerge --ask x11-drivers/nvidia-drivers
+modinfo nvidia nvidia-modeset nvidia-uvm nvidia-drm
+modinfo nvidia | grep -E 'sig_|signer'</code></pre>
+
+            <h3 id="nvidia-module-params">7B.6 — Module Parameters</h3>
+            <pre><code>cat > /etc/modprobe.d/nvidia.conf << 'EOF'
+options nvidia-drm modeset=1
+options nvidia NVreg_PreserveVideoMemoryAllocations=1
+options nvidia NVreg_TemporaryFilePath=/var/tmp
+EOF
+
+cat > /etc/modprobe.d/blacklist-nouveau.conf << 'EOF'
+install nouveau /bin/true
+blacklist nouveau
+EOF</code></pre>
+
+            <h3 id="nvidia-rebuild-uki">7B.8 — Rebuild Initramfs and UKI</h3>
+            <pre><code>KVER=$(ls /lib/modules/ | sort -V | tail -1)
+dracut --force --verbose /efi/EFI/Linux/gentoo-${KVER}.efi ${KVER}
+lsinitrd /efi/EFI/Linux/gentoo-${KVER}.efi | grep -E "nvidia"
+sbctl sign -s /efi/EFI/Linux/gentoo-${KVER}.efi</code></pre>
+
+            <hr>
+
+            <h2 id="part8-dracut-and-secure-boot">Part 8 — Dracut and Secure Boot Unified Configuration</h2>
+            <h3 id="dracut-uki-config">8.1 — Dracut UKI Configuration</h3>
+            <pre><code>mkdir -p /etc/dracut.conf.d
+cat > /etc/dracut.conf.d/00-base.conf << 'EOF'
+hostonly="yes"
+hostonly_cmdline="no"
+uefi="yes"
+uefi_stub="/usr/lib/systemd/boot/efi/linuxx64.efi.stub"
+compress="zstd"
+early_microcode="yes"
+add_dracutmodules+=" tpm2-tss crypt lvm btrfs systemd systemd-initrd apparmor "
+add_drivers+=" tpm_crb tpm_tis tpm_tis_core dm_crypt dm_mod aes_x86_64 "
+add_drivers+=" nvidia nvidia-modeset nvidia-uvm nvidia-drm "
+install_items+=" /etc/crypttab.initramfs /etc/crypttab "
+uefi_secureboot_cert="/var/lib/sbctl/keys/db/db.pem"
+uefi_secureboot_key="/var/lib/sbctl/keys/db/db.key"
+EOF</code></pre>
+
+            <h3 id="kernel-cmdline">8.2 — Kernel Command Line</h3>
+            <pre><code>source /root/luks-uuids.txt
+mkdir -p /etc/kernel
+cat > /etc/kernel/cmdline << EOF
+quiet rootfstype=btrfs rd.luks.uuid=luks-${CRYPT0_UUID} rd.luks.uuid=luks-${CRYPT1_UUID} \
+rd.lvm.vg=vg0 root=/dev/vg0/root intel_iommu=on iommu=force apparmor=1 \
+security=apparmor audit=1 slab_nomerge init_on_alloc=1 init_on_free=1 mitigations=auto
+EOF</code></pre>
+            <table>
+                <thead><tr><th>Parameter</th><th>Justification</th></tr></thead>
+                <tbody>
+                    <tr><td><code>intel_iommu=on iommu=force</code></td><td>IOMMU strict mode for DMA protection</td></tr>
+                    <tr><td><code>apparmor=1 security=apparmor</code></td><td>Enables AppArmor as primary LSM</td></tr>
+                    <tr><td><code>audit=1</code></td><td>Enables audit subsystem for auditd</td></tr>
+                    <tr><td><code>init_on_alloc=1 init_on_free=1</code></td><td>KSPP memory initialisation</td></tr>
+                    <tr><td><code>mitigations=auto</code></td><td>CPU vulnerability mitigations</td></tr>
+                </tbody>
+            </table>
+
+            <h3 id="crypttab-tpm2">8.3 — Crypttab for TPM2 Unlock</h3>
+            <pre><code>cat > /etc/crypttab.initramfs << EOF
+crypt0  UUID=${CRYPT0_UUID}  -  tpm2-device=auto,discard
+crypt1  UUID=${CRYPT1_UUID}  -  tpm2-device=auto,discard
+EOF
+chmod 600 /etc/crypttab.initramfs</code></pre>
+
+            <h3 id="auto-resign-hook">8.7 — Automatic Re‑Signing After Kernel Updates</h3>
+            <pre><code>mkdir -p /etc/kernel/postinst.d
+cat > /etc/kernel/postinst.d/99-sbctl-sign.sh << 'SCRIPT'
+#!/bin/bash
+if command -v sbctl &>/dev/null; then
+    sbctl sign -s /efi/EFI/Linux/*.efi 2>/dev/null
+fi
+SCRIPT
+chmod +x /etc/kernel/postinst.d/99-sbctl-sign.sh</code></pre>
+
+            <hr>
+
+            <h2 id="part9-tpm2--pin-enrollment">Part 9 — TPM2 + PIN Enrollment</h2>
+            <div class="callout callout-warning"><strong>Complete this after first successful boot into the installed system.</strong></div>
+            <h3 id="enroll-luks">9.1 — Enroll Both LUKS Containers</h3>
+            <pre><code>systemd-cryptenroll \
+  --tpm2-device=auto \
+  --tpm2-pcrs="0+2+7+12" \
+  --tpm2-with-pin=yes \
+  /dev/nvme0n1p2
+
+systemd-cryptenroll \
+  --tpm2-device=auto \
+  --tpm2-pcrs="0+2+7+12" \
+  --tpm2-with-pin=yes \
+  /dev/nvme1n1p1
+
+# Generate recovery keys (store offline!)
+systemd-cryptenroll --recovery-key /dev/nvme0n1p2
+systemd-cryptenroll --recovery-key /dev/nvme1n1p1</code></pre>
+
+            <h3 id="pcr-justification">9.2 — PCR Register Justification</h3>
+            <table>
+                <thead><tr><th>PCR</th><th>Measures</th><th>Why Included</th></tr></thead>
+                <tbody>
+                    <tr><td>PCR[0]</td><td>UEFI firmware code</td><td>Detects firmware tampering</td></tr>
+                    <tr><td>PCR[2]</td><td>Option ROM code</td><td>Detects malicious GPU/NIC UEFI ROMs</td></tr>
+                    <tr><td>PCR[7]</td><td>Secure Boot state</td><td>Seals against key rotation</td></tr>
+                    <tr><td>PCR[12]</td><td>Kernel cmdline</td><td>Seals against modification of UKI cmdline</td></tr>
+                </tbody>
+            </table>
+
+            <hr>
+
+            <h2 id="part10a-tpm-deep-dive">Part 10A — TPM 2.0 Deep Dive</h2>
+            <h3 id="tpm-ssh-keys">10A.2 — TPM‑Backed SSH Keys</h3>
+            <table>
+                <thead><tr><th>Component</th><th>Role</th></tr></thead>
+                <tbody>
+                    <tr><td><code>app-crypt/tpm2-tss</code></td><td>Low‑level TPM libraries</td></tr>
+                    <tr><td><code>app-crypt/tpm2-pkcs11</code></td><td>Translates PKCS#11 to TPM commands</td></tr>
+                    <tr><td><code>libtpm2_pkcs11.so</code></td><td>Shared library loaded by OpenSSH</td></tr>
+                    <tr><td><code>tpm2_ptool</code></td><td>CLI tool for token and key management</td></tr>
+                </tbody>
+            </table>
+            <pre><code>ssh → PKCS11Provider → /usr/lib64/libtpm2_pkcs11.so → tpm2-tss → /dev/tpmrm0 → TPM chip</code></pre>
+
+            <h3 id="tpm-diagnostics">10A.3 — TPM Diagnostic Tools</h3>
+            <pre><code>emerge --ask app-crypt/tpm2-tools
+tpm2_pcrread sha256:0+1+2+3+4+5+6+7+8+9+10+11+12+13+14+15
+tpm2_getcap handles-persistent
+tpm2_getcap properties-fixed</code></pre>
+
+            <h3 id="systemd-pcrlock">10A.6 — systemd‑pcrlock (Experimental)</h3>
+            <div class="callout callout-warning"><strong>Status as of April 2026:</strong> Marked experimental by the systemd project.</div>
+            <pre><code># Before a firmware update:
+sudo systemd-pcrlock unlock-firmware-code
+# After reboot:
+sudo systemd-pcrlock make-policy</code></pre>
+
+            <h3 id="tpm-security-considerations">10A.9 — Security Considerations</h3>
+            <table>
+                <thead><tr><th>Threat</th><th>TPM Mitigation</th><th>Limitation</th></tr></thead>
+                <tbody>
+                    <tr><td>Evil‑maid attack</td><td>PCR[0] sealing detects firmware modification</td><td>Recovery key bypass possible</td></tr>
+                    <tr><td>Cold‑boot attack</td><td>TPM PIN provides second factor</td><td>Compromised initramfs could capture PIN</td></tr>
+                    <tr><td>SSH key theft</td><td>Private key never leaves TPM</td><td>Physical possession + PIN still possible</td></tr>
+                </tbody>
+            </table>
+
+            <hr>
+
+            <h2 id="part10b-systemd-homed">Part 10B — systemd‑homed: Per‑User Encrypted Home Directories</h2>
+            <h3 id="homed-kernel-reqs">10B.1 — Kernel Requirements</h3>
+            <pre><code>CONFIG_BLK_DEV_LOOP=y
+CONFIG_BLK_DEV_DM=y
+CONFIG_DM_CRYPT=y
+CONFIG_CRYPTO_AES=y
+CONFIG_CRYPTO_XTS=y
+CONFIG_CRYPTO_SHA256=y
+CONFIG_CRYPTO_USER_API_HASH=y
+CONFIG_CRYPTO_USER_API_SKCIPHER=y
+CONFIG_CRYPTO_AES_NI_INTEL=y
+CONFIG_CRYPTO_SHA256_SSSE3=y</code></pre>
+
+            <h3 id="homed-install">10B.2 — Installation</h3>
+            <pre><code># USE flags for systemd and pambase
+sys-apps/systemd cryptsetup boot tpm homed
+sys-auth/pambase pwquality homed
+
+emerge --ask --oneshot sys-auth/pambase sys-apps/systemd
+systemctl daemon-reexec
+systemctl enable --now systemd-homed.service</code></pre>
+
+            <h3 id="homed-create-user">10B.5 — Creating a systemd‑homed User</h3>
+            <pre><code>homectl create ahsan \
+    --uid=1000 \
+    --real-name="Ahsan" \
+    --member-of=wheel,audio,video,tss \
+    --storage=luks \
+    --shell=/bin/bash \
+    --recovery-key=yes</code></pre>
+
+            <h3 id="homed-security">10B.8 — Security Considerations</h3>
+            <table>
+                <thead><tr><th>Threat</th><th>Without homed</th><th>With homed + suspend=true</th></tr></thead>
+                <tbody>
+                    <tr><td>Cold‑boot on suspended machine</td><td>DRAM contains plaintext</td><td>LUKS key evicted from RAM</td></tr>
+                    <tr><td>Root compromise</td><td>Attacker reads /home directly</td><td>Home is encrypted LUKS container</td></tr>
+                    <tr><td>Physical theft (powered‑on)</td><td>Unencrypted /home readable</td><td>Home encrypted while locked</td></tr>
+                </tbody>
+            </table>
+
+            <hr>
+
+            <h2 id="part11-fstab">Part 11 — fstab</h2>
+            <pre><code>ROOT_UUID=$(blkid -s UUID -o value /dev/vg0/root)
+ESP_UUID=$(blkid -s UUID -o value /dev/nvme0n1p1)
+
+cat > /etc/fstab << EOF
+UUID=${ROOT_UUID}  /                 btrfs  defaults,noatime,compress=zstd:1,space_cache=v2  0 0
+UUID=${ROOT_UUID}  /.snapshots       btrfs  defaults,noatime,compress=zstd:1,space_cache=v2,subvol=@/.snapshots  0 0
+UUID=${ROOT_UUID}  /home             btrfs  defaults,noatime,compress=zstd:1,space_cache=v2,subvol=@/home  0 0
+UUID=${ROOT_UUID}  /var              btrfs  defaults,noatime,compress=zstd:1,space_cache=v2,subvol=@/var  0 0
+UUID=${ROOT_UUID}  /var/tmp          btrfs  defaults,noatime,compress=zstd:1,space_cache=v2,subvol=@/var/tmp  0 0
+UUID=${ROOT_UUID}  /nix              btrfs  defaults,noatime,compress=zstd:1,space_cache=v2,subvol=@/nix  0 0
+UUID=${ESP_UUID}    /efi              vfat   defaults,noatime  0 2
+/dev/zram0         none               swap   defaults,pri=100  0 0
+EOF</code></pre>
+
+            <hr>
+
+            <h2 id="part12-zram-swap">Part 12 — Zram Swap Configuration</h2>
+            <pre><code>emerge sys-apps/zram-generator
+cat > /etc/systemd/zram-generator.conf << 'EOF'
+[zram0]
+zram-size = ram / 2
+compression-algorithm = zstd
+EOF
+systemctl daemon-reload
+systemctl start dev-zram0.swap</code></pre>
+
+            <hr>
+
+            <h2 id="part13-snapper-integration">Part 13 — Snapper Integration</h2>
+            <pre><code>emerge --ask app-backup/snapper
+snapper --no-dbus -c root create-config /
+umount /.snapshots 2>/dev/null
+rm -rf /.snapshots
+btrfs subvolume delete /.snapshots 2>/dev/null
+mkdir /.snapshots
+mount -a
+chmod 750 /.snapshots
+systemctl enable snapper-timeline.timer
+systemctl enable snapper-cleanup.timer
+systemctl enable snapper-boot.timer</code></pre>
+
+            <hr>
+
+            <h2 id="part14-apparmor-configuration">Part 14 — AppArmor Configuration</h2>
+            <h3 id="apparmor-install">14.1 — Installation</h3>
+            <pre><code>emerge --ask sys-apps/apparmor sys-apps/apparmor-utils
+emerge --ask sec-policy/apparmor-profiles
+systemctl enable apparmor.service</code></pre>
+
+            <h3 id="apparmor-parser">14.2 — Parser Configuration</h3>
+            <pre><code>echo 'write-cache' | tee -a /etc/apparmor/parser.conf
+echo 'Optimize=compress-fast' | tee -a /etc/apparmor/parser.conf
+echo 'early_policy=yes' | tee -a /etc/apparmor/parser.conf</code></pre>
+
+            <h3 id="apparmord-install">14.3 — apparmor.d Integration</h3>
+            <pre><code>git clone https://github.com/roddhjav/apparmor.d.git
+cd apparmor.d
+git log --show-signature -1
+make
+sudo make install</code></pre>
+            <div class="callout callout-info"><strong>Installation philosophy:</strong> Install in complain mode first, check logs for a week, then switch to enforce mode.</div>
+
+            <h3 id="apparmor-enforce-recs">14.6 — Recommended Enforce/Complain Mode Assignments</h3>
+            <table>
+                <thead><tr><th>Profile</th><th>Application</th><th>Rationale</th></tr></thead>
+                <tbody>
+                    <tr><td><code>systemd</code></td><td>systemd PID 1</td><td>Extremely well‑tested</td></tr>
+                    <tr><td><code>sshd</code></td><td>SSH daemon</td><td>Internet‑facing</td></tr>
+                    <tr><td><code>NetworkManager</code></td><td>Network management</td><td>Internet‑facing</td></tr>
+                    <tr><td><code>dbus-system</code></td><td>System D‑Bus</td><td>IPC broker</td></tr>
+                    <tr><td><code>polkit</code></td><td>Policy kit</td><td>Privilege escalation broker</td></tr>
+                </tbody>
+            </table>
+
+            <hr>
+
+            <h2 id="part14b-confining-dev-tools">Part 14B — Confining Development Tools with AppArmor</h2>
+            <h3 id="profile-availability">14B.2 — Profile Availability</h3>
+            <table>
+                <thead><tr><th>Tool</th><th>Pre‑built Profile?</th><th>Location</th><th>Notes</th></tr></thead>
+                <tbody>
+                    <tr><td><code>git</code></td><td>✅ Yes</td><td><code>profiles-g-l/</code></td><td>Mature; ready for enforce</td></tr>
+                    <tr><td><code>gcc</code></td><td>✅ Yes</td><td><code>profiles-g-l/</code></td><td>Covers C compiler</td></tr>
+                    <tr><td><code>make</code></td><td>✅ Yes</td><td><code>profiles-m-r/</code></td><td>Covers GNU Make</td></tr>
+                    <tr><td><code>python3</code></td><td>✅ Yes</td><td><code>profiles-m-r/</code></td><td>Confines interpreter</td></tr>
+                    <tr><td><code>emacs</code></td><td>❌ No</td><td>—</td><td>Must generate from scratch</td></tr>
+                    <tr><td><code>neovim</code></td><td>❌ No</td><td>—</td><td>Must generate from scratch</td></tr>
+                </tbody>
+            </table>
+
+            <h3 id="interpreter-problem">14B.3 — The Interpreter Problem</h3>
+            <div class="callout callout-warning"><strong>Critical limitation:</strong> AppArmor attaches profiles to executable files by path. When you run <code>python3 ./script.py</code>, AppArmor sees only the interpreter being executed — not any profile for the script file. Confining <code>python3</code> globally affects every Python script on the system.</div>
+
+            <hr>
+
+            <h2 id="part15-auditd-hardening">Part 15 — Auditd Hardening</h2>
+            <h3 id="auditd-install">15.1 — Installation</h3>
+            <pre><code>emerge --ask sys-process/audit
+systemctl enable auditd.service</code></pre>
+
+            <h3 id="auditd-config">15.2 — Auditd Configuration</h3>
+            <pre><code>cat > /etc/audit/auditd.conf << 'EOF'
+log_file = /var/log/audit/audit.log
+log_format = ENRICHED
+flush = INCREMENTAL_ASYNC
+max_log_file = 50
+num_logs = 20
+space_left_action = SYSLOG
+admin_space_left_action = HALT
+disk_full_action = HALT
+EOF</code></pre>
+
+            <h3 id="audit-rules-overview">15.3 — Audit Rules Overview</h3>
+            <table>
+                <thead><tr><th>Section</th><th>Key</th><th>Purpose</th></tr></thead>
+                <tbody>
+                    <tr><td>1</td><td><code>etc_changes</code>, <code>identity</code></td><td>File integrity monitoring</td></tr>
+                    <tr><td>2</td><td><code>setuid_exec</code>, <code>sudo_exec</code></td><td>Privileged command execution</td></tr>
+                    <tr><td>3</td><td><code>login_logout</code>, <code>failed_login</code></td><td>Authentication events</td></tr>
+                    <tr><td>4</td><td><code>socket_ipv4</code>, <code>network_connect</code></td><td>Network socket creation</td></tr>
+                    <tr><td>5</td><td><code>module_load</code>, <code>module_unload</code></td><td>Kernel module loading</td></tr>
+                </tbody>
+            </table>
+
+            <hr>
+
+            <h2 id="part16-kernel-module-blacklisting">Part 16 — Kernel Module Blacklisting</h2>
+            <pre><code># Unused / Attack‑Surface Filesystems
+install cramfs /bin/true && blacklist cramfs
+install freevxfs /bin/true && blacklist freevxfs
+install jffs2 /bin/true && blacklist jffs2
+install hfs /bin/true && blacklist hfs
+install hfsplus /bin/true && blacklist hfsplus
+install squashfs /bin/true && blacklist squashfs
+install udf /bin/true && blacklist udf
+
+# Unused Network Protocols
+install dccp /bin/true && blacklist dccp
+install sctp /bin/true && blacklist sctp
+install rds /bin/true && blacklist rds
+install tipc /bin/true && blacklist tipc
+
+# DMA Attack Surface — Firewire
+install firewire-core /bin/true && blacklist firewire-core
+
+# Bluetooth
+install bluetooth /bin/true && blacklist bluetooth
+install btusb /bin/true && blacklist btusb</code></pre>
+
+            <hr>
+
+            <h2 id="part17-iommu-and-dma-protection">Part 17 — IOMMU and DMA Protection</h2>
+            <h3 id="iommu-params">Kernel Parameters</h3>
+            <pre><code>intel_iommu=on
+iommu=force</code></pre>
+            <table>
+                <thead><tr><th>Parameter</th><th>Behavior</th><th>Performance</th><th>Security</th></tr></thead>
+                <tbody>
+                    <tr><td><code>iommu=pt</code></td><td>Passthrough mode</td><td>Higher</td><td>Weaker</td></tr>
+                    <tr><td><code>iommu=force</code></td><td>All DMA through IOMMU</td><td>~5-10% I/O overhead</td><td>Stronger</td></tr>
+                </tbody>
+            </table>
+            <div class="callout callout-success"><strong>Decision:</strong> <code>iommu=force</code> for this threat model. Nation-state actors with physical access can exploit DMA paths that passthrough mode leaves unprotected.</div>
+
+            <h3 id="iommu-tme">IOMMU + TME Interaction</h3>
+            <p>Both operate independently — IOMMU restricts DMA addresses; TME encrypts DRAM contents. They are complementary.</p>
+
+            <hr>
+
+            <h2 id="part18-network-hardening">Part 18 — Network Hardening</h2>
+            <h3 id="firewalld">18.1 — Hardened Firewalld Configuration</h3>
+            <pre><code>emerge --ask net-firewall/firewalld
+systemctl enable --now firewalld.service
+firewall-cmd --set-default-zone=drop
+firewall-cmd --zone=drop --add-rich-rule='rule family="ipv4" port port="2222" protocol="tcp" accept' --permanent
+firewall-cmd --reload</code></pre>
+
+            <h3 id="opensnitch">18.2 — Application‑Layer Firewall: OpenSnitch</h3>
+            <pre><code>eselect repository enable pentoo
+emaint sync --repo pentoo
+emerge --ask net-firewall/opensnitch
+systemctl enable --now opensnitchd.service</code></pre>
+
+            <h3 id="aide">18.4 — AIDE: File Integrity Monitoring</h3>
+            <pre><code>emerge --ask app-forensics/aide
+aide --init
+mv /var/lib/aide/aide.db.new /var/lib/aide/aide.db
+# Copy database to offline, encrypted medium IMMEDIATELY</code></pre>
+
+            <h3 id="dns-encrypted">18.6 — DNS over TLS and DNSCrypt</h3>
+            <pre><code>emerge --ask net-dns/dnscrypt-proxy
+# Architecture:
+# Application → systemd‑resolved (127.0.0.53) → dnscrypt‑proxy (127.0.0.1:5300) → Encrypted resolver</code></pre>
+
+            <h3 id="networkmanager-hardened">18.7 — Hardened NetworkManager</h3>
+            <pre><code>emerge --ask net-misc/networkmanager
+# Configuration includes:
+# - Random MAC addresses
+# - WPA3-SAE enforcement
+# - PMF enabled
+# - Connectivity checking disabled</code></pre>
+
+            <hr>
+
+            <h2 id="part19-ssh-hardening-with-tpm-backed-keys">Part 19 — SSH Hardening with TPM‑Backed Keys</h2>
+            <h3 id="ssh-install">19.1 — Install Required Packages</h3>
+            <pre><code>emerge --ask app-crypt/tpm2-pkcs11 app-crypt/tpm2-tss net-misc/openssh
+gpasswd -a ahsan tss</code></pre>
+
+            <h3 id="ssh-tpm-key">19.2 — Create the TPM‑Backed SSH Key</h3>
+            <pre><code>tpm2_ptool init
+tpm2_ptool addtoken --pid=1 --label=ssh --userpin=YourPinHere --sopin=AdminPinHere
+tpm2_ptool addkey --label=ssh --userpin=YourPinHere --algorithm=ecc256</code></pre>
+
+            <h3 id="ssh-client-config">19.5 — Complete ssh_config (Hardened Client)</h3>
+            <pre><code>HostKeyAlgorithms ssh-ed25519,ecdsa-sha2-nistp521
+KexAlgorithms sntrup761x25519-sha512,mlkem768x25519-sha256,curve25519-sha256
+Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes256-ctr
+MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com
+PKCS11Provider /usr/lib64/libtpm2_pkcs11.so</code></pre>
+
+            <h3 id="sshd-config">19.7 — Hardened sshd Configuration (Server)</h3>
+            <pre><code>Port 2222
+PermitRootLogin no
+PasswordAuthentication no
+KexAlgorithms sntrup761x25519-sha512,mlkem768x25519-sha256,curve25519-sha256
+Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes256-ctr
+MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com
+AllowGroups sshusers
+ClientAliveInterval 600
+ClientAliveCountMax 1
+MaxAuthTries 3
+AllowTcpForwarding no
+X11Forwarding no</code></pre>
+
+            <hr>
+
+            <h2 id="part20-pam-and-authentication-hardening">Part 20 — PAM and Authentication Hardening</h2>
+            <h3 id="faillock-config">pam_faillock Configuration</h3>
+            <pre><code>cat > /etc/security/faillock.conf << 'EOF'
+deny = 5
+fail_interval = 600
+unlock_time = 900
+even_deny_root = true
+audit = true
+EOF</code></pre>
+
+            <h3 id="pwquality-config">pam_pwquality Configuration</h3>
+            <pre><code>cat > /etc/security/pwquality.conf << 'EOF'
+minlen = 16
+ucredit = -1
+lcredit = -1
+dcredit = -1
+ocredit = -1
+dictcheck = 1
+enforcing = 1
+retry = 3
+EOF</code></pre>
+
+            <hr>
+
+            <h2 id="part21-supply-chain-monitoring">Part 21 — Supply Chain Monitoring</h2>
+            <h3 id="elog">21.1 — Portage ELOG</h3>
+            <pre><code>PORT_LOGDIR="/var/log/portage"
+FEATURES="clean-logs"
+PORTAGE_ELOG_SYSTEM="save"
+PORTAGE_ELOG_CLASSES="warn info error log qa"</code></pre>
+
+            <h3 id="gemato">21.2.2 — Full‑Tree Manifest Verification with Gemato</h3>
+            <pre><code>emerge --ask app-portage/gemato
+gemato verify -K /usr/share/openpgp-keys/gentoo-release.asc \
+  "$(portageq get_repo_path / gentoo)"</code></pre>
+
+            <h3 id="glsa">21.4 — GLSA Vulnerability Scanning</h3>
+            <pre><code>emerge --ask app-portage/gentoolkit
+glsa-check --list affected
+glsa-check --pretend affected
+glsa-check --fix affected</code></pre>
+
+            <hr>
+
+            <h2 id="part22-ongoing-monitoring">Part 22 — Ongoing Monitoring, Log Review, and Vulnerability Alerting</h2>
+            <h3 id="msmtp">22.1 — Mail Relay with msmtp</h3>
+            <pre><code>emerge --ask mail-mta/msmtp
+# Configure for Proton Mail Bridge or external SMTP relay</code></pre>
+
+            <h3 id="daily-audit-summary">22.2 — Daily Auditd Summary</h3>
+            <p>The script extracts key metrics from the audit log and emails a summary including authentication failures, privilege escalations, module loads, emerge executions, and AppArmor denials.</p>
+
+            <h3 id="weekly-report">22.3 — Weekly Security Report</h3>
+            <p>GLSA scan and repository integrity check automated via <code>weekly-security-scan.timer</code>.</p>
+
+            <hr>
+
+            <h2 id="part23-systemd-service-hardening">Part 23 — systemd Service Hardening</h2>
+            <h3 id="svc-harden">23.2 — The Integrated svc‑harden.py Script</h3>
+            <p>A comprehensive Python CLI tool for analyzing, applying, profiling (via SHH), testing, reverting, and bisecting systemd service hardening directives. All changes are recorded in an NDJSON audit log.</p>
+            <pre><code>sudo svc-harden.py analyze sshd.service
+sudo svc-harden.py apply cockpit.service
+sudo svc-harden.py profile nginx.service --apply
+sudo svc-harden.py test cockpit.service --test-cmd "curl -k https://localhost:9090"
+sudo svc-harden.py revert NetworkManager.service
+sudo svc-harden.py bisect sshd.service
+sudo svc-harden.py log</code></pre>
+
+            <h3 id="recommended-services">23.4 — Recommended Services for Hardening</h3>
+            <table>
+                <thead><tr><th>Priority</th><th>Service</th><th>Workflow</th><th>Reason</th></tr></thead>
+                <tbody>
+                    <tr><td>1</td><td><code>sshd.service</code></td><td>Manual apply</td><td>Internet‑facing</td></tr>
+                    <tr><td>2</td><td><code>cockpit.service</code></td><td>Manual apply</td><td>Management UI</td></tr>
+                    <tr><td>3</td><td><code>NetworkManager.service</code></td><td>Manual apply</td><td>Controls all networking</td></tr>
+                    <tr><td>4</td><td><code>firewalld.service</code></td><td>Manual apply</td><td>Firewall daemon runs as root</td></tr>
+                    <tr><td>5</td><td><code>auditd.service</code></td><td>SHH profile</td><td>Complex runtime behaviour</td></tr>
+                </tbody>
+            </table>
+
+            <hr>
+
+            <h2 id="part24-system-packages">Part 24 — System Packages (Desktop)</h2>
+            <pre><code>emerge --ask \
+  gui-wm/hyprland gui-libs/xdg-desktop-portal-hyprland \
+  gui-apps/grim gui-apps/slurp gui-apps/wl-clipboard \
+  x11-misc/sddm x11-base/xwayland \
+  app-shells/zsh app-shells/starship app-shells/zoxide \
+  app-editors/neovim app-editors/emacs \
+  dev-vcs/git dev-vcs/lazygit \
+  app-containers/podman app-containers/distrobox \
+  www-client/zen-browser-bin</code></pre>
+
+            <hr>
+
+            <h2 id="part25-login-banner">Part 25 — Login Banner</h2>
+            <pre><code>cat > /etc/issue << 'EOF'
+-- WARNING -- This system is for the use of authorized users only...
+EOF
+cp /etc/issue /etc/issue.net</code></pre>
+
+            <hr>
+
+            <h2 id="part26-final-system-setup-and-first-boot">Part 26 — Final System Setup and First Boot</h2>
+            <h3 id="enable-services">26.2 — Enable Essential Services</h3>
+            <pre><code>systemctl enable NetworkManager sshd firewalld auditd apparmor
+systemctl enable snapper-timeline.timer snapper-cleanup.timer snapper-boot.timer
+systemctl enable systemd-resolved dnscrypt-proxy cockpit.socket</code></pre>
+
+            <h3 id="regenerate-uki">26.3 — Regenerate UKI</h3>
+            <pre><code>KVER=$(ls /lib/modules/ | sort -V | tail -1)
+dracut --force --verbose /efi/EFI/Linux/gentoo-${KVER}.efi ${KVER}
+sbctl sign --save /efi/EFI/Linux/gentoo-${KVER}.efi</code></pre>
+
+            <h3 id="exit-and-reboot">26.4 — Exit Chroot and Reboot</h3>
+            <pre><code>exit
+umount -R /mnt/gentoo
+reboot</code></pre>
+
+            <hr>
+
+            <h2 id="part27-post-install-tpm2-enrollment">Part 27 — Post‑Install: TPM2 Enrollment and Verification</h2>
+            <pre><code># 1. Verify Secure Boot
+sbctl status
+# 2. Enroll TPM2+PIN (see Part 10)
+# 3. Verify TPM2 unlock works — reboot
+# 4. Verify key system components
+systemctl is-active sshd firewalld auditd apparmor
+aa-status | head
+sysctl kernel.kptr_restrict kernel.dmesg_restrict
+dmesg | grep "Intel-IOMMU: enabled"</code></pre>
+
+            <hr>
+
+            <h2 id="part28-post-install-chroot-re-entry">Part 28 — Post‑Install Chroot Re‑Entry</h2>
+            <h3 id="re-entry-procedure">28.1 — Open LUKS and Activate LVM</h3>
+            <pre><code>cryptsetup luksOpen /dev/nvme0n1p2 crypt0
+cryptsetup luksOpen /dev/nvme1n1p1 crypt1
+vgchange -ay vg0</code></pre>
+
+            <h3 id="mount-btrfs-root">28.2 — Mount the Btrfs Root</h3>
+            <pre><code>BTRFS_OPTS="defaults,noatime,compress=zstd:1,space_cache=v2"
+mkdir -p /mnt/gentoo
+mount -o ${BTRFS_OPTS} /dev/vg0/root /mnt/gentoo
+# Why no subvol=? — mounts the current default subvolume set by snapper</code></pre>
+
+            <h3 id="perform-recovery">28.6 — Perform Recovery Tasks</h3>
+            <pre><code># Rebuild a broken UKI:
+KVER=$(ls /lib/modules/ | sort -V | tail -1)
+dracut --force /efi/EFI/Linux/gentoo-${KVER}.efi ${KVER}
+sbctl sign -s /efi/EFI/Linux/gentoo-${KVER}.efi
+
+# Roll back with Snapper:
+snapper -c root list
+snapper -c root rollback &lt;N&gt;
+
+# Reset a forgotten root password:
+passwd -u root
+passwd root</code></pre>
+
+            <hr>
+
+            <h2 id="part29-tpm2-key-recovery">Part 29 — TPM2 Key Recovery</h2>
+            <h3 id="recovery-rationale">29.1 — Why This Process Must Remain Manual</h3>
+            <table>
+                <thead><tr><th>Scenario</th><th>Risk of full automation</th></tr></thead>
+                <tbody>
+                    <tr><td>Legitimate UEFI firmware update</td><td>Low — but you still want to verify</td></tr>
+                    <tr><td>Malicious firmware implant (evil‑maid)</td><td>Very high — automation would silently accept</td></tr>
+                    <tr><td>Secure Boot key compromise</td><td>Very high — must not re‑enroll until key rotated</td></tr>
+                    <tr><td>Kernel command‑line injection</td><td>High — automation seals to weakened state</td></tr>
+                </tbody>
+            </table>
+
+            <h3 id="tpm-re-enroll-script">29.3 — The tpm‑re‑enroll Convenience Script</h3>
+            <pre><code>#!/bin/bash
+# /usr/local/sbin/tpm‑re‑enroll
+PCRS="0+2+7+12"
+for dev in /dev/nvme0n1p2 /dev/nvme1n1p1; do
+    systemd-cryptenroll --wipe-slot=tpm2 "$dev"
+    systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs="$PCRS" --tpm2-with-pin=yes "$dev"
+    systemd-cryptenroll --wipe-slot=recovery "$dev"
+    systemd-cryptenroll --recovery-key "$dev"
+done</code></pre>
+
+            <h3 id="recovery-workflow-summary">29.8 — Recovery Workflow Summary</h3>
+            <pre><code>PCR mismatch detected at boot
+  └─► Enter recovery key when prompted
+       └─► System boots with recovered LUKS keys
+            └─► VERIFY: sbctl status, uname -r, sbctl verify
+                 │
+                 ├─► Boot chain is legitimate?
+                 │     └─► YES → run /usr/local/sbin/tpm‑re‑enroll
+                 │            └─► Save new recovery keys offline
+                 │
+                 └─► Boot chain is unexpected?
+                       └─► STOP. Investigate immediately.</code></pre>
+
+            <hr>
+
+            <h1 id="appendixd-unified-cis-gentoo-hardening-guide">Appendix D — Unified CIS Gentoo Hardening Guide</h1>
+            <p><strong>Based on:</strong> CIS Ubuntu Linux 24.04 LTS Benchmark v1.0.0, CIS Ubuntu 24.04 LTS STIG Benchmark v1.0.0, CIS AlmaLinux OS 10 Benchmark v1.0.0</p>
+            <p><strong>Adapted for:</strong> Hardened Gentoo Installation — APT Threat Model (April 2026)</p>
+
+            <blockquote>
+                <p><strong>Convention:</strong> Prompts beginning with <code>#</code> denote commands run as root. Prompts beginning with <code>$</code> denote commands run as an unprivileged user.</p>
+            </blockquote>
+
+            <h2 id="cis-1-initial-setup">1. Initial Setup</h2>
+            <h3 id="cis-1-1-1-filesystem-modules">1.1.1 Configure Filesystem Kernel Modules</h3>
+            <p>The hardened Gentoo system blacklists unused filesystem modules via <code>/etc/modprobe.d/blacklist-hardening.conf</code> (README Part 16).</p>
+            <table>
+                <thead><tr><th>CIS ID</th><th>Module</th><th>Status</th></tr></thead>
+                <tbody>
+                    <tr><td>1.1.1.1</td><td><code>cramfs</code></td><td><span class="status-compliant">✅ COMPLIANT</span></td></tr>
+                    <tr><td>1.1.1.2</td><td><code>freevxfs</code></td><td><span class="status-compliant">✅ COMPLIANT</span></td></tr>
+                    <tr><td>1.1.1.3</td><td><code>hfs</code></td><td><span class="status-compliant">✅ COMPLIANT</span></td></tr>
+                    <tr><td>1.1.1.4</td><td><code>hfsplus</code></td><td><span class="status-compliant">✅ COMPLIANT</span></td></tr>
+                    <tr><td>1.1.1.5</td><td><code>jffs2</code></td><td><span class="status-compliant">✅ COMPLIANT</span></td></tr>
+                    <tr><td>1.1.1.6</td><td><code>overlay</code></td><td><span class="status-review">⚠️ NEEDS REVIEW</span></td></tr>
+                    <tr><td>1.1.1.7</td><td><code>squashfs</code></td><td><span class="status-review">⚠️ NEEDS REVIEW</span></td></tr>
+                    <tr><td>1.1.1.9</td><td><code>firewire-core</code></td><td><span class="status-compliant">✅ COMPLIANT</span></td></tr>
+                </tbody>
+            </table>
+
+            <h2 id="cis-4-host-based-firewall">4. Host‑Based Firewall — Firewalld</h2>
+            <p><strong>Source: CIS AlmaLinux OS 10 Benchmark v1.0.0, Section 4.1</strong></p>
+            <table>
+                <thead><tr><th>CIS ID</th><th>Requirement</th><th>Status</th></tr></thead>
+                <tbody>
+                    <tr><td>4.1.1</td><td>firewalld installed</td><td><span class="status-compliant">✅ COMPLIANT</span></td></tr>
+                    <tr><td>4.1.2</td><td>Backend is nftables</td><td><span class="status-compliant">✅ COMPLIANT</span></td></tr>
+                    <tr><td>4.1.3</td><td>firewalld.service enabled & active</td><td><span class="status-compliant">✅ COMPLIANT</span></td></tr>
+                    <tr><td>4.1.4</td><td>Active zone target not ACCEPT</td><td><span class="status-compliant">✅ COMPLIANT</span></td></tr>
+                    <tr><td>4.1.5</td><td>Loopback traffic configured</td><td><span class="status-compliant">✅ COMPLIANT</span></td></tr>
+                    <tr><td>4.1.6</td><td>Anti‑spoofing rich rules</td><td><span class="status-compliant">✅ COMPLIANT</span></td></tr>
+                    <tr><td>4.1.7</td><td>Only approved services/ports</td><td><span class="status-review">⚠️ NEEDS REVIEW</span></td></tr>
+                </tbody>
+            </table>
+
+            <h2 id="cis-5-access-control">5. Access Control</h2>
+            <h3 id="cis-5-1-ssh">5.1 Configure SSH Server</h3>
+            <table>
+                <thead><tr><th>Parameter</th><th>Expected Value</th><th>CIS ID</th><th>STIG ID</th></tr></thead>
+                <tbody>
+                    <tr><td><code>clientaliveinterval</code></td><td><code>600</code></td><td>5.1.7</td><td>UBTU‑24‑600010</td></tr>
+                    <tr><td><code>clientalivecountmax</code></td><td><code>1</code></td><td>5.1.7</td><td>UBTU‑24‑600000</td></tr>
+                    <tr><td><code>maxauthtries</code></td><td><code>3</code></td><td>5.1.16</td><td>–</td></tr>
+                    <tr><td><code>maxsessions</code></td><td><code>3</code></td><td>5.1.17</td><td>–</td></tr>
+                    <tr><td><code>maxstartups</code></td><td><code>10:30:60</code></td><td>5.1.18</td><td>–</td></tr>
+                    <tr><td><code>permitrootlogin</code></td><td><code>no</code></td><td>5.1.20</td><td>–</td></tr>
+                    <tr><td><code>x11forwarding</code></td><td><code>no</code></td><td>–</td><td>UBTU‑24‑300022</td></tr>
+                </tbody>
+            </table>
+
+            <h2 id="cis-6-logging-and-auditing">6. Logging and Auditing</h2>
+            <h3 id="cis-6-1-journald">6.1 Configure System Logging — systemd‑journald</h3>
+            <table>
+                <thead><tr><th>CIS ID</th><th>Requirement</th><th>Status</th></tr></thead>
+                <tbody>
+                    <tr><td>6.1.1.1</td><td>journald service active</td><td><span class="status-compliant">✅ COMPLIANT</span></td></tr>
+                    <tr><td>6.1.1.2</td><td>Log file access configured</td><td><span class="status-compliant">✅ COMPLIANT</span></td></tr>
+                    <tr><td>6.1.1.3</td><td>Log rotation configured</td><td><span class="status-compliant">✅ COMPLIANT</span></td></tr>
+                    <tr><td>6.1.1.4</td><td>Only one logging system</td><td><span class="status-compliant">✅ COMPLIANT</span></td></tr>
+                </tbody>
+            </table>
+
+            <h3 id="cis-6-2-auditd">6.2 System Auditing — auditd</h3>
+            <table>
+                <thead><tr><th>Setting</th><th>Gentoo Value</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td><code>max_log_file</code></td><td><code>50</code></td><td>Max audit log file size in MB</td></tr>
+                    <tr><td><code>max_log_file_action</code></td><td><code>KEEP_LOGS</code></td><td>Do not auto‑delete old logs</td></tr>
+                    <tr><td><code>disk_full_action</code></td><td><code>HALT</code></td><td>Halt system if partition full</td></tr>
+                    <tr><td><code>space_left_action</code></td><td><code>SYSLOG</code></td><td>Warn when disk space is low</td></tr>
+                </tbody>
+            </table>
+
+            <h2 id="cis-7-system-maintenance">7. System Maintenance</h2>
+            <h3 id="cis-7-1-file-permissions">7.1 System File Permissions</h3>
+            <table>
+                <thead><tr><th>File</th><th>Expected Mode</th><th>Expected Owner</th><th>CIS ID</th></tr></thead>
+                <tbody>
+                    <tr><td><code>/etc/passwd</code></td><td><code>0644</code></td><td><code>root:root</code></td><td>7.1.1</td></tr>
+                    <tr><td><code>/etc/shadow</code></td><td><code>0000</code></td><td><code>root:root</code></td><td>7.1.5</td></tr>
+                    <tr><td><code>/etc/group</code></td><td><code>0644</code></td><td><code>root:root</code></td><td>7.1.3</td></tr>
+                    <tr><td><code>/etc/gshadow</code></td><td><code>0000</code></td><td><code>root:root</code></td><td>7.1.7</td></tr>
+                </tbody>
+            </table>
+
+            <h2 id="cis-8-cryptographic-requirements">8. Cryptographic Requirements</h2>
+            <table>
+                <thead><tr><th>Use</th><th>Gentoo Choice</th><th>FIPS Equivalent</th><th>Rationale</th></tr></thead>
+                <tbody>
+                    <tr><td>LUKS KDF</td><td>Argon2id (1 GiB)</td><td>PBKDF2</td><td>Memory‑hard; resists GPU brute‑force</td></tr>
+                    <tr><td>PAM hashing</td><td>yescrypt</td><td>SHA‑512</td><td>Memory‑hard</td></tr>
+                    <tr><td>SSH encryption</td><td>ChaCha20‑Poly1305</td><td>AES‑128‑GCM</td><td>Constant‑time on all CPUs</td></tr>
+                    <tr><td>SSH KEX</td><td>sntrup761x25519-sha512</td><td>ECDH NIST P‑256</td><td>Post‑quantum hybrid</td></tr>
+                </tbody>
+            </table>
+            <div class="callout callout-danger"><strong>FIPS mode is NOT enabled.</strong> FIPS is a compliance standard, not a security standard. Enabling it would downgrade cryptographic choices, weakening the system against nation-state APT threats.</div>
+
+            <hr>
+
+            <p style="text-align:center;color:var(--comment);margin-top:3rem;font-size:0.85rem;">End of Hardened Gentoo Installation Guide — APT Threat Model — April 2026</p>
+
+        </main>
+    </div>
+
+    <button class="back-to-top" id="back-to-top" aria-label="Back to top" title="Back to top">↑</button>
+
+    <script>
+        (function() {
+            const tocList = document.getElementById('toc-list');
+            const mainContent = document.getElementById('main-content');
+            const tocSidebar = document.getElementById('toc-sidebar');
+            const tocToggle = document.getElementById('toc-toggle');
+            const tocOverlay = document.getElementById('toc-overlay');
+            const backToTop = document.getElementById('back-to-top');
+
+            // Generate TOC from headings
+            const headings = mainContent.querySelectorAll('h1, h2, h3, h4');
+            const tocMap = new Map();
+            const flatTocLinks = [];
+
+            headings.forEach((heading) => {
+                const id = heading.id;
+                if (!id) return;
+                const level = parseInt(heading.tagName.substring(1));
+                const text = heading.textContent.trim();
+                const li = document.createElement('li');
+                const a = document.createElement('a');
+                a.href = '#' + id;
+                a.textContent = text;
+                a.classList.add('toc-h' + level);
+                li.appendChild(a);
+                tocList.appendChild(li);
+                flatTocLinks.push({ link: a, id: id });
+            });
+
+            // TOC toggle for mobile
+            function openToc() {
+                tocSidebar.classList.add('visible');
+                tocOverlay.classList.add('visible');
+                document.body.style.overflow = 'hidden';
+            }
+
+            function closeToc() {
+                tocSidebar.classList.remove('visible');
+                tocOverlay.classList.remove('visible');
+                document.body.style.overflow = '';
+            }
+
+            tocToggle.addEventListener('click', () => {
+                if (tocSidebar.classList.contains('visible')) {
+                    closeToc();
+                } else {
+                    openToc();
+                }
+            });
+
+            tocOverlay.addEventListener('click', closeToc);
+
+            // Close TOC on link click (mobile)
+            tocList.addEventListener('click', (e) => {
+                if (e.target.tagName === 'A' && window.innerWidth <= 768) {
+                    setTimeout(closeToc, 200);
+                }
+            });
+
+            // Back to top button
+            window.addEventListener('scroll', () => {
+                if (window.scrollY > 600) {
+                    backToTop.style.display = 'flex';
+                } else {
+                    backToTop.style.display = 'none';
+                }
+            });
+
+            backToTop.addEventListener('click', () => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+
+            // Active TOC link highlighting
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        flatTocLinks.forEach(item => {
+                            item.link.classList.remove('active');
+                        });
+                        const matching = flatTocLinks.find(item => item.id === entry.target.id);
+                        if (matching) {
+                            matching.link.classList.add('active');
+                        }
+                    }
+                });
+            }, { rootMargin: '-80px 0px -70% 0px' });
+
+            headings.forEach(h => {
+                if (h.id) observer.observe(h);
+            });
+
+            // Add copy buttons to code blocks
+            const preElements = document.querySelectorAll('pre');
+            preElements.forEach(pre => {
+                const btn = document.createElement('button');
+                btn.className = 'copy-btn';
+                btn.textContent = 'Copy';
+                btn.setAttribute('aria-label', 'Copy code to clipboard');
+                pre.appendChild(btn);
+                btn.addEventListener('click', () => {
+                    const code = pre.querySelector('code') || pre;
+                    const text = code.textContent || '';
+                    navigator.clipboard.writeText(text).then(() => {
+                        btn.textContent = 'Copied!';
+                        setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+                    }).catch(() => {
+                        btn.textContent = 'Error';
+                        setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+                    });
+                });
+            });
+
+            // Keyboard shortcut for TOC
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && tocSidebar.classList.contains('visible')) {
+                    closeToc();
+                }
+                if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                    e.preventDefault();
+                    if (tocSidebar.classList.contains('visible')) {
+                        closeToc();
+                    } else {
+                        openToc();
+                    }
+                }
+            });
+
+            // Initial back to top visibility
+            if (window.scrollY > 600) {
+                backToTop.style.display = 'flex';
+            } else {
+                backToTop.style.display = 'none';
+            }
+        })();
+    </script>
+</body>
+</html>
