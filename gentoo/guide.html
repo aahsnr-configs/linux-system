@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hardened Gentoo Installation Guide</title>
+    <!-- Recommended fonts for Tokyo Night aesthetic -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <style>
+        /* ── TOKYO NIGHT PALETTE & VARIABLES ── */
+        :root {
+            --bg: #1a1b26;
+            --bg-secondary: #1f2335;
+            --sidebar-bg: #16161e;
+            --text: #c0caf5;
+            --text-muted: #565f89;
+            --text-heading: #a9b1d6;
+            --accent: #7aa2f7;
+            --accent-hover: #bb9af7;
+            --border: #292e42;
+            --code-bg: #24283b;
+            --code-text: #a9b1d6;
+            --selection: #33467c;
+            --scrollbar-thumb: #292e42;
+            --scrollbar-track: #1a1b26;
+            --font-sans: 'Inter', system-ui, sans-serif;
+            --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+        }
+
+        /* ── BASE RESET & TYPOGRAPHY ── */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track); }
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: var(--font-sans);
+            line-height: 1.7;
+            font-size: 16px;
+            -webkit-font-smoothing: antialiased;
+        }
+        ::selection { background: var(--selection); color: #fff; }
+
+        /* ── LAYOUT ── */
+        .app-container { display: flex; min-height: 100vh; }
+        
+        main {
+            flex: 1;
+            margin-left: 280px;
+            padding: 40px 60px 80px;
+            max-width: 950px;
+            min-width: 0;
+        }
+
+        /* ── LEFT SIDEBAR (TOC) ── */
+        #toc-sidebar {
+            width: 280px;
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--border);
+            position: fixed;
+            top: 0; left: 0;
+            height: 100vh;
+            overflow-y: auto;
+            padding: 24px 16px;
+            z-index: 100;
+            scrollbar-width: thin;
+        }
+        #toc-sidebar h2 {
+            font-size: 1.1rem; color: var(--accent); margin-bottom: 16px;
+            padding-bottom: 10px; border-bottom: 2px solid var(--border);
+            letter-spacing: 0.5px;
+        }
+        #toc-content ul { list-style: none; margin: 0 0 12px 0; padding-left: 16px; border-left: 1px solid var(--border); }
+        #toc-content li { margin: 4px 0; }
+        #toc-content a {
+            color: var(--text-muted); text-decoration: none; font-size: 0.82rem;
+            display: block; padding: 3px 8px; border-radius: 4px; transition: all 0.2s;
+        }
+        #toc-content a:hover { color: var(--text); background: rgba(122,162,247,0.08); }
+        #toc-content a.active {
+            color: var(--accent); background: var(--bg-secondary);
+            border-left: 3px solid var(--accent); padding-left: 5px;
+        }
+
+        /* ── CONTENT STYLING ── */
+        h1, h2, h3, h4, h5, h6 {
+            color: var(--text-heading); margin: 1.8em 0 0.8em; line-height: 1.3; scroll-margin-top: 20px;
+        }
+        h1 { font-size: 2.2rem; border-bottom: 2px solid var(--border); padding-bottom: 0.3em; margin-top: 0; }
+        h2 { font-size: 1.75rem; border-bottom: 1px solid var(--border); padding-bottom: 0.2em; }
+        h3 { font-size: 1.35rem; }
+        p { margin-bottom: 1.2em; }
+        a { color: var(--accent); text-decoration: none; border-bottom: 1px dashed transparent; transition: 0.2s; }
+        a:hover { border-bottom-color: var(--accent); }
+        
+        ul, ol { margin-bottom: 1.2em; padding-left: 1.8em; }
+        li { margin-bottom: 0.5em; }
+        hr { border: none; border-top: 2px solid var(--border); margin: 2.5em 0; }
+        
+        blockquote {
+            border-left: 4px solid var(--accent); background: var(--bg-secondary);
+            padding: 1em 1.2em; margin: 1.5em 0; border-radius: 0 6px 6px 0;
+        }
+        blockquote p:last-child { margin-bottom: 0; }
+
+        /* ── CODE BLOCKS & TABLES ── */
+        code {
+            font-family: var(--font-mono); font-size: 0.85em;
+            background: var(--bg-secondary); padding: 2px 5px; border-radius: 4px; color: var(--code-text);
+        }
+        pre, .sourceCode {
+            background: var(--code-bg) !important; padding: 16px; border-radius: 8px;
+            overflow-x: auto; margin-bottom: 1.5em; border: 1px solid var(--border);
+        }
+        pre code { background: transparent; padding: 0; border: none; color: inherit; font-size: 0.9em; line-height: 1.5; }
+        
+        table {
+            width: 100%; border-collapse: collapse; margin: 1.5em 0;
+            background: var(--bg-secondary); border-radius: 8px; overflow: hidden;
+        }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { background: var(--bg); color: var(--accent); font-weight: 600; }
+        tr:hover td { background: rgba(122,162,247,0.05); }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 768px) {
+            #toc-sidebar { display: none; } /* Add toggle later if needed */
+            main { margin-left: 0; padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <nav id="toc-sidebar">
+            <h2>📖 Guide Index</h2>
+            <div id="toc-content"></div>
+        </nav>
+        <main id="content">
+            <!-- ✅ STEP 2: PASTE YOUR ORIGINAL <body> CONTENT INSIDE HERE -->
+            <!-- The script below will automatically scan this area and build the TOC -->
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const content = document.getElementById('content');
+            const tocContainer = document.getElementById('toc-content');
+            const rootUl = document.createElement('ul');
+            let currentUl = rootUl;
+            let prevLevel = 1;
+
+            // 1. Auto-generate nested TOC from headings
+            const headings = content.querySelectorAll('h1, h2, h3, h4');
+            headings.forEach(heading => {
+                if (!heading.id) heading.id = heading.textContent.toLowerCase().replace(/[^\w]+/g, '-');
+                const level = parseInt(heading.tagName.charAt(1));
+                
+                const li = document.createElement('li');
+                const a = document.createElement('a');
+                a.href = `#${heading.id}`;
+                a.textContent = heading.textContent;
+                li.appendChild(a);
+
+                if (level > prevLevel) {
+                    const newUl = document.createElement('ul');
+                    currentUl.appendChild(newUl);
+                    currentUl = newUl;
+                } else if (level < prevLevel) {
+                    for (let i = 0; i < (prevLevel - level) && currentUl.parentElement; i++) {
+                        currentUl = currentUl.parentElement;
+                    }
+                }
+                currentUl.appendChild(li);
+                prevLevel = level;
+            });
+            tocContainer.appendChild(rootUl);
+
+            // 2. Scrollspy: Highlight active TOC item on scroll
+            const tocLinks = tocContainer.querySelectorAll('a');
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const id = entry.target.getAttribute('id');
+                        tocLinks.forEach(link => {
+                            link.classList.toggle('active', link.getAttribute('href') === `#${id}`);
+                        });
+                    }
+                });
+            }, { rootMargin: '-15% 0px -70% 0px' });
+            headings.forEach(h => observer.observe(h));
+        });
+    </script>
+</body>
+</html>

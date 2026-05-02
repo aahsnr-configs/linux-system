@@ -1,13 +1,9 @@
+- [ ] Use `ghost-router.html` skeleton to write the `README.html`
+
 - [ ] Where to utilize tpm2
+
 - [ ] Secureboot questions - read the whole README.md
-- [ ] Packages to be added to custom overlay:
-    - media-fonts/stix-fonts       v2.14
-    - sys-apps/apparmor            v5.0
-    - sys-apps/apparmor-utils      v5.0
-    - sec-policy/apparmor-profiles v5.0
-    - sys-libs/libapparmor         v5.0
-    - x11-themes/adw-gtk3          v6.4
-    - app-editors/emacs-lsp-booster v9999
-    -           v2.92
-- [ ] Make deepseek write a python script to get the newer version of the packages in the custom overlay if they exist.
+
 - [ ] Write a python script to automatically audit any ebuild from non-official gentoo overlays for security purposes. The only overlay that should be not be audited is the guru overlay.
+
+- [ ] In Section 21 of  my big beautiful README.md file, there is a section about Supply Chain Monitoring. I need to add too more things: I will be using bash scripts to build, install and update apparmor and apparmor-related packages; there will also be packages installed pixi, uv and pipx. Furthermore, there are the texlive packages installed manually from source using texlive rolling distribution manual installation guide since the gentoo texlive packages are very out of date. I will also update texlive packages using tlmgr. For all these cases what can I do about supply chain monitoring as well as hardening the supply chain monitoring. Search the web and think longer for these tasks.
