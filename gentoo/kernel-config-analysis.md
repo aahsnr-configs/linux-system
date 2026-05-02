@@ -5,6 +5,16 @@
 > **Compiler:** Clang + ThinLTO + kCFI
 > **Boot chain:** UEFI Secure Boot → signed UKI → TPM2+PIN → LUKS2/Argon2id → LVM → Btrfs
 
+## Gentoo wiki for kernel configs
+- [ ] [Firewalld](https://wiki.gentoo.org/wiki/Firewalld)
+- [ ] [NetworkManager](https://wiki.gentoo.org/wiki/NetworkManager) 
+- [ ] [Zstd](https://wiki.gentoo.org/wiki/Zstd)
+- [ ] [LVM](https://wiki.gentoo.org/wiki/LVM)
+- [ ] [Dracut](https://wiki.gentoo.org/wiki/Dracut)
+- [ ] [TPM](https://wiki.gentoo.org/wiki/Trusted_Platform_Module)
+- [ ] [NVIDIA](https://wiki.gentoo.org/wiki/NVIDIA/nvidia-drivers)
+- [ ] [Intel Microcode](https://wiki.gentoo.org/wiki/Intel_microcode)
+
 ---
 
 ## How to Read This Document
@@ -76,7 +86,7 @@ CONFIG_CRYPTO_LZ4=y
 `systemd-cryptenroll` seals the LUKS slot key into the TPM2 via the Linux kernel
 keyring subsystem. Both required kernel options are disabled:
 - Line 4640: `# CONFIG_TRUSTED_KEYS is not set`
-- Line 4641: `# CONFIG_ENCRYPTED_KEYS is not set`
+- Line 4641: `# CONFIG_ENhttps://wiki.gentoo.org/wiki/LVMCRYPTED_KEYS is not set`
 - Line 4678: `# CONFIG_INTEGRITY_ASYMMETRIC_KEYS is not set`
 
 Without these, the TPM2+PIN unlock chain described in your README fails at initramfs
@@ -1542,3 +1552,64 @@ make LLVM=1 install
 ---
 
 **9. Reboot and run the 14 post-boot verification checks** from Step 10 of the document.
+
+
+
+# Appendix A: make commands for kernel
+
+The Gentoo wiki page you linked is a comprehensive guide on how to configure, compile, and install the Linux kernel from its source code. The "kernel" is the core of the operating system that bridges your computer's hardware with the software you run.  
+
+Here is a detailed, simple-terms breakdown of every command listed on that page, organized by the steps you take to get a working kernel.
+
+### 1. Preparing the Source Code
+Before you configure the kernel, your system needs to know which version of the Linux source code you want to work on. Gentoo uses a system shortcut (a "symlink") located at `/usr/src/linux` that points to the actual code folder.
+
+*   **`eselect kernel list`**: Displays a numbered list of all the different kernel source code versions you have downloaded to your computer. 
+*   **`eselect kernel set 2`**: Tells your system to point the shortcut to a specific kernel version on that list (in this example, the second one).
+*   **`ln -sf /usr/src/linux-6.12.63-gentoo /usr/src/linux`**: This does the exact same thing as the `eselect` command above, but does it manually using standard Linux commands. It creates a link (`ln`) pointing to a specific folder.
+*   **`ls -l /usr/src/linux`**: Lists the details of the shortcut so you can visually verify that it is pointing to the correct version folder.
+
+### 2. Configuration Tools
+This is the core of the page. The Linux kernel has thousands of features and hardware drivers. These commands (all starting with `make`) open different tools that let you choose which features to include. 
+
+**Text-Based Menus:**
+*   **`make config`**: The oldest and most basic method. It asks you a "yes/no/module" question for *every single option* in the kernel, one by one. You cannot go backwards if you make a mistake. It is rarely used today.
+*   **`make menuconfig`**: The most popular tool. It opens a text-based menu inside your terminal where you can use your arrow keys to browse categories, search, and toggle features on or off. 
+*   **`make nconfig`**: Very similar to `menuconfig`, but uses a slightly more modern text-display library. Some users find it easier to navigate.
+
+**Graphical Menus (requires a desktop environment):**
+*   **`make xconfig`**: Opens a graphical, mouse-clickable configuration window built using the Qt framework.
+*   **`make gconfig`**: Similar to `xconfig`, but built using the GTK framework instead.
+
+**Automatic and Upgrading Tools:**
+*   **`make defconfig`**: Automatically creates a "default" configuration. It uses safe, generic settings provided by kernel developers that are guaranteed to work on your CPU architecture (like standard Intel/AMD PCs).
+*   **`make oldconfig`**: Used when you are upgrading to a newer kernel. It imports your previous configuration and *only* stops to ask you questions about brand-new features that didn't exist in your old version.
+*   **`make olddefconfig`**: The fastest way to upgrade. It imports your old configuration and automatically answers "default" to all the new features, bypassing the need for you to answer questions manually.
+*   **`make localmodconfig`**: A clever tool that scans your computer to see exactly what hardware is currently running. It then generates a configuration that only includes the drivers you actually need, stripping out unnecessary bloat.
+
+**Testing Tools:**
+*   **`make allyesconfig`**: Turns *every single possible option* on. This is primarily used by developers to test if the code is broken.
+*   **`make allmodconfig`**: Turns every possible option on, but tells the compiler to build them as separate, pluggable files (modules) rather than baking them directly into the kernel core. 
+*   **`make help`**: Prints a "cheat sheet" showing you a list of all the different `make` commands available.
+
+### 3. Advanced Building Flags
+*   **`make LLVM=1 KCFLAGS="-O3 -march=native -pipe"`**: This is an advanced example of modifying how the code is built. By default, Linux is built using a compiler called GCC. This specific command tells the system to use a different compiler (LLVM) and applies aggressive performance optimizations (`-O3 -march=native`) to try and make the resulting kernel run slightly faster.
+
+### 4. Compiling and Installing
+Once you have finished configuring the kernel, you have to compile it (turn the raw code into a working program) and install it.
+
+*   **`cd /usr/src/linux`**: Simply changes your current directory so you are inside the kernel source code folder.
+*   **`make -j$(nproc)`**: The command that actually compiles the kernel. Compiling can take a long time, so `-j$(nproc)` is a trick that tells the computer to use *every available CPU core* at once to finish the job as fast as possible.
+*   **`make modules_install`**:  Drivers can be built right into the kernel, or as "modules" (plugins loaded only when needed). This command takes all the compiled modules and copies them to their permanent home on your hard drive (usually `/lib/modules/`) so the kernel can find them later.
+*   **`emerge --ask @module-rebuild`**: A Gentoo-specific command. If you use external drivers that aren't officially part of the kernel (like proprietary NVIDIA graphics drivers), this command rebuilds them so they are compatible with the new kernel you just made.
+*   **`make install`**: The final step. It copies the actual, finished kernel core file to your system's boot directory (`/boot`) so that your computer can start using it the next time you turn it on.
+
+### 5. Comparing Configurations
+The wiki includes a sequence of commands at the end if you want to see exactly how your custom settings differ from the default settings.
+
+*   **`cp -p .config ../.config.working`**: Makes a backup copy of your custom configuration file.
+*   **`make defconfig`**: Generates a fresh, default configuration file.
+*   **`mv .config ../.config.default`**: Renames the default configuration file so it doesn't get overwritten.
+*   **`cp -p ../.config.working .config`**: Restores your custom configuration file back into the working folder.
+*   **`/usr/src/linux/scripts/diffconfig .config.working .config.default > .config.diff`**: Uses a special script included in the Linux source code to compare the two files line-by-line. It saves the differences into a new text file named `.config.diff`.
+*   **`rm .config.working .config.default .config.diff`**: The cleanup command. It deletes the temporary files you just created so they don't clutter up your system.
