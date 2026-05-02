@@ -2178,6 +2178,7 @@ systemctl enable apparmor.service
 
 ---
 
+
 ### 14.2 — AppArmor Parser Configuration
 
 With ~1500 profiles totaling ~100 000 lines, fast caching compression is recommended. Early policy load is also required for UKI‑based systems.
@@ -6097,22 +6098,7 @@ If you are learning Python, studying this script alongside the `systemd.exec(5)`
 > **Install all packages listed in `README.md` sections for desktop, development, containers, and scientific computing.** The full emerge list from the personal runbook includes:
 
 ```bash
-emerge --ask \
-  gui-wm/hyprland gui-libs/xdg-desktop-portal-hyprland \
-  gui-apps/grim gui-apps/slurp gui-apps/wl-clipboard \
-  x11-misc/sddm x11-base/xwayland \
-  app-shells/zsh app-shells/starship app-shells/zoxide \
-  app-shells/fzf app-shells/atuin \
-  app-editors/neovim app-editors/emacs \
-  dev-vcs/git dev-vcs/lazygit \
-  app-containers/podman app-containers/distrobox \
-  www-client/zen-browser-bin \
-  net-im/discord net-im/zoom \
-  media-sound/spotify \
-  app-office/obsidian \
-  app-text/zathura app-text/zathura-meta \
-  xfce-base/thunar xfce-base/thunar-volman \
-  # ... (full list from README.md)
+emerge --ask app-admin/bitwarden-desktop-bin app-admin/sysstat app-arch/7zip app-arch/unzip app-arch/unrar app-arch/zip app-admin/btrfs-assistant app-backup/snapper app-containers/containerd app-containers/distrobox app-containers/podman app-containers/podman-compose app-containers/pods app-editors/emacs app-editors/neovim app-eselect/eselect-repository app-forensics/aide app-forensics/lynis app-misc/brightnessctl app-misc/jq app-misc/yazi app-office/obsidian app-portage/eix app-portage/gentoolkit app-portage/smart-live-rebuild app-shells/atuin app-shells/fzf app-shells/gentoo-zsh-completions app-shells/starship app-shells/zoxide app-shells/zsh app-text/texlab app-text/pandoc app-text/xournalpp app-text/zathura app-text/zathura-pdf-mupdf app-text/zathura-meta app-text/zotero-bin dev-build/meson dev-libs/libzip dev-libs/tree-sitter-bash dev-libs/tree-sitter-c dev-libs/tree-sitter-vim dev-libs/tree-sitter-html dev-lua/luarocks dev-python/pynvim dev-util/git-delta dev-util/tree-sitter-cli dev-vcs/git dev-vcs/lazygit dev-vcs/git-lfs gnome-base/librsvg gui-apps/grim gui-apps/qt6ct gui-apps/slurp gui-apps/wl-clipboard gui-libs/xdg-desktop-portal-hyprland gui-wm/hyprland media-fonts/jetbrains-mono media-fonts/ubuntu-font-family media-fonts/nerdfonts media-video/mpv net-firewall/firewalld net-misc/curl net-misc/wget sci-chemistry/pymol sys-apps/bat sys-apps/eza sys-apps/fd sys-apps/haveged sys-apps/ripgrep sys-apps/util-linux sys-auth/seatd sys-power/upower sys-process/audit sys-process/btop virtual/pkgconfig x11-base/xwayland x11-misc/qt5ct x11-themes/kvantum x11-themes/papirus-icon-theme www-client/brave-browser www-client/zen-bin gnome-base/gvfs 
 ```
 
 > **Note**: Some packages listed in README.md (e.g., `nvidia-drivers`) are hardware‑dependent. Install only what applies to your system.
@@ -6248,9 +6234,6 @@ mount -o ${BTRFS_OPTS},subvol=@/srv            /dev/vg0/root /mnt/gentoo/srv
 mount -o ${BTRFS_OPTS},subvol=@/tmp            /dev/vg0/root /mnt/gentoo/tmp
 mount -o ${BTRFS_OPTS},subvol=@/usr/local      /dev/vg0/root /mnt/gentoo/usr/local
 mount -o ${BTRFS_NOCOW},subvol=@/var            /dev/vg0/root /mnt/gentoo/var
-mount -o ${BTRFS_NOCOW},subvol=@/var/log        /dev/vg0/root /mnt/gentoo/var/log
-mount -o ${BTRFS_NOCOW},subvol=@/var/log/audit  /dev/vg0/root /mnt/gentoo/var/log/audit
-mount -o ${BTRFS_NOCOW},subvol=@/var/cache      /dev/vg0/root /mnt/gentoo/var/cache
 mount -o ${BTRFS_NOCOW},subvol=@/var/tmp        /dev/vg0/root /mnt/gentoo/var/tmp
 
 # ── ESP (run fsck first to avoid “dirty volume” warnings) ──
@@ -6730,7 +6713,19 @@ The `hfsplus` (HFS+, modern Macintosh filesystem) module must be blocked.  Excep
 Blacklisted in `blacklist-hardening.conf` (README Part 16).
 
 **Audit**
-```bash
+```bash**Act as an expert Linux kernel developer and veteran Gentoo system administrator who specializes in security, hardened configurations, and system optimization.**
+
+**Your Objective:**
+I am building a hardened Gentoo system using the `sys-kernel/cachyos-sources` from the CachyOS-kernels Gentoo overlay. I need you to thoroughly review my current minimal kernel configuration. 
+
+Please analyze the provided `minimal-config.txt` and cross-reference it with the provided `README.md` instructions, as well as general Gentoo Hardened Wiki best practices. 
+
+**Please provide your analysis in the following structured format:**
+1. **Compliance with README:** Identify any discrepancies or missing configurations based on the instructions in my README file.
+2. **Hardening & Security Check:** Evaluate the config against standard Gentoo hardened wiki guidelines. Highlight any missing security features or enabled features that introduce vulnerabilities.
+3. **Minimalism & Debloating:** Point out any unnecessary drivers, subsystems, or bloat that can be safely disabled to keep the kernel strictly minimal.
+4. **CachyOS Specifics:** Note any misconfigurations or missed optimization opportunities specifically relevant to CachyOS kernels.
+5. **Actionable Recommendations:** Provide the specific `CONFIG_...=y/n/m` lines I need to change.
 modprobe -n -v hfsplus 2>&1 | grep -q 'install /bin/true' && \
   echo "✅ hfsplus is blocked" || echo "❌ hfsplus is NOT blocked"
 ```
@@ -8675,7 +8670,19 @@ find /etc/ssh -type f -name 'ssh_host_*_key.pub' -exec chown root:root {} \; -ex
 **Profile:** CIS Level 1 – Server & Workstation | **Status:** ✅ COMPLIANT
 
 **What's Required**
-At least one of `AllowUsers`, `AllowGroups`, `DenyUsers`, or `DenyGroups` must be configured to restrict which users or groups can authenticate via SSH.
+At least**Act as an expert Linux kernel developer and veteran Gentoo system administrator who specializes in security, hardened configurations, and system optimization.**
+
+**Your Objective:**
+I am building a hardened Gentoo system using the `sys-kernel/cachyos-sources` from the CachyOS-kernels Gentoo overlay. I need you to thoroughly review my current minimal kernel configuration. 
+
+Please analyze the provided `minimal-config.txt` and cross-reference it with the provided `README.md` instructions, as well as general Gentoo Hardened Wiki best practices. 
+
+**Please provide your analysis in the following structured format:**
+1. **Compliance with README:** Identify any discrepancies or missing configurations based on the instructions in my README file.
+2. **Hardening & Security Check:** Evaluate the config against standard Gentoo hardened wiki guidelines. Highlight any missing security features or enabled features that introduce vulnerabilities.
+3. **Minimalism & Debloating:** Point out any unnecessary drivers, subsystems, or bloat that can be safely disabled to keep the kernel strictly minimal.
+4. **CachyOS Specifics:** Note any misconfigurations or missed optimization opportunities specifically relevant to CachyOS kernels.
+5. **Actionable Recommendations:** Provide the specific `CONFIG_...=y/n/m` lines I need to change. one of `AllowUsers`, `AllowGroups`, `DenyUsers`, or `DenyGroups` must be configured to restrict which users or groups can authenticate via SSH.
 
 **Gentoo Implementation**
 `AllowGroups sshusers` is set in `/etc/ssh/sshd_config` (README Part 19.7).  Only members of the `sshusers` group may authenticate.

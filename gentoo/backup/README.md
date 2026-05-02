@@ -351,33 +351,14 @@ emerge --ask  \
   dev-libs/udis86 \
   dev-libs/wayland \
   dev-libs/wayland-protocols \
-  dev-lua/luarocks \
-  dev-python/babel \
-  dev-python/black \
-  dev-python/cython \
-  dev-python/isort \
-  dev-python/matplotlib \
-  dev-python/notify2 \
-  dev-python/pandas \
-  dev-python/pip \
-  dev-python/pipx \
   dev-python/psutil \
   dev-python/python-pam \
   dev-python/pynvim \
-  dev-python/requests \
-  dev-python/scipy \
   dev-python/setuptools \
   dev-python/wheel \
-  dev-qt/qtbase \
-  dev-qt/qtdeclarative \
-  dev-qt/qtwayland \
   dev-util/git-delta \
-  dev-util/dart-sass \
-  dev-util/hyprwayland-scanner \
   dev-util/lua-language-server \
   dev-util/tree-sitter-cli \
-  dev-util/vulkan-headers \
-  dev-util/wayland-scanner \
   dev-vcs/git \
   dev-vcs/lazygit \
   dev-vcs/git-lfs \
