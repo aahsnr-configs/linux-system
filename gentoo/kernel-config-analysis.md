@@ -663,6 +663,8 @@ CONFIG_PCIE_ECRC=y
 
 ## 6. Applying the Changes — Complete Step-by-Step Guide
 
+
+
 ### Before You Begin: How scripts/config Works
 
 `scripts/config` is a shell script that lives at `./scripts/config` inside the kernel

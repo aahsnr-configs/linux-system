@@ -1,0 +1,2 @@
+- [ ] Determine if existing config already exceeds the requirements of CIS benchmark with/without STIG
+- [ ] Determine if existing config already exceeds the requirements of FIPs and DoD requirements
