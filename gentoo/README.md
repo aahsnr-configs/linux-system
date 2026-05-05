@@ -6567,4 +6567,59 @@ PCR mismatch detected at boot
                               if tampering is confirmed.
 ```
 
+# POST INSTALL CHROOT
+```bash
+cryptsetup luksOpen /dev/nvme1n1p2 crypt0
+cryptsetup luksOpen /dev/nvme0n1p1 crypt1
 
+vgchange -ay vg0
+lvs
+
+BTRFS_OPTS="defaults,noatime,compress=zstd:1,space_cache=v2"
+BTRFS_NOCOW="defaults,noatime,space_cache=v2"
+
+mount -o ${BTRFS_OPTS} /dev/vg0/root /mnt/gentoo
+
+# ── Btrfs subvolumes ──
+mount -o ${BTRFS_OPTS},subvol=@/.snapshots   /dev/vg0/root /mnt/gentoo/.snapshots
+mount -o ${BTRFS_OPTS},subvol=@/home          /dev/vg0/root /mnt/gentoo/home
+mount -o ${BTRFS_NOCOW},subvol=@/nix           /dev/vg0/root /mnt/gentoo/nix
+mount -o ${BTRFS_OPTS},subvol=@/opt            /dev/vg0/root /mnt/gentoo/opt
+mount -o ${BTRFS_OPTS},subvol=@/root           /dev/vg0/root /mnt/gentoo/root
+mount -o ${BTRFS_OPTS},subvol=@/srv            /dev/vg0/root /mnt/gentoo/srv
+mount -o ${BTRFS_OPTS},subvol=@/tmp            /dev/vg0/root /mnt/gentoo/tmp
+mount -o ${BTRFS_OPTS},subvol=@/usr/local      /dev/vg0/root /mnt/gentoo/usr/local
+mount -o ${BTRFS_NOCOW},subvol=@/var            /dev/vg0/root /mnt/gentoo/var
+mount -o ${BTRFS_NOCOW},subvol=@/var/tmp        /dev/vg0/root /mnt/gentoo/var/tmp
+
+fsck.vfat -a /dev/nvme0n1p1 || true
+mount /dev/nvme0n1p1 /mnt/gentoo/efi
+
+findmnt --real --target /mnt/gentoo
+
+mount --types proc  /proc  /mnt/gentoo/proc
+mount --rbind       /sys   /mnt/gentoo/sys
+mount --make-rslave        /mnt/gentoo/sys
+mount --rbind       /dev   /mnt/gentoo/dev
+mount --make-rslave        /mnt/gentoo/dev
+mount --bind        /run   /mnt/gentoo/run
+mount --make-slave         /mnt/gentoo/run
+
+# Fix /dev/shm if the live environment made it a symlink (common on
+# non‑Gentoo live media such as Arch or Ubuntu ISOs):
+test -L /dev/shm && rm /dev/shm && mkdir /dev/shm
+mount -t tmpfs -o nosuid,nodev,noexec shm /dev/shm
+chmod 1777 /dev/shm
+
+# Mount binfmt_misc – required by Python and the AppArmor parser
+mount -t binfmt_misc none /mnt/gentoo/proc/sys/fs/binfmt_misc 2>/dev/null || true
+
+# Copy the live environment’s resolv.conf so the chroot has network access
+cp --dereference /etc/resolv.conf /mnt/gentoo/etc/resolv.conf
+
+# Enter the chroot (standard method)
+chroot /mnt/gentoo /bin/bash
+source /etc/profile
+export PS1="(chroot) ${PS1}"
+
+```
