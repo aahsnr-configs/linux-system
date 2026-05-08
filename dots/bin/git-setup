@@ -1,41 +1,44 @@
 #!/usr/bin/env bash
 #
-# Multi-Account GitHub SSH and Git Configuration Setup Script
-# 
-# This script configures SSH keys (Ed25519), Git settings, and GitHub CLI 
-# for multiple GitHub accounts with proper isolation and automatic switching 
-# based on directory location.
+# Multi-Account GitHub SSH, Git, and Encryption Setup Script
+#
+# This script configures SSH keys (Ed25519), Git settings, GitHub CLI,
+# and transparent repository encryption (git-crypt + GPG) for multiple
+# GitHub accounts with proper isolation and automatic switching based on
+# directory location.
 #
 # Features:
 # - AUTOMATIC cleanup of existing SSH, Git, and GitHub CLI configurations
-# - OS detection for cross-platform compatibility (macOS/Linux/BSD)
+#   (now scoped to only managed keys and known config files)
+# - OS detection: Arch Linux (pacman) and Gentoo (emerge)
 # - Generates Ed25519 SSH keys (modern, secure, fast)
-# - Configures SSH config with host aliases (UseKeychain only on macOS)
+# - Generates Ed25519/Cv25519 GPG keys — one per account (passphrase protected)
+# - Configures SSH config with host aliases
 # - Sets up Git with conditional includes for directory-based account switching
 # - Configures GitHub CLI for multiple accounts
+# - Sets up git-crypt encryption on all repositories across all accounts
+#   (deep discovery up to 3 levels)
+# - Exports symmetric backup keys to ~/.gnupg/git-crypt-keys/
+# - Configures gpg-agent with sane cache TTLs and safe launch
 # - Comprehensive backup before deletion
 # - Comprehensive error handling and validation
 # - Proper ANSI color rendering (fish shell compatible)
 #
-# Requirements: git, ssh-keygen, gh (optional)
-# Compatible with: Linux, macOS, BSD
+# Requirements: git, ssh-keygen, gpg, git-crypt (auto-installed), gh (optional)
+# Compatible with: Arch Linux, Gentoo Linux
 # Shell Compatibility: bash (works when executed from fish shell)
 #
-# Author: Enhanced from home-manager configuration
 # License: GPL-3.0
-# Version: 3.0.2
+# Version: 4.1.0
 
-# Exit on error, undefined variables, and pipe failures
 set -euo pipefail
-
-# Enable extended globbing for better pattern matching
 shopt -s nullglob
 
 # =============================================================================
 # CONSTANTS AND CONFIGURATION
 # =============================================================================
 
-readonly SCRIPT_VERSION="3.0.2"
+readonly SCRIPT_VERSION="4.1.0"
 readonly SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}")"
 readonly SSH_DIR="${HOME}/.ssh"
 readonly GIT_CONFIG="${HOME}/.gitconfig"
@@ -43,14 +46,35 @@ readonly GIT_XDG_CONFIG="${HOME}/.config/git"
 readonly GIT_BASE_DIR="${HOME}/Git"
 readonly GH_CONFIG_DIR="${HOME}/.config/gh"
 readonly BACKUP_DIR="${HOME}/.config_backups/github_setup_$(date +%Y%m%d_%H%M%S)"
+readonly GNUPG_DIR="${HOME}/.gnupg"
+readonly GPG_CRYPT_KEY_DIR="${GNUPG_DIR}/git-crypt-keys"
 
 # Detect operating system
 readonly OS_TYPE="$(uname -s)"
 readonly IS_MACOS=$([[ "${OS_TYPE}" == "Darwin" ]] && echo "true" || echo "false")
 
+# Detect Linux distribution
+detect_distro() {
+    if [[ -f /etc/arch-release ]]; then
+        echo "arch"
+    elif [[ -f /etc/gentoo-release ]]; then
+        echo "gentoo"
+    elif [[ -f /etc/os-release ]]; then
+        # shellcheck source=/dev/null
+        source /etc/os-release
+        case "${ID:-}" in
+            arch)   echo "arch" ;;
+            gentoo) echo "gentoo" ;;
+            *)      echo "unknown" ;;
+        esac
+    else
+        echo "unknown"
+    fi
+}
+readonly DISTRO="$(detect_distro)"
+
 # Minimum required versions
 readonly MIN_GIT_VERSION="2.13"
-readonly MIN_SSH_VERSION="6.5"
 
 # Color codes (only use in interactive terminals)
 if [[ -t 1 ]]; then
@@ -65,7 +89,7 @@ else
     readonly RED="" GREEN="" YELLOW="" BLUE="" CYAN="" BOLD="" NC=""
 fi
 
-# Account configurations - Modify these for your accounts
+# Account configurations — modify these for your accounts
 declare -A ACCOUNTS=(
     ["configs"]="ahsanur041@proton.me"
     ["personal"]="ahsanur041@gmail.com"
@@ -93,33 +117,25 @@ declare -a TEMP_FILES=()
 # ERROR HANDLING AND CLEANUP
 # =============================================================================
 
-# Cleanup function called on script exit
 cleanup() {
     local exit_code=$?
-    
-    # Remove temporary files
     for temp_file in "${TEMP_FILES[@]}"; do
         if [[ -f "${temp_file}" ]]; then
             rm -f "${temp_file}" 2>/dev/null || true
         fi
     done
-    
-    # Only print exit message if there was an error
     if [[ ${exit_code} -ne 0 ]]; then
         print_error "Script exited with error code ${exit_code}"
     fi
-    
     exit "${exit_code}"
 }
 
-# Error handler for better debugging
 error_handler() {
     local line_number="$1"
     local exit_code="$2"
     print_error "Error on line ${line_number}: Command failed with exit code ${exit_code}"
 }
 
-# Set up traps for cleanup and error handling
 trap cleanup EXIT INT TERM
 trap 'error_handler ${LINENO} $?' ERR
 
@@ -129,40 +145,22 @@ trap 'error_handler ${LINENO} $?' ERR
 
 print_header() {
     echo -e "${BOLD}${CYAN}"
-    echo "╔════════════════════════════════════════════════════════════════╗"
-    echo "║   Multi-Account GitHub Setup Script v${SCRIPT_VERSION}              ║"
-    echo "║   SSH (Ed25519) + Git + GitHub CLI Configuration              ║"
-    echo "╚════════════════════════════════════════════════════════════════╝"
+    echo "╔════════════════════════════════════════════════════════════════════╗"
+    echo "║   Multi-Account GitHub Setup + Encryption Script v${SCRIPT_VERSION}      ║"
+    echo "║   SSH (Ed25519) + GPG + git-crypt + GitHub CLI                   ║"
+    echo "╚════════════════════════════════════════════════════════════════════╝"
     echo -e "${NC}"
 }
 
-print_error() {
-    echo -e "${RED}✗ Error: $*${NC}" >&2
-}
+print_error()   { echo -e "${RED}✗ Error: $*${NC}" >&2; }
+print_success() { echo -e "${GREEN}✓ $*${NC}"; }
+print_warning() { echo -e "${YELLOW}⚠ Warning: $*${NC}"; }
+print_info()    { echo -e "${BLUE}→ $*${NC}"; }
+print_section() { echo ""; echo -e "${BOLD}${BLUE}═══ $* ═══${NC}"; echo ""; }
 
-print_success() {
-    echo -e "${GREEN}✓ $*${NC}"
-}
-
-print_warning() {
-    echo -e "${YELLOW}⚠ Warning: $*${NC}"
-}
-
-print_info() {
-    echo -e "${BLUE}→ $*${NC}"
-}
-
-print_section() {
-    echo ""
-    echo -e "${BOLD}${BLUE}═══ $* ═══${NC}"
-    echo ""
-}
-
-# Confirm action with user
 confirm() {
     local prompt="$1"
     local response
-    
     while true; do
         read -r -p "$(echo -e "${YELLOW}${prompt} [y/N]: ${NC}")" response
         case "${response}" in
@@ -173,16 +171,13 @@ confirm() {
     done
 }
 
-# Create backup of file or directory with timestamp
 backup_item() {
     local item="$1"
-    local item_name=$(basename "${item}")
-    
+    local item_name
+    item_name=$(basename "${item}")
     if [[ -e "${item}" ]]; then
         mkdir -p "${BACKUP_DIR}"
-        
         local backup_path="${BACKUP_DIR}/${item_name}"
-        
         if cp -r "${item}" "${backup_path}" 2>/dev/null; then
             print_success "Backed up ${item} → ${backup_path}"
             return 0
@@ -194,136 +189,162 @@ backup_item() {
     return 0
 }
 
-# Check if command exists
-command_exists() {
-    command -v "$1" &>/dev/null
-}
+command_exists() { command -v "$1" &>/dev/null; }
 
-# Compare version numbers
 version_ge() {
-    local ver1="$1"
-    local ver2="$2"
-    
-    # Simple version comparison
-    printf '%s\n%s\n' "${ver2}" "${ver1}" | sort -V -C 2>/dev/null
+    printf '%s\n%s\n' "${2}" "${1}" | sort -V -C 2>/dev/null
 }
 
 # =============================================================================
-# COMPREHENSIVE CLEANUP FUNCTIONS
+# DISTRO-SPECIFIC PACKAGE INSTALLATION
+# =============================================================================
+
+install_package_arch() {
+    local pkg="$1"
+    print_info "Installing ${pkg} via pacman..."
+    if sudo pacman -S --noconfirm --needed "${pkg}"; then
+        print_success "Installed: ${pkg}"
+    else
+        print_error "Failed to install ${pkg}"
+        return 1
+    fi
+}
+
+install_package_gentoo() {
+    local pkg="$1"
+    print_info "Installing ${pkg} via emerge..."
+    if sudo emerge --ask=n --quiet-build "${pkg}"; then
+        print_success "Installed: ${pkg}"
+    else
+        print_error "Failed to install ${pkg}"
+        return 1
+    fi
+}
+
+install_package() {
+    local pkg_arch="$1"
+    local pkg_gentoo="${2:-${pkg_arch}}"  # fallback to same name if not given
+    case "${DISTRO}" in
+        arch)   install_package_arch   "${pkg_arch}" ;;
+        gentoo) install_package_gentoo "${pkg_gentoo}" ;;
+        *)
+            print_warning "Unknown distro '${DISTRO}'. Please install '${pkg_arch}' manually."
+            return 1
+            ;;
+    esac
+}
+
+# =============================================================================
+# COMPREHENSIVE CLEANUP FUNCTIONS (FIXED C-2: scoped SSH key removal)
 # =============================================================================
 
 cleanup_all_configs() {
     print_section "Comprehensive Configuration Cleanup"
-    
-    print_warning "${BOLD}This will DELETE the following:${NC}"
+
+    print_warning "${BOLD}This will DELETE the following configurations:${NC}"
     echo ""
-    echo "  1. Entire .ssh directory: ${SSH_DIR}"
-    echo "  2. Global Git config: ${GIT_CONFIG}"
-    echo "  3. XDG Git config: ${GIT_XDG_CONFIG}"
-    echo "  4. Directory Git configs in: ${GIT_BASE_DIR}"
-    echo "  5. GitHub CLI config: ${GH_CONFIG_DIR}"
+    echo "  1. SSH keys matching 'id_ed25519_aahsnr_*' (managed by this script)"
+    echo "  2. ~/.ssh/config (will be regenerated)"
+    echo "  3. Global Git config:            ${GIT_CONFIG}"
+    echo "  4. XDG Git config:               ${GIT_XDG_CONFIG}"
+    echo "  5. Directory Git configs in:     ${GIT_BASE_DIR}"
+    echo "  6. GitHub CLI config:            ${GH_CONFIG_DIR}"
     echo ""
     echo -e "${CYAN}All files will be backed up to: ${BACKUP_DIR}${NC}"
+    echo -e "${YELLOW}Non‑managed SSH keys and other .ssh files WILL BE LEFT UNTOUCHED.${NC}"
     echo ""
-    
+
     if ! confirm "Do you want to proceed with FULL cleanup?"; then
         print_info "Cleanup cancelled. Exiting."
         exit 0
     fi
-    
+
     echo ""
     print_info "Creating backup directory..."
     mkdir -p "${BACKUP_DIR}"
     print_success "Backup directory created: ${BACKUP_DIR}"
     echo ""
-    
+
     local items_deleted=0
-    
-    # 1. Backup and delete .ssh directory
+
+    # 1. SSH keys: only those matching our pattern
     if [[ -d "${SSH_DIR}" ]]; then
-        print_info "Backing up and deleting .ssh directory..."
-        if backup_item "${SSH_DIR}"; then
-            rm -rf "${SSH_DIR}"
-            print_success "Deleted: ${SSH_DIR}"
-            ((items_deleted++)) || true
-        fi
-    else
-        print_info "No .ssh directory found (skipping)"
-    fi
-    
-    # 2. Backup and delete global Git config
-    if [[ -f "${GIT_CONFIG}" ]]; then
-        print_info "Backing up and deleting global Git config..."
-        if backup_item "${GIT_CONFIG}"; then
-            rm -f "${GIT_CONFIG}"
-            print_success "Deleted: ${GIT_CONFIG}"
-            ((items_deleted++)) || true
-        fi
-    else
-        print_info "No global Git config found (skipping)"
-    fi
-    
-    # 3. Backup and delete XDG Git config directory
-    if [[ -d "${GIT_XDG_CONFIG}" ]]; then
-        print_info "Backing up and deleting XDG Git config..."
-        if backup_item "${GIT_XDG_CONFIG}"; then
-            rm -rf "${GIT_XDG_CONFIG}"
-            print_success "Deleted: ${GIT_XDG_CONFIG}"
-            ((items_deleted++)) || true
-        fi
-    else
-        print_info "No XDG Git config found (skipping)"
-    fi
-    
-    # 4. Backup and delete directory-specific Git configs
-    if [[ -d "${GIT_BASE_DIR}" ]]; then
-        print_info "Scanning for directory-specific Git configs..."
-        local found_configs=0
-        
-        for dir in "${GIT_BASE_DIR}"/*; do
-            if [[ -d "${dir}" ]]; then
-                local git_config="${dir}/.gitconfig"
-                if [[ -f "${git_config}" ]]; then
-                    print_info "Found config in: ${dir}"
-                    if backup_item "${git_config}"; then
-                        rm -f "${git_config}"
-                        print_success "Deleted: ${git_config}"
-                        ((found_configs++)) || true
-                    fi
+        print_info "Backing up and removing managed SSH keys..."
+        local key_deleted=0
+        for key in "${SSH_DIR}"/id_ed25519_aahsnr_*; do
+            if [[ -f "${key}" ]]; then
+                backup_item "${key}" && rm -f "${key}" && ((key_deleted++)) || true
+                local pub="${key}.pub"
+                if [[ -f "${pub}" ]]; then
+                    backup_item "${pub}" && rm -f "${pub}" || true
                 fi
             fi
         done
-        
+        if [[ ${key_deleted} -gt 0 ]]; then
+            print_success "Removed ${key_deleted} managed SSH key(s)"
+        else
+            print_info "No managed SSH keys found"
+        fi
+        ((items_deleted+=key_deleted)) || true
+    fi
+
+    # 2. SSH config
+    if [[ -f "${SSH_DIR}/config" ]]; then
+        backup_item "${SSH_DIR}/config" && rm -f "${SSH_DIR}/config"
+        print_success "Removed existing SSH config (will be regenerated)"
+        ((items_deleted++)) || true
+    fi
+
+    # 3. Global gitconfig
+    if [[ -f "${GIT_CONFIG}" ]]; then
+        backup_item "${GIT_CONFIG}" && rm -f "${GIT_CONFIG}"
+        print_success "Removed: ${GIT_CONFIG}"
+        ((items_deleted++)) || true
+    fi
+
+    # 4. XDG git config directory
+    if [[ -d "${GIT_XDG_CONFIG}" ]]; then
+        backup_item "${GIT_XDG_CONFIG}" && rm -rf "${GIT_XDG_CONFIG}"
+        print_success "Removed: ${GIT_XDG_CONFIG}"
+        ((items_deleted++)) || true
+    fi
+
+    # 5. Directory-specific gitconfigs
+    if [[ -d "${GIT_BASE_DIR}" ]]; then
+        print_info "Scanning for directory-specific Git configs..."
+        local found_configs=0
+        for dir in "${GIT_BASE_DIR}"/*; do
+            [[ -d "${dir}" ]] || continue
+            local git_config="${dir}/.gitconfig"
+            if [[ -f "${git_config}" ]]; then
+                backup_item "${git_config}" && rm -f "${git_config}"
+                print_success "Removed: ${git_config}"
+                ((found_configs++)) || true
+            fi
+        done
         if [[ ${found_configs} -gt 0 ]]; then
-            print_success "Deleted ${found_configs} directory-specific Git config(s)"
-            ((items_deleted++)) || true
+            print_success "Removed ${found_configs} directory‑specific config(s)"
         else
             print_info "No directory-specific Git configs found"
         fi
-    else
-        print_info "No Git base directory found (${GIT_BASE_DIR})"
+        ((items_deleted+=found_configs)) || true
     fi
-    
-    # 5. Backup and delete GitHub CLI config
+
+    # 6. GitHub CLI config
     if [[ -d "${GH_CONFIG_DIR}" ]]; then
-        print_info "Backing up and deleting GitHub CLI config..."
-        if backup_item "${GH_CONFIG_DIR}"; then
-            rm -rf "${GH_CONFIG_DIR}"
-            print_success "Deleted: ${GH_CONFIG_DIR}"
-            ((items_deleted++)) || true
-        fi
-    else
-        print_info "No GitHub CLI config found (skipping)"
+        backup_item "${GH_CONFIG_DIR}" && rm -rf "${GH_CONFIG_DIR}"
+        print_success "Removed: ${GH_CONFIG_DIR}"
+        ((items_deleted++)) || true
     fi
-    
+
     echo ""
     if [[ ${items_deleted} -gt 0 ]]; then
-        print_success "Cleanup complete! Deleted ${items_deleted} item(s)"
-        print_info "Backups saved to: ${BACKUP_DIR}"
+        print_success "Cleanup complete! ${items_deleted} item(s) removed."
     else
-        print_info "No existing configurations found to clean up"
+        print_info "No existing configurations found to remove."
     fi
-    
+    print_info "Backups saved to: ${BACKUP_DIR}"
+
     echo ""
     print_info "Starting fresh configuration setup..."
 }
@@ -334,21 +355,15 @@ cleanup_all_configs() {
 
 check_dependencies() {
     print_section "Checking Dependencies"
-    
-    # Display detected OS
-    print_info "Detected OS: ${OS_TYPE}"
-    if [[ "${IS_MACOS}" == "true" ]]; then
-        print_success "Running on macOS (UseKeychain will be enabled)"
-    else
-        print_success "Running on Linux/Unix (UseKeychain will be disabled)"
-    fi
+
+    print_info "Detected OS:     ${OS_TYPE}"
+    print_info "Detected distro: ${DISTRO}"
     echo ""
-    
+
     local missing_deps=()
     local all_good=true
-    
-    # Check required commands
-    for cmd in git ssh-keygen ssh; do
+
+    for cmd in git ssh-keygen ssh gpg; do
         if command_exists "${cmd}"; then
             print_success "${cmd} found"
         else
@@ -357,12 +372,11 @@ check_dependencies() {
             all_good=false
         fi
     done
-    
+
     # Check Git version
     if command_exists git; then
         local git_version
         git_version=$(git --version | grep -oP '\d+\.\d+' | head -1)
-        
         if version_ge "${git_version}" "${MIN_GIT_VERSION}"; then
             print_success "Git version ${git_version} (>= ${MIN_GIT_VERSION} required)"
         else
@@ -370,8 +384,17 @@ check_dependencies() {
             all_good=false
         fi
     fi
-    
-    # Check GitHub CLI (optional but recommended)
+
+    # Check git-crypt (optional at check time — installed in setup_encryption)
+    if command_exists git-crypt; then
+        local gc_version
+        gc_version=$(git-crypt --version 2>/dev/null || echo "unknown")
+        print_success "git-crypt found: ${gc_version}"
+    else
+        print_warning "git-crypt not found (will be installed during encryption setup)"
+    fi
+
+    # Check GitHub CLI (optional)
     if command_exists gh; then
         local gh_version
         gh_version=$(gh --version 2>/dev/null | head -1 | grep -oP '\d+\.\d+\.\d+' || echo "unknown")
@@ -380,14 +403,14 @@ check_dependencies() {
         print_warning "GitHub CLI (gh) not found (optional but recommended)"
         print_info "Install from: https://cli.github.com/"
     fi
-    
+
     if [[ ${all_good} == false ]]; then
         echo ""
         print_error "Missing required dependencies: ${missing_deps[*]}"
         print_info "Please install missing dependencies and try again."
         exit 1
     fi
-    
+
     print_success "All required dependencies satisfied"
 }
 
@@ -397,34 +420,30 @@ check_dependencies() {
 
 generate_ssh_keys() {
     print_section "Generating SSH Keys (Ed25519)"
-    
-    # Ensure SSH directory exists with proper permissions
+
     mkdir -p "${SSH_DIR}"
     chmod 700 "${SSH_DIR}"
-    
+
     print_info "Using Ed25519 algorithm (modern, secure, fast)"
     echo ""
-    
+
     local generated=0
-    
+
     for account in "${!ACCOUNTS[@]}"; do
         local email="${ACCOUNTS[${account}]}"
         local key_file="${SSH_DIR}/id_ed25519_aahsnr_${account}"
-        
-        # Check if key already exists (idempotent)
+
         if [[ -f "${key_file}" ]]; then
             print_info "Key for ${account} already exists: ${key_file}"
             continue
         fi
-        
+
         print_info "Generating Ed25519 key for ${account} (${email})..."
-        
-        # Generate Ed25519 key with 100 KDF rounds
+
         if ssh-keygen -t ed25519 -a 100 -C "${email}" -f "${key_file}" -N "" -q; then
             chmod 600 "${key_file}"
             chmod 644 "${key_file}.pub"
-            
-            # Verify key was created successfully
+
             if ssh-keygen -lf "${key_file}" &>/dev/null; then
                 print_success "Generated key for ${account}"
                 ((generated++)) || true
@@ -437,11 +456,11 @@ generate_ssh_keys() {
             return 1
         fi
     done
-    
+
     if [[ ${generated} -eq 0 ]]; then
-        print_info "All keys already exist"
+        print_info "All SSH keys already exist"
     else
-        print_success "Generated ${generated} new key(s)"
+        print_success "Generated ${generated} new SSH key(s)"
     fi
 }
 
@@ -451,13 +470,12 @@ generate_ssh_keys() {
 
 configure_ssh() {
     print_section "Configuring SSH"
-    
+
     local ssh_config="${SSH_DIR}/config"
     local temp_config
     temp_config=$(mktemp "${SSH_DIR}/.config.XXXXXX")
     TEMP_FILES+=("${temp_config}")
-    
-    # Create new SSH config with OS-specific options
+
     cat > "${temp_config}" <<'HEADER'
 # =============================================================================
 # Multi-Account GitHub SSH Configuration
@@ -472,21 +490,17 @@ Host *
     ServerAliveCountMax 3
 HEADER
 
-    # Add UseKeychain for macOS only (not supported on Linux)
     if [[ "${IS_MACOS}" == "true" ]]; then
         cat >> "${temp_config}" <<'MACOS_CONFIG'
     UseKeychain yes
 MACOS_CONFIG
     fi
 
-    # Add blank line after Host * section
     echo "" >> "${temp_config}"
 
-    # Add configuration for each account
     for account in configs personal work common; do
         if [[ -v ACCOUNTS[${account}] ]]; then
             local key_file="${SSH_DIR}/id_ed25519_aahsnr_${account}"
-            
             cat >> "${temp_config}" <<EOF
 # GitHub Account: ${account} (${ACCOUNTS[${account}]})
 Host github.com-aahsnr-${account}
@@ -498,8 +512,7 @@ Host github.com-aahsnr-${account}
 EOF
         fi
     done
-    
-    # Add default GitHub host (uses configs account)
+
     cat >> "${temp_config}" <<EOF
 # Default GitHub (uses configs account)
 Host github.com
@@ -508,16 +521,10 @@ Host github.com
     IdentityFile ${SSH_DIR}/id_ed25519_aahsnr_configs
     PreferredAuthentications publickey
 EOF
-    
-    # Move temp config to final location atomically
+
     if mv "${temp_config}" "${ssh_config}"; then
         chmod 600 "${ssh_config}"
-        
-        if [[ "${IS_MACOS}" == "true" ]]; then
-            print_success "SSH config created: ${ssh_config} (with macOS UseKeychain)"
-        else
-            print_success "SSH config created: ${ssh_config} (Linux-compatible)"
-        fi
+        print_success "SSH config created: ${ssh_config}"
     else
         print_error "Failed to create SSH config"
         return 1
@@ -530,12 +537,11 @@ EOF
 
 configure_git() {
     print_section "Configuring Git"
-    
+
     local temp_config
     temp_config=$(mktemp)
     TEMP_FILES+=("${temp_config}")
-    
-    # Create main Git config with conditional includes
+
     cat > "${temp_config}" <<EOF
 # =============================================================================
 # Multi-Account Git Configuration
@@ -575,7 +581,6 @@ configure_git() {
 
 EOF
 
-    # Add conditional includes for directory-specific configs
     for account in personal work common; do
         if [[ -v GIT_DIRS[${account}] ]]; then
             local dir="${GIT_DIRS[${account}]}"
@@ -586,8 +591,7 @@ EOF
 EOF
         fi
     done
-    
-    # Move temp config to final location
+
     if mv "${temp_config}" "${GIT_CONFIG}"; then
         chmod 644 "${GIT_CONFIG}"
         print_success "Main Git config created: ${GIT_CONFIG}"
@@ -595,23 +599,21 @@ EOF
         print_error "Failed to create main Git config"
         return 1
     fi
-    
-    # Create directory-specific configs
+
     for account in personal work common; do
         if [[ -v GIT_DIRS[${account}] ]]; then
             local dir="${GIT_DIRS[${account}]}"
             local dir_config="${dir}/.gitconfig"
-            
-            # Create directory if it doesn't exist
+
             mkdir -p "${dir}"
-            
+
             cat > "${dir_config}" <<EOF
 # Git configuration for ${account} projects
 [user]
     name = ${GIT_NAMES[${account}]}
     email = ${ACCOUNTS[${account}]}
 EOF
-            
+
             chmod 644 "${dir_config}"
             print_success "Created ${account} Git config: ${dir_config}"
         fi
@@ -619,64 +621,59 @@ EOF
 }
 
 # =============================================================================
-# SSH AGENT SETUP
+# SSH AGENT SETUP (FIX H-1: no orphaned agent, only add if agent is usable)
 # =============================================================================
 
 setup_ssh_agent() {
     print_section "Setting Up SSH Agent"
-    
-    # Check if ssh-agent is running
-    if ! pgrep -u "$USER" ssh-agent > /dev/null 2>&1; then
-        print_info "Starting ssh-agent..."
-        eval "$(ssh-agent -s)" > /dev/null
-        print_success "SSH agent started"
+
+    # Check if an agent is already running and reachable
+    if ssh-add -l &>/dev/null; then
+        print_success "SSH agent already running and functional"
     else
-        print_info "SSH agent already running"
+        print_warning "No running SSH agent detected."
+        print_info "Please start an agent manually. Examples:"
+        print_info "  eval \$(ssh-agent)   # add to ~/.bashrc / ~/.profile"
+        print_info "  systemctl --user enable --now ssh-agent  # on systemd systems"
+        print_info "Keys will not be loaded now. Add them later with: ssh-add ~/.ssh/id_ed25519_aahsnr_<account>"
+        return 0
     fi
-    
-    # Add keys to agent
+
     local added=0
-    local already_loaded=0
-    
+    local already=0
+
     for account in "${!ACCOUNTS[@]}"; do
         local key_file="${SSH_DIR}/id_ed25519_aahsnr_${account}"
-        
+
         if [[ ! -f "${key_file}" ]]; then
             print_warning "Key file not found for ${account}: ${key_file}"
             continue
         fi
-        
-        # Get key fingerprint
+
         local key_fp
         key_fp=$(ssh-keygen -lf "${key_file}" 2>/dev/null | awk '{print $2}')
-        
+
         if [[ -z "${key_fp}" ]]; then
             print_warning "Could not get fingerprint for ${account} key"
             continue
         fi
-        
-        # Check if key is already loaded (idempotent)
+
         if ssh-add -l 2>/dev/null | grep -q "${key_fp}"; then
-            print_info "Key for ${account} already loaded in agent"
-            ((already_loaded++)) || true
+            print_info "Key for ${account} already loaded"
+            ((already++)) || true
         else
             print_info "Adding key for ${account} to agent..."
             if ssh-add "${key_file}" 2>/dev/null; then
                 print_success "Added key for ${account}"
                 ((added++)) || true
             else
-                print_warning "Could not add key for ${account} (may require passphrase)"
+                print_warning "Could not add key for ${account}"
             fi
         fi
     done
-    
-    if [[ ${added} -gt 0 ]]; then
-        print_success "Added ${added} key(s) to SSH agent"
-    fi
-    
-    if [[ ${already_loaded} -gt 0 ]]; then
-        print_info "${already_loaded} key(s) already in SSH agent"
-    fi
+
+    [[ ${added} -gt 0 ]] && print_success "Added ${added} key(s) to SSH agent"
+    [[ ${already} -gt 0 ]] && print_info "${already} key(s) already in SSH agent"
 }
 
 # =============================================================================
@@ -685,50 +682,569 @@ setup_ssh_agent() {
 
 configure_github_cli() {
     print_section "Configuring GitHub CLI"
-    
+
     if ! command_exists gh; then
         print_warning "GitHub CLI not installed. Skipping gh configuration."
         print_info "Install from: https://cli.github.com/"
         return 0
     fi
-    
+
     print_info "GitHub CLI is installed"
     print_info "You can authenticate later with: gh auth login"
     print_info "To switch between accounts: gh auth switch"
-    
-    # Set default Git protocol to SSH
+
     if gh config set git_protocol ssh 2>/dev/null; then
         print_success "Set GitHub CLI to use SSH protocol"
     fi
 }
 
 # =============================================================================
-# VERIFICATION
+# GPG TOOLS
+# =============================================================================
+
+gpg_key_exists() {
+    local email="$1"
+    gpg --list-secret-keys --keyid-format LONG "${email}" &>/dev/null
+}
+
+gpg_key_fingerprint() {
+    local email="$1"
+    gpg --list-keys --with-colons --fingerprint "${email}" 2>/dev/null \
+        | awk -F: '/^fpr:/{print $10; exit}'
+}
+
+# =============================================================================
+# GPG AGENT CONFIG (FIX H-2: use gpgconf --launch)
+# =============================================================================
+
+setup_gpg_agent() {
+    print_section "Configuring GPG Agent"
+
+    mkdir -p "${GNUPG_DIR}"
+    chmod 700 "${GNUPG_DIR}"
+
+    local agent_conf="${GNUPG_DIR}/gpg-agent.conf"
+
+    # Determine best available pinentry
+    local pinentry_prog=""
+    for candidate in \
+        /usr/bin/pinentry-curses \
+        /usr/bin/pinentry-qt \
+        /usr/bin/pinentry-gnome3 \
+        /usr/bin/pinentry-gtk-2 \
+        /usr/bin/pinentry; do
+        if [[ -x "${candidate}" ]]; then
+            pinentry_prog="${candidate}"
+            break
+        fi
+    done
+
+    cat > "${agent_conf}" <<EOF
+# gpg-agent.conf — Generated by github_multi_account_setup.sh v${SCRIPT_VERSION}
+default-cache-ttl 28800
+max-cache-ttl 86400
+EOF
+
+    if [[ -n "${pinentry_prog}" ]]; then
+        echo "pinentry-program ${pinentry_prog}" >> "${agent_conf}"
+        print_success "GPG agent will use pinentry: ${pinentry_prog}"
+    else
+        print_warning "No pinentry program found. GPG may prompt on terminal."
+    fi
+
+    chmod 600 "${agent_conf}"
+
+    # gpg.conf
+    local gpg_conf="${GNUPG_DIR}/gpg.conf"
+    if [[ ! -f "${gpg_conf}" ]]; then
+        cat > "${gpg_conf}" <<'EOF'
+# gpg.conf — Generated by github_multi_account_setup.sh
+keyid-format long
+with-fingerprint
+trust-model direct
+EOF
+        chmod 600 "${gpg_conf}"
+        print_success "GPG config written: ${gpg_conf}"
+    fi
+
+    # Restart agent safely via gpgconf
+    gpgconf --kill gpg-agent 2>/dev/null || true
+    if gpgconf --launch gpg-agent 2>/dev/null; then
+        print_success "GPG agent (re)started"
+    else
+        print_warning "Could not launch GPG agent (it may already be running or managed by systemd)"
+    fi
+}
+
+# =============================================================================
+# GPG KEY GENERATION (FIX C-1: no %no-protection — user sets passphrase)
+# =============================================================================
+
+generate_gpg_keys() {
+    print_section "Generating GPG Keys (Ed25519 + Cv25519)"
+
+    print_info "One GPG key will be created per GitHub account."
+    print_info "You will be asked to set a passphrase for each key interactively."
+    print_warning "Please use a strong, memorable passphrase. Do not leave it empty!"
+    echo ""
+
+    local generated=0
+
+    for account in configs personal work common; do
+        local email="${ACCOUNTS[${account}]}"
+        local name="${GIT_NAMES[${account}]}"
+
+        if gpg_key_exists "${email}"; then
+            local fp
+            fp=$(gpg_key_fingerprint "${email}")
+            print_info "GPG key already exists for ${account} (${email})"
+            print_info "  Fingerprint: ${fp}"
+            continue
+        fi
+
+        print_info "Generating GPG key for ${account} (${name} <${email}>)..."
+        print_info "Pinentry will prompt for a passphrase. If none appears, use Ctrl+C to abort."
+
+        local batch_input
+        batch_input=$(mktemp)
+        TEMP_FILES+=("${batch_input}")
+
+        cat > "${batch_input}" <<EOF
+Key-Type: eddsa
+Key-Curve: Ed25519
+Key-Usage: sign,cert
+Subkey-Type: ecdh
+Subkey-Curve: Curve25519
+Subkey-Usage: encrypt
+Name-Real: ${name}
+Name-Email: ${email}
+Expire-Date: 2y
+%commit
+EOF
+
+        if gpg --batch --gen-key "${batch_input}" 2>/dev/null; then
+            local fingerprint
+            fingerprint=$(gpg_key_fingerprint "${email}")
+            if [[ -n "${fingerprint}" ]]; then
+                echo "${fingerprint}:6:" | gpg --import-ownertrust 2>/dev/null
+                print_success "Generated GPG key for ${account}: ${fingerprint}"
+                ((generated++)) || true
+            else
+                print_warning "Generated key for ${account} but could not retrieve fingerprint"
+            fi
+        else
+            print_error "Failed to generate GPG key for ${account}"
+        fi
+
+        rm -f "${batch_input}"
+    done
+
+    if [[ ${generated} -eq 0 ]]; then
+        print_info "All GPG keys already exist (or generation was skipped)"
+    else
+        print_success "Generated ${generated} new GPG key(s)"
+    fi
+}
+
+backup_gpg_keys() {
+    print_section "Backing Up GPG Keys"
+
+    mkdir -p "${GPG_CRYPT_KEY_DIR}"
+    chmod 700 "${GPG_CRYPT_KEY_DIR}"
+
+    local backup_file="${GPG_CRYPT_KEY_DIR}/all-secret-keys-$(date +%Y%m%d).asc"
+    local trust_file="${GPG_CRYPT_KEY_DIR}/ownertrust-$(date +%Y%m%d).txt"
+
+    if gpg --export-secret-keys --armor --output "${backup_file}" 2>/dev/null; then
+        chmod 600 "${backup_file}"
+        print_success "Secret keys backed up: ${backup_file}"
+    else
+        print_warning "Could not export secret keys (no keys present yet?)"
+    fi
+
+    if gpg --export-ownertrust > "${trust_file}" 2>/dev/null; then
+        chmod 600 "${trust_file}"
+        print_success "Owner trust backed up: ${trust_file}"
+    fi
+
+    print_warning "Store ${GPG_CRYPT_KEY_DIR} on encrypted offline storage!"
+}
+
+# =============================================================================
+# GIT-CRYPT INSTALLATION
+# =============================================================================
+
+install_git_crypt() {
+    print_section "Installing git-crypt"
+
+    if command_exists git-crypt; then
+        local ver
+        ver=$(git-crypt --version 2>/dev/null || echo "unknown")
+        print_success "git-crypt already installed: ${ver}"
+        return 0
+    fi
+
+    print_info "git-crypt not found. Installing for ${DISTRO}..."
+
+    case "${DISTRO}" in
+        arch)
+            install_package_arch "git-crypt"
+            ;;
+        gentoo)
+            print_info "Enabling guru overlay for git-crypt..."
+            if command_exists eselect; then
+                sudo eselect repository enable guru 2>/dev/null || true
+                sudo emaint sync -r guru 2>/dev/null || true
+                install_package_gentoo "dev-vcs/git-crypt"
+            else
+                print_warning "eselect not found. Building git-crypt from source..."
+                _install_git_crypt_from_source
+            fi
+            ;;
+        *)
+            print_warning "Unknown distro. Attempting to build git-crypt from source..."
+            _install_git_crypt_from_source
+            ;;
+    esac
+
+    if command_exists git-crypt; then
+        print_success "git-crypt installed successfully"
+    else
+        print_error "git-crypt installation failed. Please install it manually."
+        return 1
+    fi
+}
+
+_install_git_crypt_from_source() {
+    print_info "Building git-crypt from source (latest release)..."
+
+    local build_dir
+    build_dir=$(mktemp -d)
+    trap 'rm -rf "${build_dir}"' RETURN
+
+    if git clone --depth 1 https://github.com/AGWA/git-crypt.git "${build_dir}" 2>/dev/null; then
+        (
+            cd "${build_dir}"
+            make -j"$(nproc)"
+            sudo make install PREFIX=/usr/local
+        )
+        print_success "git-crypt built and installed to /usr/local/bin"
+    else
+        print_error "Failed to clone git-crypt repository"
+        return 1
+    fi
+}
+
+# =============================================================================
+# ENCRYPTION PER REPOSITORY (FIXES H-3, M-2)
+# =============================================================================
+
+create_default_gitattributes() {
+    local repo_dir="$1"
+    local gitattributes="${repo_dir}/.gitattributes"
+
+    if [[ -f "${gitattributes}" ]]; then
+        if grep -q "filter=git-crypt" "${gitattributes}" 2>/dev/null; then
+            print_info "  .gitattributes already has git-crypt rules (skipping)"
+            return 0
+        fi
+        print_info "  Appending git-crypt rules to existing .gitattributes"
+        cat >> "${gitattributes}" <<'EOF'
+
+# ── git-crypt encrypted files ──────────────────────────────────────────────
+# Secrets directory (catch-all for sensitive data)
+secrets/**              filter=git-crypt diff=git-crypt
+private/**              filter=git-crypt diff=git-crypt
+
+# Environment / configuration files
+.env                    filter=git-crypt diff=git-crypt
+.env.*                  filter=git-crypt diff=git-crypt
+*.env                   filter=git-crypt diff=git-crypt
+
+# Key material
+*.key                   filter=git-crypt diff=git-crypt
+*.pem                   filter=git-crypt diff=git-crypt
+*.p12                   filter=git-crypt diff=git-crypt
+*.pfx                   filter=git-crypt diff=git-crypt
+*.asc                   filter=git-crypt diff=git-crypt
+
+# Credential / token files
+*credentials*           filter=git-crypt diff=git-crypt
+*token*                 filter=git-crypt diff=git-crypt
+*secret*                filter=git-crypt diff=git-crypt
+*password*              filter=git-crypt diff=git-crypt
+auth.json               filter=git-crypt diff=git-crypt
+service-account.json    filter=git-crypt diff=git-crypt
+
+# Infrastructure secrets
+*.tfvars                filter=git-crypt diff=git-crypt
+*vault*                 filter=git-crypt diff=git-crypt
+*-secret.yaml           filter=git-crypt diff=git-crypt
+*-secret.yml            filter=git-crypt diff=git-crypt
+EOF
+    else
+        print_info "  Creating new .gitattributes with git-crypt rules"
+        cat > "${gitattributes}" <<'EOF'
+# .gitattributes — git-crypt encryption rules
+# Files matching these patterns are transparently encrypted on push.
+# Generated by github_multi_account_setup.sh
+
+# ── git-crypt encrypted files ──────────────────────────────────────────────
+# Secrets directory (catch-all for sensitive data)
+secrets/**              filter=git-crypt diff=git-crypt
+private/**              filter=git-crypt diff=git-crypt
+
+# Environment / configuration files
+.env                    filter=git-crypt diff=git-crypt
+.env.*                  filter=git-crypt diff=git-crypt
+*.env                   filter=git-crypt diff=git-crypt
+
+# Key material
+*.key                   filter=git-crypt diff=git-crypt
+*.pem                   filter=git-crypt diff=git-crypt
+*.p12                   filter=git-crypt diff=git-crypt
+*.pfx                   filter=git-crypt diff=git-crypt
+*.asc                   filter=git-crypt diff=git-crypt
+
+# Credential / token files
+*credentials*           filter=git-crypt diff=git-crypt
+*token*                 filter=git-crypt diff=git-crypt
+*secret*                filter=git-crypt diff=git-crypt
+*password*              filter=git-crypt diff=git-crypt
+auth.json               filter=git-crypt diff=git-crypt
+service-account.json    filter=git-crypt diff=git-crypt
+
+# Infrastructure secrets
+*.tfvars                filter=git-crypt diff=git-crypt
+*vault*                 filter=git-crypt diff=git-crypt
+*-secret.yaml           filter=git-crypt diff=git-crypt
+*-secret.yml            filter=git-crypt diff=git-crypt
+EOF
+    fi
+}
+
+init_repo_encryption() {
+    local repo_dir="$1"
+    local gpg_email="$2"
+    local account_name="$3"
+
+    local repo_name
+    repo_name=$(basename "${repo_dir}")
+
+    echo ""
+    echo -e "  ${CYAN}Repository: ${repo_name}${NC}"
+
+    if [[ ! -d "${repo_dir}/.git" ]]; then
+        print_info "  Not a git repository — skipping"
+        return 0
+    fi
+
+    if [[ -d "${repo_dir}/.git/git-crypt" ]]; then
+        print_info "  git-crypt already initialized"
+        if gpg_key_exists "${gpg_email}"; then
+            local fp
+            fp=$(gpg_key_fingerprint "${gpg_email}")
+            local add_output
+            if add_output=$(cd "${repo_dir}" && git-crypt add-gpg-user --trusted "${fp}" 2>&1); then
+                print_success "  GPG user added/confirmed: ${gpg_email}"
+            else
+                if echo "${add_output}" | grep -qi "already.*added\|is already"; then
+                    print_info "  GPG user already present"
+                else
+                    print_warning "  Could not add GPG user: ${add_output}"
+                fi
+            fi
+        fi
+    else
+        print_info "  Initializing git-crypt..."
+        if ( cd "${repo_dir}" && git-crypt init 2>/dev/null ); then
+            print_success "  git-crypt initialized"
+            if gpg_key_exists "${gpg_email}"; then
+                local fp
+                fp=$(gpg_key_fingerprint "${gpg_email}")
+                if ( cd "${repo_dir}" && git-crypt add-gpg-user --trusted "${fp}" 2>/dev/null ); then
+                    print_success "  Added GPG user: ${gpg_email} (${account_name})"
+                else
+                    print_warning "  Could not add GPG user: ${gpg_email}"
+                fi
+            else
+                print_warning "  GPG key not found for ${gpg_email} — skipping add-gpg-user"
+            fi
+        else
+            print_error "  Failed to initialize git-crypt"
+            return 1
+        fi
+    fi
+
+    # Create/update .gitattributes
+    create_default_gitattributes "${repo_dir}"
+
+    # Symmetric key backup
+    local key_backup="${GPG_CRYPT_KEY_DIR}/${account_name}-${repo_name}.git-crypt.key"
+    if [[ -d "${repo_dir}/.git/git-crypt" ]]; then
+        ( cd "${repo_dir}" && git-crypt export-key "${key_backup}" 2>/dev/null ) && {
+            chmod 600 "${key_backup}"
+            print_success "  Symmetric key backed up: ${key_backup}"
+        }
+    fi
+
+    # Stage and commit .gitattributes if needed
+    (
+        cd "${repo_dir}"
+        if git status --short .gitattributes 2>/dev/null | grep -q .; then
+            git add .gitattributes 2>/dev/null || true
+            if git commit -m "chore: add git-crypt encryption rules" 2>/dev/null; then
+                print_success "  Committed .gitattributes"
+                # FIX H-3: remind about re-encrypting existing files
+                print_warning "  Existing files matching encryption patterns are NOT encrypted yet."
+                print_info "    To encrypt them run: git add --renormalize .  (or add specific files) and commit"
+            else
+                print_info "  Nothing to commit for .gitattributes"
+            fi
+        fi
+    )
+
+    return 0
+}
+
+# =============================================================================
+# REPOSITORY DISCOVERY (FIX M-1: use find -maxdepth 3)
+# =============================================================================
+
+encrypt_directory_repos() {
+    local base_dir="$1"
+    local gpg_email="$2"
+    local account_name="$3"
+
+    if [[ ! -d "${base_dir}" ]]; then
+        print_info "Directory does not exist — skipping: ${base_dir}"
+        return 0
+    fi
+
+    print_info "Scanning ${base_dir} for git repositories (up to 3 levels deep)..."
+
+    local repos=()
+    while IFS= read -r -d '' gitdir; do
+        repos+=("$(dirname "${gitdir}")")
+    done < <(find "${base_dir}" -maxdepth 3 -name .git -type d -print0 2>/dev/null || true)
+
+    if [[ ${#repos[@]} -eq 0 ]]; then
+        print_info "No git repositories found under ${account_name} directory"
+        return 0
+    fi
+
+    print_info "Found ${#repos[@]} repository(ies)"
+    local count=0
+    for repo_dir in "${repos[@]}"; do
+        init_repo_encryption "${repo_dir}" "${gpg_email}" "${account_name}"
+        ((count++)) || true
+    done
+    print_success "Processed ${count} repository(ies) for ${account_name}"
+}
+
+setup_encryption() {
+    print_section "Setting Up Repository Encryption (git-crypt + GPG)"
+
+    echo ""
+    print_info "This will:"
+    print_info "  1. Install git-crypt (if not present)"
+    print_info "  2. Generate GPG keys (Ed25519) — one per account (passphrase protected!)"
+    print_info "  3. Configure gpg-agent with 8-hour passphrase cache"
+    print_info "  4. Initialize git-crypt in ALL repositories under ~/Git/ (depth 3)"
+    print_info "  5. Add the correct GPG key per directory/account"
+    print_info "  6. Create default .gitattributes (encrypts .env, *.key, secrets/**, etc.)"
+    print_info "  7. Export symmetric backup keys to ${GPG_CRYPT_KEY_DIR}/"
+    echo ""
+
+    if ! confirm "Set up repository encryption for all accounts?"; then
+        print_info "Encryption setup skipped."
+        return 0
+    fi
+
+    install_git_crypt
+    setup_gpg_agent
+    generate_gpg_keys
+    backup_gpg_keys
+
+    mkdir -p "${GPG_CRYPT_KEY_DIR}"
+    chmod 700 "${GPG_CRYPT_KEY_DIR}"
+
+    print_section "Encrypting Repositories"
+
+    for account in personal work common; do
+        if [[ -v GIT_DIRS[${account}] ]]; then
+            encrypt_directory_repos \
+                "${GIT_DIRS[${account}]}" \
+                "${ACCOUNTS[${account}]}" \
+                "${account}"
+        fi
+    done
+
+    print_info "Scanning root-level repos (configs account)..."
+    local account_subdirs=()
+    for account in personal work common; do
+        [[ -v GIT_DIRS[${account}] ]] && account_subdirs+=("$(basename "${GIT_DIRS[${account}]}")")
+    done
+
+    for repo in "${GIT_BASE_DIR}"/*/; do
+        local dir="${repo%/}"
+        local name
+        name=$(basename "${dir}")
+        local is_account_dir=false
+        for subdir in "${account_subdirs[@]}"; do
+            [[ "${name}" == "${subdir}" ]] && is_account_dir=true && break
+        done
+        ${is_account_dir} && continue
+        if [[ -d "${dir}/.git" ]]; then
+            init_repo_encryption "${dir}" "${ACCOUNTS[configs]}" "configs"
+        fi
+    done
+
+    echo ""
+    print_success "Encryption setup complete!"
+    print_info "Symmetric key backups are in: ${GPG_CRYPT_KEY_DIR}/"
+    print_warning "Store these keys securely offline. They are the recovery mechanism if GPG keys are lost."
+}
+
+# =============================================================================
+# VERIFICATION (FIX M-3: use mktemp for test directory)
 # =============================================================================
 
 verify_setup() {
     print_section "Verifying Setup"
-    
+
     local all_good=true
-    
+
     # Check SSH keys
     print_info "Checking SSH keys..."
     for account in "${!ACCOUNTS[@]}"; do
         local key_file="${SSH_DIR}/id_ed25519_aahsnr_${account}"
         local pub_file="${key_file}.pub"
-        
+
         if [[ -f "${key_file}" ]] && [[ -f "${pub_file}" ]]; then
-            echo -e "  ${GREEN}✓${NC} ${account}: Keys exist"
+            echo -e "  ${GREEN}✓${NC} ${account}: SSH keys exist"
         else
-            echo -e "  ${RED}✗${NC} ${account}: Keys missing"
+            echo -e "  ${RED}✗${NC} ${account}: SSH keys missing"
             all_good=false
         fi
     done
-    
+
+    # Check GPG keys
+    print_info "Checking GPG keys..."
+    for account in configs personal work common; do
+        local email="${ACCOUNTS[${account}]}"
+        if gpg_key_exists "${email}"; then
+            local fp
+            fp=$(gpg_key_fingerprint "${email}")
+            echo -e "  ${GREEN}✓${NC} ${account}: GPG key exists (${fp:0:16}...)"
+        else
+            echo -e "  ${YELLOW}⚠${NC} ${account}: GPG key missing (run encryption setup)"
+        fi
+    done
+
     # Check SSH config
     print_info "Checking SSH config..."
     if [[ -f "${SSH_DIR}/config" ]]; then
-        # Validate SSH config syntax
         if ssh -G github.com-aahsnr-configs &>/dev/null; then
             print_success "SSH config exists and is valid"
         else
@@ -739,11 +1255,10 @@ verify_setup() {
         print_error "SSH config missing"
         all_good=false
     fi
-    
+
     # Check Git config
     print_info "Checking Git config..."
     if [[ -f "${GIT_CONFIG}" ]]; then
-        # Validate Git config syntax
         if git config --global --list &>/dev/null; then
             print_success "Main Git config exists and is valid"
         else
@@ -754,13 +1269,12 @@ verify_setup() {
         print_error "Main Git config missing"
         all_good=false
     fi
-    
+
     # Check directory-specific configs
     for account in personal work common; do
         if [[ -v GIT_DIRS[${account}] ]]; then
             local dir="${GIT_DIRS[${account}]}"
             local dir_config="${dir}/.gitconfig"
-            
             if [[ -f "${dir_config}" ]]; then
                 echo -e "  ${GREEN}✓${NC} ${account} Git config exists"
             else
@@ -769,36 +1283,55 @@ verify_setup() {
             fi
         fi
     done
-    
-    # Test Git conditional includes
+
+    # Test Git conditional includes — using mktemp
     print_info "Testing Git conditional includes..."
     for account in personal work common; do
         if [[ -v GIT_DIRS[${account}] ]]; then
             local dir="${GIT_DIRS[${account}]}"
-            
-            # Create a temporary test directory
-            local test_dir="${dir}/.git_test_$$"
-            mkdir -p "${test_dir}"
-            
-            # Initialize git repo
+
+            if [[ ! -d "${dir}" ]]; then
+                print_warning "${dir} doesn't exist; skipping conditional include test"
+                continue
+            fi
+
+            local test_dir
+            test_dir=$(mktemp -d --tmpdir="${dir}" ".git_test_XXXXXX" 2>/dev/null)
+            if [[ -z "${test_dir}" ]]; then
+                print_warning "Could not create test directory in ${dir}"
+                continue
+            fi
+            # Cleanup test_dir on return/exit
+            trap "rm -rf '${test_dir}'" RETURN
+
             if git -C "${test_dir}" init &>/dev/null; then
                 local detected_email
                 detected_email=$(git -C "${test_dir}" config user.email 2>/dev/null || echo "")
-                
+
                 if [[ "${detected_email}" == "${ACCOUNTS[${account}]}" ]]; then
-                    echo -e "  ${GREEN}✓${NC} ${account} directory correctly configured"
+                    echo -e "  ${GREEN}✓${NC} ${account} directory correctly configured (${detected_email})"
                 else
                     echo -e "  ${RED}✗${NC} ${account} directory not properly configured"
-                    echo -e "     Expected: ${ACCOUNTS[${account}]}, Got: ${detected_email}"
+                    echo -e "     Expected: ${ACCOUNTS[${account}]}, Got: ${detected_email:-<empty>}"
                     all_good=false
                 fi
+            else
+                print_warning "Could not init test repo in ${test_dir}"
             fi
-            
-            # Cleanup test directory
             rm -rf "${test_dir}"
         fi
     done
-    
+
+    # Check git-crypt
+    print_info "Checking git-crypt..."
+    if command_exists git-crypt; then
+        local ver
+        ver=$(git-crypt --version 2>/dev/null || echo "unknown")
+        print_success "git-crypt available: ${ver}"
+    else
+        echo -e "  ${YELLOW}⚠${NC} git-crypt not installed (run encryption setup)"
+    fi
+
     echo ""
     if ${all_good}; then
         print_success "All checks passed! ✨"
@@ -814,33 +1347,50 @@ verify_setup() {
 
 display_public_keys() {
     print_section "Public Keys for GitHub"
-    
+
     echo "Copy these public keys to your respective GitHub accounts:"
     echo ""
     echo "GitHub Settings → SSH and GPG keys → New SSH key"
     echo ""
-    
+
     for account in configs personal work common; do
         if [[ -v ACCOUNTS[${account}] ]]; then
             local pub_file="${SSH_DIR}/id_ed25519_aahsnr_${account}.pub"
-            
+
             if [[ -f "${pub_file}" ]]; then
                 echo -e "${BOLD}${CYAN}╭─ Account: ${GIT_NAMES[${account}]} (${ACCOUNTS[${account}]})${NC}"
                 echo -e "${YELLOW}│${NC}"
-                
-                # Display the public key
+
                 local pubkey
                 pubkey=$(cat "${pub_file}")
                 echo -e "${YELLOW}│${NC} ${pubkey}"
-                
-                # Display fingerprint
+
                 local fingerprint
                 fingerprint=$(ssh-keygen -lf "${pub_file}" 2>/dev/null | awk '{print $2}')
                 echo -e "${YELLOW}│${NC}"
-                echo -e "${YELLOW}│${NC} Fingerprint: ${fingerprint}"
+                echo -e "${YELLOW}│${NC} SSH Fingerprint: ${fingerprint}"
+
+                if gpg_key_exists "${ACCOUNTS[${account}]}"; then
+                    local gpg_fp
+                    gpg_fp=$(gpg_key_fingerprint "${ACCOUNTS[${account}]}")
+                    echo -e "${YELLOW}│${NC} GPG Fingerprint: ${gpg_fp}"
+                fi
+
                 echo -e "${YELLOW}╰───────────────────────────────────────────────────────────────${NC}"
                 echo ""
             fi
+        fi
+    done
+
+    echo ""
+    echo "For GPG keys (GitHub Settings → SSH and GPG keys → New GPG key):"
+    echo ""
+    for account in configs personal work common; do
+        local email="${ACCOUNTS[${account}]}"
+        if gpg_key_exists "${email}"; then
+            echo -e "${BOLD}${CYAN}GPG public key for ${account} (${email}):${NC}"
+            gpg --armor --export "${email}" 2>/dev/null
+            echo ""
         fi
     done
 }
@@ -851,75 +1401,71 @@ display_public_keys() {
 
 display_instructions() {
     print_section "Next Steps"
-    
+
     printf "${BOLD}1. Add SSH Keys to GitHub${NC}\n\n"
-    printf "   For each account, go to: ${CYAN}https://github.com/settings/keys${NC}\n"
-    printf "   \n"
+    printf "   For each account, go to: ${CYAN}https://github.com/settings/keys${NC}\n\n"
     printf "   a) Click \"New SSH key\"\n"
-    printf "   b) Give it a meaningful title (e.g., \"Laptop - Ed25519 - 2024\")\n"
+    printf "   b) Give it a meaningful title (e.g., \"Arch - Ed25519 - 2025\")\n"
     printf "   c) Select \"Authentication Key\" as the key type\n"
     printf "   d) Paste the public key shown above\n"
     printf "   e) Click \"Add SSH key\"\n\n"
-    
-    printf "${BOLD}2. Test SSH Connections${NC}\n\n"
-    printf "   Verify each account works:\n"
-    
+
+    printf "${BOLD}2. (Optional) Add GPG Keys to GitHub${NC}\n\n"
+    printf "   If you want signed commits visible on GitHub:\n"
+    printf "   GitHub Settings → SSH and GPG keys → New GPG key\n"
+    printf "   Paste the GPG public key shown above.\n\n"
+
+    printf "${BOLD}3. Test SSH Connections${NC}\n\n"
     for account in configs personal work common; do
         if [[ -v ACCOUNTS[${account}] ]]; then
             printf "   ${CYAN}ssh -T git@github.com-aahsnr-${account}${NC}  # Test ${account}\n"
         fi
     done
-    
-    printf "\n   Expected output: \"Hi username! You've successfully authenticated...\"\n\n"
-    
-    printf "${BOLD}3. Clone Repositories${NC}\n\n"
-    printf "   Use the appropriate directory and URL:\n"
-    printf "   \n"
-    printf "   For ${GREEN}personal${NC} projects (in ~/Git/personal/):\n"
-    printf "   ${CYAN}cd ~/Git/personal && git clone git@github.com-aahsnr-personal:username/repo.git${NC}\n"
-    printf "   \n"
-    printf "   For ${GREEN}work${NC} projects (in ~/Git/work/):\n"
-    printf "   ${CYAN}cd ~/Git/work && git clone git@github.com-aahsnr-work:username/repo.git${NC}\n"
-    printf "   \n"
-    printf "   For ${GREEN}common${NC} projects (in ~/Git/common/):\n"
-    printf "   ${CYAN}cd ~/Git/common && git clone git@github.com-aahsnr-common:username/repo.git${NC}\n\n"
-    
-    printf "${BOLD}4. Directory Structure and Auto-Switching${NC}\n\n"
-    printf "   Your Git identity automatically switches based on location:\n"
-    printf "   \n"
+    printf "\n   Expected: \"Hi username! You've successfully authenticated...\"\n\n"
+
+    printf "${BOLD}4. Clone Repositories${NC}\n\n"
+    printf "   ${GREEN}personal${NC} (in ~/Git/personal/):\n"
+    printf "   ${CYAN}cd ~/Git/personal && git clone git@github.com-aahsnr-personal:aahsnr/repo.git${NC}\n\n"
+    printf "   ${GREEN}work${NC} (in ~/Git/work/):\n"
+    printf "   ${CYAN}cd ~/Git/work && git clone git@github.com-aahsnr-work:aahsnr/repo.git${NC}\n\n"
+    printf "   ${GREEN}common${NC} (in ~/Git/common/):\n"
+    printf "   ${CYAN}cd ~/Git/common && git clone git@github.com-aahsnr-common:aahsnr/repo.git${NC}\n\n"
+
+    printf "${BOLD}5. Unlock Encrypted Repositories After Cloning${NC}\n\n"
+    printf "   ${CYAN}cd ~/Git/personal/my-encrypted-repo${NC}\n"
+    printf "   ${CYAN}git-crypt unlock${NC}\n\n"
+    printf "   GPG will prompt for your passphrase via pinentry.\n"
+    printf "   After unlock, all git operations work transparently.\n\n"
+
+    printf "${BOLD}6. Add New Encrypted Files${NC}\n\n"
+    printf "   ${CYAN}cd ~/Git/personal/my-repo${NC}\n"
+    printf "   ${CYAN}echo 'API_KEY=secret' > .env${NC}\n"
+    printf "   ${CYAN}git add .env && git commit -m 'add encrypted env file'${NC}\n"
+    printf "   ${CYAN}git push  # .env is encrypted on GitHub, plaintext locally${NC}\n\n"
+
+    printf "${BOLD}7. Directory Structure and Auto-Switching${NC}\n\n"
     printf "   ${HOME}/Git/\n"
-    printf "   ├── personal/     ${GREEN}→ Uses personal account${NC}\n"
-    printf "   ├── work/         ${GREEN}→ Uses work account${NC}\n"
-    printf "   ├── common/       ${GREEN}→ Uses common account${NC}\n"
-    printf "   └── (anywhere else) ${GREEN}→ Uses configs account (default)${NC}\n\n"
-    
-    printf "${BOLD}5. Update Existing Repositories${NC}\n\n"
-    printf "   If you have existing repos, update their remote URL:\n"
-    printf "   \n"
-    printf "   ${CYAN}cd ~/Git/personal/your-repo${NC}\n"
-    printf "   ${CYAN}git remote set-url origin git@github.com-aahsnr-personal:username/your-repo.git${NC}\n"
-    printf "   ${CYAN}git config user.email  # Verify correct email is set${NC}\n\n"
-    
-    printf "${BOLD}6. GitHub CLI (Optional)${NC}\n\n"
-    printf "   If you want to use gh CLI:\n"
-    printf "   \n"
-    printf "   • Authenticate:  ${CYAN}gh auth login${NC}\n"
-    printf "   • View status:  ${CYAN}gh auth status${NC}\n"
-    printf "   • Switch accounts:  ${CYAN}gh auth switch${NC}\n\n"
-    
+    printf "   ├── personal/  ${GREEN}→ personal account + GPG key (ahsanur041@gmail.com)${NC}\n"
+    printf "   ├── work/      ${GREEN}→ work account + GPG key (aahsnr041@proton.me)${NC}\n"
+    printf "   ├── common/    ${GREEN}→ common account + GPG key (ahsan.05rahman@gmail.com)${NC}\n"
+    printf "   └── other/     ${GREEN}→ configs account + GPG key (ahsanur041@proton.me)${NC}\n\n"
+
+    printf "${BOLD}8. Symmetric Key Backups${NC}\n\n"
+    printf "   Per-repo symmetric keys are in: ${CYAN}${GPG_CRYPT_KEY_DIR}/${NC}\n"
+    printf "   GPG secret key backup is also in that directory.\n"
+    printf "   Store this directory on encrypted offline storage (USB/LUKS).\n\n"
+
     printf "${BOLD}Backup Information:${NC}\n\n"
     printf "   All previous configurations were backed up to:\n"
-    printf "   ${CYAN}${BACKUP_DIR}${NC}\n"
-    printf "   \n"
-    printf "   You can restore any backed up files if needed.\n\n"
-    
+    printf "   ${CYAN}${BACKUP_DIR}${NC}\n\n"
+
     printf "${BOLD}Pro Tips:${NC}\n\n"
-    printf "   • Always clone repos in the correct directory to auto-use the right account\n"
-    printf "   • Use ${CYAN}git config user.email${NC} to verify which account is active\n"
-    printf "   • Ed25519 keys are more secure and faster than RSA\n"
-    printf "   • Keep your private keys secure and never share them\n"
-    printf "   \n"
-    
+    printf "   • Always clone repos into the correct directory for auto identity switching\n"
+    printf "   • Use ${CYAN}git-crypt status${NC} to verify which files are encrypted\n"
+    printf "   • Use ${CYAN}git-crypt lock${NC} to re-encrypt your working copy when stepping away\n"
+    printf "   • Ed25519 GPG and SSH keys are more secure and faster than RSA\n"
+    printf "   • Files named in .gitattributes are encrypted on GitHub but plaintext locally\n\n"
+
     print_success "Setup complete! Happy coding! 🚀"
 }
 
@@ -929,39 +1475,42 @@ display_instructions() {
 
 main() {
     print_header
-    
-    # Check dependencies first
+
     check_dependencies
-    
+
     echo ""
-    print_info "This script will CLEAN UP all existing configurations and set up"
-    print_info "SSH keys, Git config, and GitHub CLI for multiple GitHub accounts."
+    print_info "This script will CLEAN UP managed configurations and set up"
+    print_info "SSH keys, GPG keys, Git config, git-crypt encryption, and GitHub CLI"
+    print_info "for multiple GitHub accounts."
+    print_info "Non‑managed SSH keys will be left untouched."
     echo ""
-    
-    # Comprehensive cleanup at the start
+    print_info "Detected distribution: ${BOLD}${DISTRO}${NC}"
+    echo ""
+
+    # Comprehensive cleanup (scoped)
     cleanup_all_configs
-    
+
     # Generate SSH keys
     generate_ssh_keys
-    
+
     # Configure SSH
     configure_ssh
-    
+
     # Configure Git
     configure_git
-    
-    # Setup SSH agent
+
+    # Setup SSH agent (only if agent is running)
     setup_ssh_agent
-    
+
     # Configure GitHub CLI
     configure_github_cli
-    
-    # Verify setup
+
+    # Setup encryption (interactive — user can skip)
+    setup_encryption
+
+    # Verify everything
     if verify_setup; then
-        # Display public keys
         display_public_keys
-        
-        # Display instructions
         display_instructions
     else
         print_error "Setup verification failed. Please check the errors above."
@@ -973,7 +1522,6 @@ main() {
 # SCRIPT ENTRY POINT
 # =============================================================================
 
-# Only run main if script is executed directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     main "$@"
 fi
