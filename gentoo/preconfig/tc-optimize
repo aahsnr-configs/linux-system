@@ -5,29 +5,34 @@
 #emerge glibc
 #emerge binutils
 #emerge gcc
-emerge --oneshot --usepkg=n --verbose dev-build/libtool
-emerge --oneshot --usepkg=n --verbose dev-libs/boost
-libtool --finish /usr/lib/../lib64
-libtool --finish /usr/lib64
-libtool --finish /usr/libexec/gcc/x86_64-pc-linux-gnu
+# emerge --oneshot --usepkg=n --verbose dev-build/libtool
+# emerge --oneshot --usepkg=n --verbose dev-libs/boost
+# libtool --finish /usr/lib/../lib64
+# libtool --finish /usr/lib64
+# libtool --finish /usr/libexec/gcc/x86_64-pc-linux-gnu
 #emerge python
 #emerge gcc
 # build the packages in the next line with gcc
 #emerge cmake
 #emerge llvm-core/polly
-#emerge -a dbus-broker dev-lang/python:3.12 dev-lang/python:3.13 dev-lang/python:3.13t
 #emerge --jobs=5 -a dev-python/installer dev-python/cython dev-python/setuptools dev-python/setuptools-rust dev-python/setuptools-scm dev-python/wheel
 #emerge glibc
 #emerge -a binutils
-emerge gcc
+#emerge gcc
 
-#emerge llvm-core/clang:19 llvm-core/clang-common llvm-core/clang-runtime:19 llvm-core/clang-toolchain-symlinks:19 llvm-core/lld:19 llvm-core/lld-toolchain-symlinks:19 llvm-core/llvm:19 llvm-core/llvm-common llvm-core/llvm-toolchain-symlinks:19 llvm-runtimes/compiler-rt:19 llvm-runtimes/compiler-rt-sanitizers:19 llvm-runtimes/libunwind dev-util/spirv-llvm-translator:19
+# emerge llvm-core/llvm:21 llvm-core/clang:21 llvm-core/lld:21 llvm-runtimes/compiler-rt-sanitizers:21 llvm-core/polly:21 llvm-runtimes/clang-runtime:21 llvm-runtimes/compiler-rt:21
 
-#emerge --ask llvm-core/llvmgold llvm-core/clang:18 llvm-core/clang-common llvm-core/clang-runtime:18 llvm-core/clang-toolchain-symlinks:18 llvm-core/lld:18 llvm-core/lld-toolchain-symlinks:18 llvm-core/llvm:18 llvm-core/llvm-common llvm-core/llvm-toolchain-symlinks:18 llvm-runtimes/compiler-rt:18 llvm-runtimes/compiler-rt-sanitizers:18 llvm-runtimes/libunwind dev-util/spirv-llvm-transla#tor:18
+emerge -av llvm-core/llvm:{19,20,21} llvm-core/clang:{19,20,21} llvm-core/lld:{19,20,21} llvm-core/lld-toolchain-symlinks:{19,20,21} llvm-runtimes/compiler-rt-sanitizers:{19,20,21} llvm-core/polly:{20,21} llvm-core/llvm-toolchain-symlinks:{19,20,21} llvm-runtimes/clang-runtime:{19,20,21} llvm-core/clang-toolchain-symlinks:{19,20,21} llvm-runtimes/compiler-rt:{19,20,21} dev-util/spirv-llvm-translator:{19,20,21}
+
+# emerge -av llvm-core/llvm:22 llvm-core/clang:22 llvm-core/lld:22 llvm-core/lld-toolchain-symlinks:22 llvm-runtimes/compiler-rt-sanitizers:22 llvm-core/polly:22 llvm-core/llvm-toolchain-symlinks:22 llvm-runtimes/clang-runtime:22 llvm-core/clang-toolchain-symlinks:22 llvm-runtimes/compiler-rt:22 llvm-core/llvmgold dev-util/spirv-llvm-translator:22
 #
-
-emerge --emptytree --usepkg=n @system
-emerge --emptytree --usepkg=n @world
+# emerge -av llvm-core/llvm:19 llvm-core/clang:19 llvm-core/lld:19 llvm-runtimes/compiler-rt-sanitizers:19 llvm-runtimes/clang-runtime:19 llvm-runtimes/compiler-rt:19 
+# #
+# emerge -av llvm-core/llvm:20 llvm-core/clang:20 llvm-core/lld:20 llvm-runtimes/compiler-rt-sanitizers:20 llvm-core/polly:20 llvm-runtimes/clang-runtime:20 llvm-runtimes/compiler-rt:20 
+# #
+# emerge -av llvm-runtimes/openmp
+#emerge --emptytree --usepkg=n @system
+#emerge --emptytree --usepkg=n @world
 # emerge python
 # emerge -uvDN @world
 # emerge rust

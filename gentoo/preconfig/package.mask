@@ -1,0 +1,7 @@
+sys-auth/ananicy-cpp::CachyOS-kernels
+sys-auth/ananicy-cpp::guru
+dev-haskell/*::gentoo
+dev-lang/ghc::gentoo
+#>=dev-lang/rust-bin-1.95
+# >=sys-kernel/gentoo-sources-7
+# >=sys-kernel/cachyos-sources-7

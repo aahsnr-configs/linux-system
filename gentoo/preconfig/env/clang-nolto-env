@@ -1,5 +1,5 @@
 ### /etc/portage/env/clang-nolto-env
-COMMON_FLAGS="-O3 -pipe -march=native -fno-semantic-interposition -fno-plt"
+COMMON_FLAGS="-O3 -pipe -march=native -flto=thin -fno-semantic-interposition -fno-plt"
 CFLAGS="${COMMON_FLAGS}"
 CXXFLAGS="${COMMON_FLAGS}"
 HARDENING_FLAGS="-fcf-protection -D_FORTIFY_SOURCE=3 -fstack-protector-strong -fstack-clash-protection"

@@ -1,0 +1,64 @@
+sys-apps/systemd cryptsetup boot tpm
+sys-kernel/installkernel dracut uki
+sys-kernel/dracut systemd
+sys-fs/cryptsetup pwquality
+sys-kernel/linux-firmware compress-zstd
+x11-drivers/nvidia-drivers wayland persistenced modules-sign
+media-gfx/imv -X gif heif icu jpeg jpegxl png svg tiff
+gui-wm/hyprland hyprpm -uwsm
+app-admin/ananicy-cpp bpf cachyos-rules clang
+dev-util/bpftool clang llvm
+dev-util/perf libpfm
+sys-firmware/alsa-firmware compress-zstd
+media-sound/alsa-utils bat
+media-fonts/noto-emoji icons
+sci-libs/openblas cpudetection
+app-misc/tmux vim-syntax
+net-p2p/transmission gtk -qt6 systemd
+dev-cpp/cpptrace -unwind
+sys-kernel/cachyos-sources kcfi -hardened
+media-video/pipewire sound-server extra gstreamer gsettings pipewire-alsa ffmpeg
+app-editors/emacs -X tree-sitter jpeg imagemagick mailutils jit dynamic-loading gtk gui png dbus cairo harfbuzz
+sys-fs/lvm2 lvm
+media-gfx/imagemagick jpeg
+sys-devel/gcc default-stack-clash-protection graphite lto pgo 
+llvm-runtimes/compiler-rt-sanitizers orc profile
+# move llvm-core/clang-runtime llvm-runtimes/clang-runtime
+llvm-runtimes/clang-runtime sanitize
+dev-lang/python -jit tk
+dev-qt/qtwidgets dbus
+app-text/poppler cairo
+dev-qt/qtgui dbus egl
+media-fonts/nerd-fonts ubuntu jetbrainsmono  
+#net-wireless/wpa_supplicant dbus
+gui-apps/noctalia-qs -dwl -niri -i3 -bluetooth
+media-libs/libcanberra alsa
+dev-libs/libutf8proc -cjk
+dev-cpp/cpptrace unwind
+net-wireless/wpa_supplicant dbus
+net-misc/networkmanager -wext nftables gnutls -resolvconf -nss
+app-admin/cockpit firewalld pcp udisks
+net-firewall/firewalld gui -iptables
+sys-auth/pambase pwquality -passwdqc 
+app-text/aspell unicode l10n_en
+app-shells/atuin server system-sqlite
+sys-apps/rng-tools jitterentropy
+gnome-base/gvfs keyring
+sys-fs/lvm2 -static -static-libs
+x11-terms/kitty -X wayland
+app-office/obsidian appindicator
+app-text/papers djvu gnome-keyring nautilus
+app-editors/neovim lua_single_target_luajit
+app-text/enchant aspell nuspell voikko
+media-libs/freetype harfbuzz
+llvm-runtimes/clang-runtime polly
+dev-build/cmake -gui
+app-text/xmlto text
+net-firewall/nftables json python xtables
+net-misc/networkmanager -iptables
+sys-auth/polkit -gtk
+app-text/zathura -X 
+media-sound/cava pipewire alsa jack pulseaudio
+app-containers/podman btrfs
+app-text/zathura-meta pdf djvu epub postscript 
+

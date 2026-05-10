@@ -1,0 +1,37 @@
+# /etc/portage/env/polly-parallel-env
+#
+# Polly polyhedral loop optimizer WITH OpenMP parallel codegen.
+# Use ONLY for packages with genuine nested parallel loop structures
+# that do NOT have their own internal threading.
+#
+# Current package.env assignments using this file:
+#   sci-libs/gsl — numerical integration, ODE, linear algebra loops
+#
+# Do NOT use on:
+#   - sci-libs/fftw  : FFTW has its own thread pool; adding Polly OpenMP
+#                      on top creates conflicting parallelism
+#   - Any Rust package: cargo.eclass passes LDFLAGS as -C link-arg= tokens.
+#                      -fopenmp is in CFLAGS here (not LDFLAGS) so Rust link
+#                      is safe, but Polly+OpenMP is still meaningless for rustc.
+#   - media-libs/mesa: same LLVMPolly.so ELF64/32-bit issue as polly-on-env
+#
+# Critical -fopenmp placement:
+#   -fopenmp is appended to CFLAGS/CXXFLAGS ONLY — LDFLAGS is not touched.
+#   When clang sees -fopenmp as a compiler flag it both enables OpenMP pragma
+#   support AND instructs the linker to pull in libomp automatically — no
+#   explicit -fopenmp in LDFLAGS is needed for C packages.
+#   If -fopenmp were in LDFLAGS, cargo.eclass would emit -C link-arg=-fopenmp
+#   to rustc, causing link failures on Rust packages that see this env.
+#
+# Thread count rationale:
+#   i9-13900K: 8 P-cores + 16 E-cores.
+#   polly-num-threads=8 targets P-cores only. OpenMP parallel loops are
+#   compute-bound; mixing P+E cores in a thread pool causes load imbalance
+#   because E-cores have ~2x lower IPC than P-cores for FP/vectorized work.
+#
+# polly-omp-backend=LLVM:
+#   Uses LLVM's libomp runtime (llvm-runtimes/openmp) rather than GNU libgomp.
+#   Pairs correctly with clang's OpenMP implementation.
+
+CFLAGS="${CFLAGS} -mllvm -polly -mllvm -polly-position=early -mllvm -polly-vectorizer=stripmine -mllvm -polly-tiling=true -mllvm -polly-prevect-width=256 -mllvm -polly-omp-backend=LLVM -mllvm -polly-parallel -mllvm -polly-num-threads=8 -mllvm -polly-scheduling=dynamic -mllvm -polly-scheduling-chunksize=1 -mllvm -polly-invariant-load-hoisting -mllvm -polly-loopfusion-greedy -mllvm -polly-run-dce -mllvm -polly-run-inliner -mllvm -polly-ast-use-context -fopenmp"
+CXXFLAGS="${CXXFLAGS} -mllvm -polly -mllvm -polly-position=early -mllvm -polly-vectorizer=stripmine -mllvm -polly-tiling=true -mllvm -polly-prevect-width=256 -mllvm -polly-omp-backend=LLVM -mllvm -polly-parallel -mllvm -polly-num-threads=8 -mllvm -polly-scheduling=dynamic -mllvm -polly-scheduling-chunksize=1 -mllvm -polly-invariant-load-hoisting -mllvm -polly-loopfusion-greedy -mllvm -polly-run-dce -mllvm -polly-run-inliner -mllvm -polly-ast-use-context -fopenmp"

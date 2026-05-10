@@ -1,6 +1,10 @@
 ### /etc/portage/profile/package.provided
 app-emacs/seq-2.24
-sys-kernel/gentoo-sources-6.19
+sys-libs/libapparmor-5.0.0
+sys-apps/apparmor-5.0.0
+sys-apps/apparmor-utils-5.0.0
+sec-policy/apparmor-profiles-5.0.0
+#sys-kernel/gentoo-sources-6.19
 app-text/texlive-9999
 app-text/texlive-core-9999
 dev-tex/latexdiff-9999

@@ -1,0 +1,31 @@
+### /etc/portage/env/clang-lto-env
+# -fuse-ld=lld is a linker-selection flag and must NOT appear in CFLAGS/CXXFLAGS.
+# It belongs only in LDFLAGS. Mixing it into COMMON_FLAGS propagates it as a
+# compile flag, which is semantically wrong (even though clang silently ignores it).
+COMMON_FLAGS="-O3 -pipe -march=native -flto=thin -fno-semantic-interposition -fno-plt"
+CFLAGS="${COMMON_FLAGS}"
+CXXFLAGS="${COMMON_FLAGS}"
+
+# -U_FORTIFY_SOURCE must precede -D_FORTIFY_SOURCE=3 to prevent macro-redefinition
+# warnings/errors if make.conf or any parent env already defines _FORTIFY_SOURCE.
+# -fcf-protection=full is the correct explicit form for x86_64 (Intel CET, branch + return).
+# -fstack-clash-protection and -fstack-protector-strong are both supported by
+# modern Clang (16+) on x86_64/Linux.
+HARDENING_FLAGS="-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 -fstack-protector-strong -fstack-clash-protection -fcf-protection=full"
+CFLAGS="${CFLAGS} ${HARDENING_FLAGS}"
+CXXFLAGS="${CXXFLAGS} ${HARDENING_FLAGS}"
+
+# -flto=thin is required here so the linker activates the ThinLTO link phase.
+# -fuse-ld=lld selects lld as the linker (the correct place for this flag).
+# -Wl,--as-needed drops unused library dependencies at link time.
+# Do NOT copy COMMON_FLAGS into LDFLAGS: flags like -fno-plt, -fno-semantic-interposition,
+# and -march=native are compile-time flags and are either ignored or harmful when
+# passed directly to the linker driver.
+LDFLAGS="-flto=thin -fuse-ld=lld -Wl,--as-needed"
+
+CC="clang"
+CPP="clang-cpp"
+CXX="clang++"
+AR="llvm-ar"
+NM="llvm-nm"
+RANLIB="llvm-ranlib"
