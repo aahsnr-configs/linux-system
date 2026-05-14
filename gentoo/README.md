@@ -136,7 +136,7 @@ gdisk /dev/nvme1n1
 ### 2.4 — Format ESP
 
 ```bash
-mkfs.vfat -F 32 -n ESP /dev/nvme1n1p1
+mkfs.vfat -F 32 -n ESP /dev/nvme0n1p1
 ```
 
 ### 2.5 — LUKS2 Format (Argon2id on Both)
@@ -156,7 +156,7 @@ cryptsetup luksFormat \
   --pbkdf-parallel 4 \
   --iter-time 5000 \
   --label crypt0 \
-  /dev/nvme1n1p2
+  /dev/nvme0n1p2
 
 # ── nvme1n1p1 (1 TB PV) ──
 cryptsetup luksFormat \
@@ -169,7 +169,7 @@ cryptsetup luksFormat \
   --pbkdf-parallel 4 \
   --iter-time 5000 \
   --label crypt1 \
-  /dev/nvme0n1p1
+  /dev/nvme1n1p1
 ```
 
 > **Argon2id parameters**: `‑‑pbkdf‑memory 1048576` = 1 GiB RAM for KDF. On the i9‑13900K with ≥ 32 GiB RAM this adds ≈ 2 s to boot. APT actors with GPU clusters cannot efficiently parallelise 1 GiB‑memory Argon2id.
@@ -177,11 +177,11 @@ cryptsetup luksFormat \
 ### 2.6 — Open LUKS Containers
 
 ```bash
-cryptsetup luksOpen /dev/nvme1n1p2 crypt0
-cryptsetup luksOpen /dev/nvme0n1p1 crypt1
+cryptsetup luksOpen /dev/nvme0n1p2 crypt0
+cryptsetup luksOpen /dev/nvme1n1p1 crypt1
 
-CRYPT0_UUID=$(cryptsetup luksUUID /dev/nvme1n1p2)
-CRYPT1_UUID=$(cryptsetup luksUUID /dev/nvme0n1p1)
+CRYPT0_UUID=$(cryptsetup luksUUID /dev/nvme0n1p2)
+CRYPT1_UUID=$(cryptsetup luksUUID /dev/nvme1n1p1)
 echo "CRYPT0_UUID=$CRYPT0_UUID"  >  /root/luks-uuids.txt
 echo "CRYPT1_UUID=$CRYPT1_UUID"  >> /root/luks-uuids.txt
 ```
@@ -192,9 +192,9 @@ The LUKS header (~4 MiB per container) stores cipher parameters and encrypted 
 
 ```bash
 mkdir -p /tmp/luks-backups
-cryptsetup luksHeaderBackup /dev/nvme1n1p2 \
+cryptsetup luksHeaderBackup /dev/nvme0n1p2 \
   --header-backup-file /tmp/luks-backups/luks-header-crypt0.img
-cryptsetup luksHeaderBackup /dev/nvme0n1p1 \
+cryptsetup luksHeaderBackup /dev/nvme1n1p1 \
   --header-backup-file /tmp/luks-backups/luks-header-crypt1.img
 ```
 
@@ -339,7 +339,7 @@ mkdir -p /mnt/gentoo/efi/EFI/Linux
 
 ```bash
 cd /mnt/gentoo
-wget https://distfiles.gentoo.org/releases/amd64/autobuilds/current-stage3-amd64-hardened-systemd/stage3-amd64-hardened-systemd-YYYYMMDDTHHMMSSZ.tar.xz
+wget https://distfiles.gentoo.org/releases/amd64/autobuilds/20260503T164604Z/stage3-amd64-nomultilib-systemd-20260503T164604Z.tar.xz
 tar xpvf stage3-*.tar.xz --xattrs-include='*.*' --numeric-owner
 ```
 
@@ -788,19 +788,7 @@ export PS1="(chroot) ${PS1}"
 
 ## Part 6 — Base Configuration and Portage
 
-### 6.1 — Timezone, Locale, Hostname
-
-```bash
-ln -sf ../usr/share/zoneinfo/Asia/Dhaka /etc/localtime
-nano /etc/locale.gen
-locale-gen
-eselect locale set 4
-env-update && source /etc/profile
-
-echo "workstation" > /etc/hostname
-```
-
-### 6.2 — Sync Portage and Select Profile
+### 6.1 — Sync Portage and Select Profile
 
 ```bash
 emerge-webrsync
@@ -813,6 +801,21 @@ eselect profile list
 eselect profile set <number>
 source /etc/profile
 ```
+
+### 6.2 — Timezone, Locale, Hostname
+
+```bash
+ln -sf ../usr/share/zoneinfo/Asia/Dhaka /etc/localtime
+nano /etc/locale.gen
+locale-gen
+eselect locale set 4
+env-update && source /etc/profile
+
+echo "workstation" > /etc/hostname
+```
+
+
+
 
 ### 6.3 — Portage and Its REPOS 
 
@@ -850,7 +853,7 @@ sync-openpgp-key-path = /usr/share/openpgp-keys/gentoo-release.asc
 passwd root
 passwd -l root
 
-useradd -m -G users,wheel,audio,video,tss -s /bin/bash ahsan
+useradd -m -G users,wheel,audio,video -s /bin/bash ahsan
 passwd ahsan
 EDITOR=nvim visudo
 ```
