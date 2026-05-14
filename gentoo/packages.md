@@ -1,34 +1,4 @@
-app-containers/distrobox
-sys-fs/dust [cite: 2]
-app-editors/emacs [cite: 2]
-app-text/enchant [cite: 2]
-gnome-extra/evolution-data-server [cite: 2]
-gnome-base/nautilus
-gnome-extra/nautilus-sendto
-gnome-extra/nautilus-open-any-terminal
-sys-apps/eza
-net-analyzer/fail2ban [cite: 2]
-app-misc/fastfetch [cite: 2]
-sys-apps/fd [cite: 2]
-app-arch/file-roller [cite: 2]
-media-libs/fontconfig [cite: 2]
-sys-apps/fwupd [cite: 2]
-sys-firmware/fwupd-efi [cite: 2]
-app-shells/fzf
-dev-vcs/git-lfs [cite: 2]
-dev-util/github-cli [cite: 2]
-gnome-base/gnome-keyring [cite: 2]
-sci-visualization/gnuplot [cite: 2]
-gui-apps/grim
-gnome-base/gsettings-desktop-schemas
-app-arch/gzip [cite: 2]
-media-libs/harfbuzz
-sys-apps/rng-tools
-app-dicts/myspell-en
-gui-libs/hyprtoolkit
-gui-libs/hyprland-guiutils
-sys-apps/i2c-tools
-media-gfx/imv
+emerge -av sys-block/dust app-text/enchant gnome-extra/evolution-data-server gnome-base/nautilus gnome-extra/nautilus-sendto gnome-extra/nautilus-open-any-terminal sys-apps/eza net-analyzer/fail2ban app-misc/fastfetch sys-apps/fd app-arch/file-roller media-libs/fontconfig sys-apps/fwupd sys-apps/fwupd-efi app-shells/fzf dev-vcs/git-lfs dev-util/github-cli gnome-base/gnome-keyring sci-visualization/gnuplot gui-apps/grim gnome-base/gsettings-desktop-schemas app-arch/gzip media-libs/harfbuzz sys-apps/rng-tools gui-libs/hyprtoolkit gui-libs/hyprland-guiutils sys-apps/i2c-tools media-gfx/imv
 
 emerge -a dev-vcs/lazygit dev-lua/luarocks sys-fs/lvm2 app-forensics/lynis
 

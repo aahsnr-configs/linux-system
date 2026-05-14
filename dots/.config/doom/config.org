@@ -545,11 +545,11 @@ and SyncTeX integration. We extend it with latexmk for robust multi-pass compila
   (setq org-fragtog-preview-delay 0.2))
 
 ;; Alternative for Org 9.7+ users (uncomment if using newer Org):
-(after! org
-  ;; Use the new built-in preview system
-  (add-hook 'org-mode-hook 'org-latex-preview-auto-mode)
-  (setq org-latex-preview-live t)
-  (setq org-latex-preview-auto-mode-inline-preview-delay 0.25))
+;;(after! org
+   ;; Use the new built-in preview system
+;;   (add-hook 'org-mode-hook 'org-latex-preview-auto-mode)
+;;   (setq org-latex-preview-live t)
+;;   (setq org-latex-preview-auto-mode-inline-preview-delay 0.25))
 #+end_src
 
 ** LSP Integration

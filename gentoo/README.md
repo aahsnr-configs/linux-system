@@ -50,15 +50,13 @@ RAID 0 (both mdadm and LVM) limits usable capacity to `2 × min(disk1, disk2)`
 
 ### 1.1 — Hardware
 
-
-| Component | Detail |
-|---|---|
-| Drive A (`nvme0n1`) | 500 GB NVMe |
-| Drive B (`nvme1n1`) | 1 TB NVMe |
-| CPU | Intel i9‑13900K (Raptor Lake) |
-| TPM | TPM 2.0 (fTPM or dTPM) |
-| GPU | Integrated Intel UHD 770 (NVIDIA optional) |
-
+| Component           | Detail                                     |
+| ------------------- | ------------------------------------------ |
+| Drive A (`nvme0n1`) | 500 GB NVMe                                |
+| Drive B (`nvme1n1`) | 1 TB NVMe                                  |
+| CPU                 | Intel i9‑13900K (Raptor Lake)              |
+| TPM                 | TPM 2.0 (fTPM or dTPM)                     |
+| GPU                 | Integrated Intel UHD 770 (NVIDIA optional) |
 
 ### 1.2 — Final Partition Layout
 
@@ -91,6 +89,7 @@ UEFI Secure Boot (enrolled db key)
                            └─► LUKS2 unlocked → LVM activated → Btrfs root mounted
 
 ```
+
 ---
 
 ## Part 2 — Disk Preparation (Live Environment)
@@ -227,7 +226,7 @@ pvs
 
 ## Part 4 — Btrfs Filesystem and Subvolumes
 
-In this minimal‑var layout only `/var/tmp` receives its own subvolume; all other writable areas beneath `/var` reside directly on the `@/var` subvolume.  CoW is disabled on `/var` and `/var/tmp` via `chattr +C` so that database journals, package manager caches, and temporary files do not fragment.
+In this minimal‑var layout only `/var/tmp` receives its own subvolume; all other writable areas beneath `/var` reside directly on the `@/var` subvolume. CoW is disabled on `/var` and `/var/tmp` via `chattr +C` so that database journals, package manager caches, and temporary files do not fragment.
 
 ### 4.1 — Create Btrfs Filesystem
 
@@ -317,19 +316,19 @@ mkdir -p /mnt/gentoo/efi/EFI/Linux
 
 ### 4.5 — Subvolume Justification
 
-| Subvolume | Mount point | Rationale |
-|-----------|-------------|----------|
-| `@` (via snapshot) | `/` | Root snapshot target |
-| `@/.snapshots` | `/.snapshots` | Snapper storage |
-| `@/home` | `/home` | User data |
-| `@/opt` | `/opt` | Third‑party software |
-| `@/root` | `/root` | Root home |
-| `@/srv` | `/srv` | Service data |
-| `@/tmp` | `/tmp` | Ephemeral |
-| `@/usr/local` | `/usr/local` | Locally compiled software |
-| `@/var` | `/var` | Variable data (CoW disabled) |
-| `@/var/tmp` | `/var/tmp` | Persistent temp (CoW disabled) |
-| `@/nix` | `/nix` | Nix store (CoW disabled) |
+| Subvolume          | Mount point   | Rationale                      |
+| ------------------ | ------------- | ------------------------------ |
+| `@` (via snapshot) | `/`           | Root snapshot target           |
+| `@/.snapshots`     | `/.snapshots` | Snapper storage                |
+| `@/home`           | `/home`       | User data                      |
+| `@/opt`            | `/opt`        | Third‑party software           |
+| `@/root`           | `/root`       | Root home                      |
+| `@/srv`            | `/srv`        | Service data                   |
+| `@/tmp`            | `/tmp`        | Ephemeral                      |
+| `@/usr/local`      | `/usr/local`  | Locally compiled software      |
+| `@/var`            | `/var`        | Variable data (CoW disabled)   |
+| `@/var/tmp`        | `/var/tmp`    | Persistent temp (CoW disabled) |
+| `@/nix`            | `/nix`        | Nix store (CoW disabled)       |
 
 ---
 
@@ -367,7 +366,7 @@ cp /root/luks-uuids.txt /mnt/gentoo/root/luks-uuids.txt
 
 ### 5.4 — Place Configuration Files (before chroot)
 
-All of the following files must be written inside the target system **before** entering the chroot.  Use `cat > /mnt/gentoo/... << 'EOF'` or `nano` as preferred.
+All of the following files must be written inside the target system **before** entering the chroot. Use `cat > /mnt/gentoo/... << 'EOF'` or `nano` as preferred.
 
 #### `/mnt/gentoo/etc/portage/make.conf`
 
@@ -420,7 +419,7 @@ sys-kernel/installkernel dracut uki
 sys-kernel/dracut systemd
 sys-fs/cryptsetup pwquality
 sys-kernel/linux-firmware compress-zstd
-x11-drivers/nvidia-drivers wayland powerd persistenced 
+x11-drivers/nvidia-drivers wayland powerd persistenced
 media-gfx/imv -X gif heif icu jpeg jpegxl png svg tiff
 gui-wm/hyprland hyprpm -uwsm
 app-admin/ananicy-cpp bpf cachyos-rules clang
@@ -441,7 +440,7 @@ dev-cpp/cpptrace unwind
 net-misc/networkmanager -wifi -wext nftables gnutls -resolvconf -nss
 app-admin/cockpit firewalld pcp udisks
 net-firewall/firewalld gui
-sys-auth/pambase pwquality -passwdqc 
+sys-auth/pambase pwquality -passwdqc
 app-text/aspell unicode l10n_en
 app-shells/atuin server system-sqlite
 sys-apps/rng-tools jitterentropy
@@ -628,8 +627,8 @@ sys-auth/ananicy-cpp::guru
 
 ```bash
 llvm-core/clang clang-lto-env polly-on-env
-llvm-core/clang-common clang-lto-env polly-on-env 
-llvm-runtimes/clang-runtime clang-lto-env polly-on-env 
+llvm-core/clang-common clang-lto-env polly-on-env
+llvm-runtimes/clang-runtime clang-lto-env polly-on-env
 llvm-core/clang-toolchain-symlinks clang-lto-env polly-on-env
 llvm-core/lld clang-lto-env polly-on-env
 llvm-core/lld-toolchain-symlinks clang-lto-env polly-on-env
@@ -637,8 +636,8 @@ llvm-core/llvm clang-lto-env
 llvm-core/llvm-common clang-lto-env polly-on-env
 llvm-core/llvm-toolchain-symlinks clang-lto-env polly-on-env
 llvm-runtimes/compiler-rt clang-lto-env polly-on-env
-llvm-runtimes/compiler-rt-sanitizers clang-lto-env polly-on-env 
-llvm-runtimes/libunwind clang-lto-env polly-on-env 
+llvm-runtimes/compiler-rt-sanitizers clang-lto-env polly-on-env
+llvm-runtimes/libunwind clang-lto-env polly-on-env
 dev-util/spirv-llvm-translator clang-lto-env polly-on-env
 dev-build/meson clang-lto-env polly-on-env
 media-libs/mesa clang-lto-env polly-plugin-env
@@ -656,7 +655,7 @@ media-libs/dav1d clang-lto-env
 media-libs/aom clang-lto-env
 media-libs/x264 clang-lto-env
 media-libs/libvpx clang-lto-env
-sys-apps/systemd clang-lto-env 
+sys-apps/systemd clang-lto-env
 sys-fs/btrfs-progs clang-lto-env
 sys-libs/zlib clang-lto-env
 dev-db/sqlite clang-lto-env
@@ -814,10 +813,7 @@ env-update && source /etc/profile
 echo "workstation" > /etc/hostname
 ```
 
-
-
-
-### 6.3 — Portage and Its REPOS 
+### 6.3 — Portage and Its REPOS
 
 ```bash
 emerge -aq --jobs=5 app-eselect/eselect-repository dev-vcs/git app-admin/sudo && eselect repository remove gentoo && eselect repository add gentoo git https://github.com/gentoo-mirror/gentoo.git  && emaint sync -r gentoo && eselect repository enable guru hyproverlay CachyOS-kernels xarblu-overlay && eselect repository create custom && emerge --sync
@@ -930,12 +926,12 @@ make install LLVM=1
 
 **What `make install` triggers behind the scenes:**
 
-| Step | Tool | Purpose |
-|------|------|---------|
-| Copy kernel to `/boot` | `installkernel` | Makes the vmlinuz binary available for dracut |
-| Generate UKI | `dracut` (Part 8) | Creates a single signed `.efi` binary containing kernel + initramfs + cmdline |
-| Install UKI | `installkernel` | Places the UKI at `/efi/EFI/Linux/` where the UEFI firmware can load it |
-| Re‑sign UKI | `sbctl` (hook) | The post‑install hook from Part 8.7 runs `sbctl sign -s` on every UKI on the ESP |
+| Step                   | Tool              | Purpose                                                                          |
+| ---------------------- | ----------------- | -------------------------------------------------------------------------------- |
+| Copy kernel to `/boot` | `installkernel`   | Makes the vmlinuz binary available for dracut                                    |
+| Generate UKI           | `dracut` (Part 8) | Creates a single signed `.efi` binary containing kernel + initramfs + cmdline    |
+| Install UKI            | `installkernel`   | Places the UKI at `/efi/EFI/Linux/` where the UEFI firmware can load it          |
+| Re‑sign UKI            | `sbctl` (hook)    | The post‑install hook from Part 8.7 runs `sbctl sign -s` on every UKI on the ESP |
 
 No UEFI boot entry manipulation is performed — the firmware directly loads the signed UKI via the Boot Loader Specification fallback path.
 
@@ -956,7 +952,7 @@ zcat /proc/config.gz | grep -E "CONFIG_(STACKPROTECTOR_STRONG|HARDENED_USERCOPY|
 
 ## 7.4 — Generate Secure Boot Keys (Before First Boot)
 
-Dracut requires the Secure Boot signing keys to exist at the paths specified in its configuration (Part 8.1).  Generate them now:
+Dracut requires the Secure Boot signing keys to exist at the paths specified in its configuration (Part 8.1). Generate them now:
 
 ```bash
 sbctl create-keys
@@ -965,7 +961,7 @@ sbctl create-keys
 ls -l /var/lib/sbctl/keys/db/db.key /var/lib/sbctl/keys/db/db.pem
 ```
 
-> **Note:** Key **enrollment** into UEFI firmware happens later (Part 9), after the first reboot into Setup Mode.  For now, having the keys generated is sufficient for dracut to produce a signed UKI.
+> **Note:** Key **enrollment** into UEFI firmware happens later (Part 9), after the first reboot into Setup Mode. For now, having the keys generated is sufficient for dracut to produce a signed UKI.
 
 ---
 
@@ -988,8 +984,8 @@ Device Drivers --->
     < >   Nouveau (NVIDIA) cards                        CONFIG_DRM_NOUVEAU
 ```
 
-- `CONFIG_DRM_FBDEV_EMULATION` is essential for `nvidia‑drm` to provide a framebuffer console. 
-- `CONFIG_VGA_ARB` ensures correct handoff between `simpledrm` and `nvidia‑drm` at boot. 
+- `CONFIG_DRM_FBDEV_EMULATION` is essential for `nvidia‑drm` to provide a framebuffer console.
+- `CONFIG_VGA_ARB` ensures correct handoff between `simpledrm` and `nvidia‑drm` at boot.
 - `CONFIG_DRM_NOUVEAU` must **not** be set — the open‑source `nouveau` driver conflicts with the proprietary NVIDIA driver.
 
 ### 7B.2 — Kernel Command Line and Modesetting
@@ -1000,10 +996,10 @@ For NVIDIA driver versions **560 and later**, modesetting is enabled by default 
 
 The following USE flags for `x11-drivers/nvidia-drivers` are evaluated for this desktop setup (RTX 2080 Ti). The key flags are `kernel-open` and `modules-sign`.
 
-* **`kernel-open`** — enabled by default; builds the open‑source kernel modules. Recommended for Turing (RTX 20‑series) and newer GPUs; mandatory for Blackwell (50‑series).
-* **`modules-sign`** — critical for Secure Boot. Its role is elaborated in section 7B.4.
-* **`powerd`** — specifically for laptops with NVIDIA Dynamic Boost technology. The Gentoo package description explicitly states it is “only useful with specific laptops, ignore if unsure.” **Not used** on this desktop.
-* **`tools`** — enabled by default; provides `nvidia-smi`, `nvidia-settings`, and other diagnostic utilities.
+- **`kernel-open`** — enabled by default; builds the open‑source kernel modules. Recommended for Turing (RTX 20‑series) and newer GPUs; mandatory for Blackwell (50‑series).
+- **`modules-sign`** — critical for Secure Boot. Its role is elaborated in section 7B.4.
+- **`powerd`** — specifically for laptops with NVIDIA Dynamic Boost technology. The Gentoo package description explicitly states it is “only useful with specific laptops, ignore if unsure.” **Not used** on this desktop.
+- **`tools`** — enabled by default; provides `nvidia-smi`, `nvidia-settings`, and other diagnostic utilities.
 
 Add the following to `/etc/portage/package.use` (merge with any existing `nvidia-drivers` entry):
 
@@ -1026,9 +1022,9 @@ MODULES_SIGN_KEY="/var/lib/sbctl/keys/db/db.key"
 MODULES_SIGN_CERT="/var/lib/sbctl/keys/db/db.pem"
 ```
 
-3. **Kernel Configuration** — the kernel must have `CONFIG_MODULE_SIG=y` to validate signatures at load time. The minimal kernel config already enables this.
+1. **Kernel Configuration** — the kernel must have `CONFIG_MODULE_SIG=y` to validate signatures at load time. The minimal kernel config already enables this.
 
-4. **Verification** — after installing the driver, confirm the modules are signed:
+2. **Verification** — after installing the driver, confirm the modules are signed:
 
 ```bash
 modinfo nvidia | grep '^sig_key'
@@ -1117,7 +1113,7 @@ profile sddm /usr/bin/sddm {
 }
 ```
 
-3. **Test** — after making changes, run the affected applications in complain mode and monitor logs with `aa-logprof` to identify any additional rules required.
+1. **Test** — after making changes, run the affected applications in complain mode and monitor logs with `aa-logprof` to identify any additional rules required.
 
 ### 7B.10 — Hardening the NVIDIA Persistence Daemon with `svc-harden.py`
 
@@ -1230,25 +1226,25 @@ EOF
 
 **Parameter justifications:**
 
-* `quiet` — suppresses non‑critical kernel messages at boot; the `loglevel=3` parameter previously included was redundant because `quiet` already sets the console log level to 4 (KERN\_WARNING and below are suppressed). Remove any separate `loglevel=` parameter.
+- `quiet` — suppresses non‑critical kernel messages at boot; the `loglevel=3` parameter previously included was redundant because `quiet` already sets the console log level to 4 (KERN_WARNING and below are suppressed). Remove any separate `loglevel=` parameter.
 
-* `rootfstype=btrfs` — tells the kernel the root filesystem type, ensuring the correct driver is loaded early.
+- `rootfstype=btrfs` — tells the kernel the root filesystem type, ensuring the correct driver is loaded early.
 
-* `rd.luks.uuid=luks-${UUID}` — instructs dracut to activate only the specified LUKS containers. The `‑luks` prefix is stripped by dracut before comparing against partition UUIDs. When the systemd dracut module is active, dracut converts these parameters into `/etc/crypttab` entries inside the initramfs , so they work alongside (and reinforce) the explicit crypttab files embedded by `install_items`.
+- `rd.luks.uuid=luks-${UUID}` — instructs dracut to activate only the specified LUKS containers. The `‑luks` prefix is stripped by dracut before comparing against partition UUIDs. When the systemd dracut module is active, dracut converts these parameters into `/etc/crypttab` entries inside the initramfs , so they work alongside (and reinforce) the explicit crypttab files embedded by `install_items`.
 
-* `rd.lvm.vg=vg0` — limits LVM to the specified volume group; prevents activation of unintended logical volumes and speeds up boot.
+- `rd.lvm.vg=vg0` — limits LVM to the specified volume group; prevents activation of unintended logical volumes and speeds up boot.
 
-* `root=/dev/vg0/root` — specifies the root device; since the root subvolume is mounted via the Btrfs default (no `subvol=` flag), the kernel automatically selects the active snapshot.
+- `root=/dev/vg0/root` — specifies the root device; since the root subvolume is mounted via the Btrfs default (no `subvol=` flag), the kernel automatically selects the active snapshot.
 
-* `intel_iommu=on iommu=force` — IOMMU strict mode for DMA protection (Part 17).
+- `intel_iommu=on iommu=force` — IOMMU strict mode for DMA protection (Part 17).
 
-* `apparmor=1 security=apparmor` — enables AppArmor as the primary Linux Security Module. The `lsm=` parameter used in Arch‑based systems is **not** needed on Gentoo, where `CONFIG_LSM` is set at kernel compile time.
+- `apparmor=1 security=apparmor` — enables AppArmor as the primary Linux Security Module. The `lsm=` parameter used in Arch‑based systems is **not** needed on Gentoo, where `CONFIG_LSM` is set at kernel compile time.
 
-* `audit=1` — enables the audit subsystem required by `auditd` (Part 15).
+- `audit=1` — enables the audit subsystem required by `auditd` (Part 15).
 
-* `init_on_alloc=1 init_on_free=1` — kernel memory initialisation; zeros all heap allocations at alloc and free time. These are KSPP‑recommended settings that complement the kernel config options `CONFIG_INIT_ON_ALLOC_DEFAULT_ON` and `CONFIG_INIT_ON_FREE_DEFAULT_ON`.
+- `init_on_alloc=1 init_on_free=1` — kernel memory initialisation; zeros all heap allocations at alloc and free time. These are KSPP‑recommended settings that complement the kernel config options `CONFIG_INIT_ON_ALLOC_DEFAULT_ON` and `CONFIG_INIT_ON_FREE_DEFAULT_ON`.
 
-* `mitigations=auto` — CPU vulnerability mitigations applied automatically based on the detected microarchitecture.
+- `mitigations=auto` — CPU vulnerability mitigations applied automatically based on the detected microarchitecture.
 
 > **What was removed:** The original `rd.luks=1` parameter is **not required** when explicit `rd.luks.uuid=` entries are present  and `rd.lvm=1` is redundant when `rd.lvm.vg=` is specified. The `slub_debug=FZ` and `page_poison=1` parameters were removed because they conflict with `init_on_alloc` and `init_on_free`: the kernel debugging framework disables the `init_on` parameters when `slub_debug`/`page_poison` is active, as memory initialisation interferes with the debugging patterns meant to detect use‑after‑free and uninitialised memory access bugs. The individual CPU mitigation toggles (`pti=on`, `spectre_v2=on`, `l1tf=full,force`, `mds=full,nosmt`, `tsx=off`) are replaced by the single `mitigations=auto` parameter, which enables all relevant default mitigations for the running CPU without over‑restricting features that have no security benefit on the i9‑13900K.
 
@@ -1371,7 +1367,6 @@ aa-status | head -3
 cat /proc/cmdline
 ```
 
-
 ---
 
 ## Part 9 — TPM2 + PIN Enrollment
@@ -1407,12 +1402,12 @@ systemd-cryptenroll /dev/nvme1n1p1
 
 ### 10.2 — PCR Register Justification
 
-| PCR | Measures | Why Included |
-|---|---|---|
-| PCR[0] | UEFI firmware code | Detects firmware tampering (Evil Maid flashing malicious UEFI) |
-| PCR[2] | Option ROM code | Detects malicious GPU/NIC UEFI ROMs via Thunderbolt/PCIe |
-| PCR[7] | Secure Boot state (db, dbx, PK, KEK) | Seals against Secure Boot key rotation |
-| PCR[12] | Kernel cmdline (measured by systemd‑boot / direct UEFI load) | Seals against modification of the embedded UKI cmdline |
+| PCR     | Measures                                                     | Why Included                                                   |
+| ------- | ------------------------------------------------------------ | -------------------------------------------------------------- |
+| PCR[0]  | UEFI firmware code                                           | Detects firmware tampering (Evil Maid flashing malicious UEFI) |
+| PCR[2]  | Option ROM code                                              | Detects malicious GPU/NIC UEFI ROMs via Thunderbolt/PCIe       |
+| PCR[7]  | Secure Boot state (db, dbx, PK, KEK)                         | Seals against Secure Boot key rotation                         |
+| PCR[12] | Kernel cmdline (measured by systemd‑boot / direct UEFI load) | Seals against modification of the embedded UKI cmdline         |
 
 > **Direct UEFI boot note**: When the firmware loads a UKI directly (no systemd‑boot), the kernel cmdline embedded in the UKI is measured into PCR[12] by the systemd stub. PCR[11] measures the entire UKI. Both are valid for sealing, but PCR[12] is more specific: it will not be invalidated by non‑cmdline UKI changes (e.g., a new kernel version within the same signed image). If you prefer to seal against the entire UKI content, replace `12` with `11` in the PCR list.
 
@@ -1420,33 +1415,33 @@ systemd-cryptenroll /dev/nvme1n1p1
 
 ## Part 10A — TPM 2.0 Deep Dive: SSH Keys, Diagnostics, FIDO2 & PCR Predictions
 
-Your TPM 2.0 chip is already sealing your LUKS keys (Part 10).  This section covers the rest of its capabilities: storing SSH private keys inside the TPM, useful diagnostic commands, virtual FIDO2 tokens, and the emerging `systemd‑pcrlock` framework for automatic PCR prediction after firmware updates.
+Your TPM 2.0 chip is already sealing your LUKS keys (Part 10). This section covers the rest of its capabilities: storing SSH private keys inside the TPM, useful diagnostic commands, virtual FIDO2 tokens, and the emerging `systemd‑pcrlock` framework for automatic PCR prediction after firmware updates.
 
 ### 10A.1 — TPM Fundamentals (Recap)
 
 The Trusted Platform Module is a secure cryptographic processor built into your i9‑13900K. It can:
 
-* **Generate and store keys** that never leave the chip
-* **Seal data** against specific Platform Configuration Register (PCR) values, so that the data can only be decrypted when the system is in a known‑good state
-* **Sign data** with keys that are bound to the TPM hardware
-* **Provide random number generation** via the hardware TRNG
+- **Generate and store keys** that never leave the chip
+- **Seal data** against specific Platform Configuration Register (PCR) values, so that the data can only be decrypted when the system is in a known‑good state
+- **Sign data** with keys that are bound to the TPM hardware
+- **Provide random number generation** via the hardware TRNG
 
 The `systemd‑cryptenroll` enrollment you performed in Part 10 uses the TPM’s sealing capability: the LUKS master key is wrapped (encrypted) by the TPM’s Storage Root Key, and the TPM will only unwrap it if the current PCR values match those recorded during enrollment.
 
 ### 10A.2 — TPM‑Backed SSH Keys
 
-Storing SSH private keys in the TPM is the highest‑security authentication method available on this workstation.  The key never exists in plaintext on any filesystem — it is generated inside the TPM and never leaves.  Even a kernel‑level attacker cannot extract it.  This mechanism is much more secure than using filesystem permissions, and is comparable in security to a dedicated hardware token.
+Storing SSH private keys in the TPM is the highest‑security authentication method available on this workstation. The key never exists in plaintext on any filesystem — it is generated inside the TPM and never leaves. Even a kernel‑level attacker cannot extract it. This mechanism is much more secure than using filesystem permissions, and is comparable in security to a dedicated hardware token.
 
-This has already been partially implemented in Part 19 of your guide.  The `app‑crypt/tpm2‑pkcs11` package provides the PKCS#11 library that bridges OpenSSH and the TPM.  The key creation and SSH configuration is unchanged from Part 19; the material below adds **context** and explains how to **verify** the key is hardware‑backed.
+This has already been partially implemented in Part 19 of your guide. The `app‑crypt/tpm2‑pkcs11` package provides the PKCS#11 library that bridges OpenSSH and the TPM. The key creation and SSH configuration is unchanged from Part 19; the material below adds **context** and explains how to **verify** the key is hardware‑backed.
 
 #### 10A.2.1 — Understanding the Architecture
 
-| Component | Role |
-|-----------|------|
-| `app‑crypt/tpm2‑tss` | TPM 2.0 Software Stack; low‑level libraries that communicate with the TPM chip |
+| Component               | Role                                                                                         |
+| ----------------------- | -------------------------------------------------------------------------------------------- |
+| `app‑crypt/tpm2‑tss`    | TPM 2.0 Software Stack; low‑level libraries that communicate with the TPM chip               |
 | `app‑crypt/tpm2‑pkcs11` | Translates between the PKCS#11 API (which OpenSSH understands) and the TPM’s native commands |
-| `libtpm2_pkcs11.so` | The shared library that OpenSSH loads via the `PKCS11Provider` directive |
-| `tpm2_ptool` | Command‑line tool for initialising the PKCS#11 token store and creating keys |
+| `libtpm2_pkcs11.so`     | The shared library that OpenSSH loads via the `PKCS11Provider` directive                     |
+| `tpm2_ptool`            | Command‑line tool for initialising the PKCS#11 token store and creating keys                 |
 
 The flow is:
 
@@ -1454,11 +1449,11 @@ The flow is:
 ssh → PKCS11Provider → /usr/lib64/libtpm2_pkcs11.so → tpm2-tss → /dev/tpmrm0 → TPM chip
 ```
 
-Because the private key is inside the TPM, the SSH client never sees it.  The TPM performs the cryptographic signing operation internally and returns only the signature.
+Because the private key is inside the TPM, the SSH client never sees it. The TPM performs the cryptographic signing operation internally and returns only the signature.
 
 #### 10A.2.2 — The `tss` Group and User Access
 
-For unprivileged users to access the TPM, they must be members of the `tss` group.  This was done in Section 6.6 when you created the `ahsan` user.  The Gentoo wiki explicitly documents this requirement.
+For unprivileged users to access the TPM, they must be members of the `tss` group. This was done in Section 6.6 when you created the `ahsan` user. The Gentoo wiki explicitly documents this requirement.
 
 To verify:
 
@@ -1472,7 +1467,7 @@ If `tss` is missing, add it now:
 gpasswd -a ahsan tss
 ```
 
-The user must log out and back in for the group change to take effect.  The TPM resource manager (`/dev/tpmrm0`) grants access to members of the `tss` group via udev rules shipped with `app‑crypt/tpm2‑tss`.
+The user must log out and back in for the group change to take effect. The TPM resource manager (`/dev/tpmrm0`) grants access to members of the `tss` group via udev rules shipped with `app‑crypt/tpm2‑tss`.
 
 #### 10A.2.3 — Key Hierarchy Inside the TPM
 
@@ -1482,11 +1477,11 @@ When you run `tpm2_ptool init` (Part 19.2), the following hierarchy is created
 2. **Token** — a virtual container that holds one or more keys; you created one with `tpm2_ptool addtoken --pid=1 --label=ssh --userpin=… --sopin=…`
 3. **Private key** — the actual SSH key, generated with `tpm2_ptool addkey --label=ssh --userpin=… --algorithm=ecc256`
 
-The SRK is randomly generated when the TPM is first provisioned and is unique to that physical chip.  If you clear the TPM (e.g., via a UEFI firmware option), the SRK is destroyed, and all keys created under it become permanently inaccessible.  Always keep a non‑TPM backup SSH key stored offline for emergency access.
+The SRK is randomly generated when the TPM is first provisioned and is unique to that physical chip. If you clear the TPM (e.g., via a UEFI firmware option), the SRK is destroyed, and all keys created under it become permanently inaccessible. Always keep a non‑TPM backup SSH key stored offline for emergency access.
 
 #### 10A.2.4 — Empty PIN vs. PIN‑Protected Keys
 
-Your `‑‑userpin` can be empty (`--userpin=""`), but the Gentoo wiki warns that "leaving it empty means the physical theft of the computer can allow an attacker to use the SSH private key through possession of the TPM alone."  Setting a PIN achieves two‑factor authentication: something you have (the TPM) and something you know (the PIN).
+Your `‑‑userpin` can be empty (`--userpin=""`), but the Gentoo wiki warns that "leaving it empty means the physical theft of the computer can allow an attacker to use the SSH private key through possession of the TPM alone." Setting a PIN achieves two‑factor authentication: something you have (the TPM) and something you know (the PIN).
 
 #### 10A.2.5 — Verifying the Key is Hardware‑Backed
 
@@ -1513,7 +1508,7 @@ If `ssh-keygen -D` prints a public key, the TPM is correctly provisioned.
 
 #### 10A.2.6 — Using TPM Keys with Git Commit Signing
 
-The TPM key can also sign Git commits.  The Gentoo wiki documents this workflow using the SSH‑agent protocol already configured in Part 19.6.
+The TPM key can also sign Git commits. The Gentoo wiki documents this workflow using the SSH‑agent protocol already configured in Part 19.6.
 
 ```bash
 # Load the TPM key into the SSH agent
@@ -1528,13 +1523,13 @@ git config --global user.signingkey ~/.ssh/tpm_key.pub
 git config --global commit.gpgsign true
 ```
 
-Now every Git commit is signed by a key that never left the TPM.  The signature proves that the commit was made on this specific machine by someone who knows the TPM PIN.
+Now every Git commit is signed by a key that never left the TPM. The signature proves that the commit was made on this specific machine by someone who knows the TPM PIN.
 
 ---
 
 ### 10A.3 — TPM Diagnostic Tools
 
-The `app‑crypt/tpm2‑tools` package provides command‑line utilities for reading PCR values, inspecting keys, and testing attestation.  Install it now:
+The `app‑crypt/tpm2‑tools` package provides command‑line utilities for reading PCR values, inspecting keys, and testing attestation. Install it now:
 
 ```bash
 emerge --ask app-crypt/tpm2-tools
@@ -1544,13 +1539,13 @@ The current stable version on Gentoo as of April 2026 is **tpm2‑tools‑5.7*
 
 #### 10A.3.1 — Reading PCR Values
 
-PCRs contain cryptographic hashes that represent the current state of the system.  The command below reads all PCRs in the SHA‑256 bank (the default used by systemd):
+PCRs contain cryptographic hashes that represent the current state of the system. The command below reads all PCRs in the SHA‑256 bank (the default used by systemd):
 
 ```bash
 tpm2_pcrread sha256:0+1+2+3+4+5+6+7+8+9+10+11+12+13+14+15
 ```
 
-Compare the output with the PCR table in Part 10.2.  After a UEFI firmware update, PCR[0] will change.  After enrolling new Secure Boot keys, PCR[7] will change.
+Compare the output with the PCR table in Part 10.2. After a UEFI firmware update, PCR[0] will change. After enrolling new Secure Boot keys, PCR[7] will change.
 
 #### 10A.3.2 — Listing Persistent Keys
 
@@ -1569,6 +1564,7 @@ tpm2_getcap properties-fixed
 ```
 
 Look for:
+
 - `TPM2_PT_FAMILY_INDICATOR` — should be `2.0`
 - `TPM2_PT_MANUFACTURER` — typically `INTC` for Intel fTPM
 - `TPM2_PT_VENDOR_STRING_1` through `4` — firmware version information
@@ -1582,7 +1578,7 @@ If this command produces output, your TPM supports the `PolicyAuthorizeNV` comma
 
 #### 10A.3.4 — Reading the TPM Event Log
 
-The event log records every measurement that extends a PCR.  It is essential for understanding why a particular PCR value changed:
+The event log records every measurement that extends a PCR. It is essential for understanding why a particular PCR value changed:
 
 ```bash
 # Binary event log (raw UEFI measurements)
@@ -1598,49 +1594,50 @@ The event log is human‑readable when passed through `systemd‑pcrlock` or `tp
 
 ### 10A.4 — TPM as a Virtual FIDO2 Token
 
-A TPM can function as a FIDO2 authenticator, effectively replacing a physical security key for many use cases.  The tool **tpm‑fido** bridges this gap: it protects FIDO2 token keys using your system's TPM and uses Linux's `uhid` facility to emulate a USB HID device so that it is properly detected by browsers.
+A TPM can function as a FIDO2 authenticator, effectively replacing a physical security key for many use cases. The tool **tpm‑fido** bridges this gap: it protects FIDO2 token keys using your system's TPM and uses Linux's `uhid` facility to emulate a USB HID device so that it is properly detected by browsers.
 
-This means you can use your TPM for WebAuthn/U2F authentication on websites without a physical YubiKey.  However, `tpm‑fido` is not currently packaged in the main Gentoo repository.  To use it on your hardened Gentoo system, you would need to install it from source (`github.com/psanford/tpm-fido`), which introduces a manual maintenance burden.  The tool is best suited for experimentation until it matures or becomes packaged.
+This means you can use your TPM for WebAuthn/U2F authentication on websites without a physical YubiKey. However, `tpm‑fido` is not currently packaged in the main Gentoo repository. To use it on your hardened Gentoo system, you would need to install it from source (`github.com/psanford/tpm-fido`), which introduces a manual maintenance burden. The tool is best suited for experimentation until it matures or becomes packaged.
 
-If you choose to install it, be aware that root access can interpose on the virtual device and trick the TPM into giving up its secrets — the TPM does not provide a trusted path to the application in this configuration.  For this reason, a physical FIDO2 key (e.g., YubiKey) remains the stronger choice for cross‑platform, portable authentication.
+If you choose to install it, be aware that root access can interpose on the virtual device and trick the TPM into giving up its secrets — the TPM does not provide a trusted path to the application in this configuration. For this reason, a physical FIDO2 key (e.g., YubiKey) remains the stronger choice for cross‑platform, portable authentication.
 
 ---
 
 ### 10A.5 — TPM‑Backed PIN for sudo and Login (Experimental)
 
-A complementary tool called **pinpam** provides a PAM module that enables system‑wide authentication with a brute‑force resistant, TPM2‑backed PIN.  It is intended to supplement (not replace) traditional password‑based UNIX authentication, and can be used for `sudo`, login, or any other service supported by PAM.
+A complementary tool called **pinpam** provides a PAM module that enables system‑wide authentication with a brute‑force resistant, TPM2‑backed PIN. It is intended to supplement (not replace) traditional password‑based UNIX authentication, and can be used for `sudo`, login, or any other service supported by PAM.
 
-**How it works**: Instead of a system password, `pinpam` stores a user's PIN directly within the TPM's secure Non‑Volatile Random Access Memory (NVRAM).  The TPM maintains a PinFail index that tracks failed attempts; after a configurable number of incorrect tries, the TPM will lock out further authentication attempts, making brute‑forcing extremely difficult even for an attacker with root access.
+**How it works**: Instead of a system password, `pinpam` stores a user's PIN directly within the TPM's secure Non‑Volatile Random Access Memory (NVRAM). The TPM maintains a PinFail index that tracks failed attempts; after a configurable number of incorrect tries, the TPM will lock out further authentication attempts, making brute‑forcing extremely difficult even for an attacker with root access.
 
-`pinpam` is not yet packaged for Gentoo.  To use it on your hardened system, you would need to compile it from source (`github.com/RazeLighter777/pinpam`).
+`pinpam` is not yet packaged for Gentoo. To use it on your hardened system, you would need to compile it from source (`github.com/RazeLighter777/pinpam`).
 
-**Recommendation for this guide**: For your APT‑hardened system, the current defense of `pam_faillock` (Part 21) combined with full disk encryption and strict access controls provides robust `sudo` authentication.  `pinpam` is an interesting project to monitor for future integration, but the operational cost of maintaining a from‑source installation currently outweighs the marginal security benefit.
+**Recommendation for this guide**: For your APT‑hardened system, the current defense of `pam_faillock` (Part 21) combined with full disk encryption and strict access controls provides robust `sudo` authentication. `pinpam` is an interesting project to monitor for future integration, but the operational cost of maintaining a from‑source installation currently outweighs the marginal security benefit.
 
 ---
 
 ### 10A.6 — Automatic PCR Prediction: `systemd‑pcrlock`
 
-The biggest operational pain of TPM‑sealed LUKS is that legitimate firmware updates break the PCR seal, forcing manual recovery (Part 29).  `systemd‑pcrlock` is a new tool designed to automate this.
+The biggest operational pain of TPM‑sealed LUKS is that legitimate firmware updates break the PCR seal, forcing manual recovery (Part 29). `systemd‑pcrlock` is a new tool designed to automate this.
 
-> **Status as of April 2026:** Marked **experimental** by the systemd project.  "While it is likely to become a regular component of systemd, it might still change in behaviour and interface."
+> **Status as of April 2026:** Marked **experimental** by the systemd project. "While it is likely to become a regular component of systemd, it might still change in behaviour and interface."
 
 #### 10A.6.1 — How It Works
 
-`systemd‑pcrlock` analyzes the TPM2 event log, recognizes boot components using `*.pcrlock` definition files, and **predicts** what PCR values will look like after legitimate updates.  It then generates a TPM2 access policy (consisting of `PolicyPCR` and `PolicyOR` items) and stores it in a TPM2 NV index.  This policy allows unlocking across predicted PCR changes while still refusing to unlock the disk for unpredicted states.
+`systemd‑pcrlock` analyzes the TPM2 event log, recognizes boot components using `*.pcrlock` definition files, and **predicts** what PCR values will look like after legitimate updates. It then generates a TPM2 access policy (consisting of `PolicyPCR` and `PolicyOR` items) and stores it in a TPM2 NV index. This policy allows unlocking across predicted PCR changes while still refusing to unlock the disk for unpredicted states.
 
 The tool uses as input:
-* The UEFI firmware TPM2 event log (`/sys/kernel/security/tpm0/binary_bios_measurements`)
-* The userspace TPM2 event log (`/run/log/systemd/tpm2-measure.log`)
-* The current PCR state of the TPM2 chip
-* Boot component definition files (`*.pcrlock` and `*.pcrlock.d/*.pcrlock`)
+
+- The UEFI firmware TPM2 event log (`/sys/kernel/security/tpm0/binary_bios_measurements`)
+- The userspace TPM2 event log (`/run/log/systemd/tpm2-measure.log`)
+- The current PCR state of the TPM2 chip
+- Boot component definition files (`*.pcrlock` and `*.pcrlock.d/*.pcrlock`)
 
 #### 10A.6.2 — Prerequisites
 
-| Requirement | Command to Verify |
-|-------------|-------------------|
-| systemd ≥ 255 | `systemctl --version` |
-| TPM 2.0 ≥ v1.38 | `tpm2_getcap commands \| grep PolicyAuthorizeNV` |
-| TPM2 event log | `ls /sys/kernel/security/tpm0/binary_bios_measurements` |
+| Requirement     | Command to Verify                                       |
+| --------------- | ------------------------------------------------------- |
+| systemd ≥ 255   | `systemctl --version`                                   |
+| TPM 2.0 ≥ v1.38 | `tpm2_getcap commands \| grep PolicyAuthorizeNV`        |
+| TPM2 event log  | `ls /sys/kernel/security/tpm0/binary_bios_measurements` |
 
 #### 10A.6.3 — Basic Workflow
 
@@ -1656,7 +1653,7 @@ sudo systemd-pcrlock make-policy
 
 You can then bind disk encryption to this policy using systemd‑cryptenroll with the `--tpm2-pcrlock=` switch.
 
-> **Important:** Always keep a recovery key as a fallback.  A `pcrlock` policy that fails to generate after an update will prevent TPM‑based unlock entirely.
+> **Important:** Always keep a recovery key as a fallback. A `pcrlock` policy that fails to generate after an update will prevent TPM‑based unlock entirely.
 
 #### 10A.6.4 — Current Limitations
 
@@ -1665,13 +1662,13 @@ You can then bind disk encryption to this policy using systemd‑cryptenroll wit
 - There is an open request for `fwupd` to integrate `systemd‑pcrlock` for seamless firmware updates, but it has not been merged as of April 2026.
 - The policy is protected by a recovery PIN; you must remember this PIN or fall back to the LUKS recovery key.
 
-**Recommendation:** Continue using the manual recovery procedure in Part 29.  Monitor `systemd‑pcrlock`'s status and re‑evaluate in mid‑2026.  When it stabilises, you can potentially replace the manual re‑enrollment steps with the `unlock‑firmware‑code` / `make‑policy` workflow.
+**Recommendation:** Continue using the manual recovery procedure in Part 29. Monitor `systemd‑pcrlock`'s status and re‑evaluate in mid‑2026. When it stabilises, you can potentially replace the manual re‑enrollment steps with the `unlock‑firmware‑code` / `make‑policy` workflow.
 
 ---
 
 ### 10A.7 — TPM‑Assisted Random Number Generation
 
-The TPM provides a hardware random number generator that the kernel integrates into its entropy pool.  On the i9‑13900K this happens automatically via `CONFIG_HW_RANDOM_TPM=y` (already enabled in your cachyos‑sources kernel).  No userspace configuration is needed.
+The TPM provides a hardware random number generator that the kernel integrates into its entropy pool. On the i9‑13900K this happens automatically via `CONFIG_HW_RANDOM_TPM=y` (already enabled in your cachyos‑sources kernel). No userspace configuration is needed.
 
 Verify:
 
@@ -1680,13 +1677,13 @@ cat /sys/devices/virtual/misc/hw_random/rng_current
 # Should show: tpm-rng-0
 ```
 
-The TPM RNG is used alongside RDRAND and the kernel's jitterentropy to seed `/dev/urandom`.  **Do not install `haveged`** on this system — the kernel's built‑in entropy sources are superior on modern hardware.
+The TPM RNG is used alongside RDRAND and the kernel's jitterentropy to seed `/dev/urandom`. **Do not install `haveged`** on this system — the kernel's built‑in entropy sources are superior on modern hardware.
 
 ---
 
 ### 10A.8 — TPM‑Backed GPG Keys (Experimental)
 
-GnuPG ≥ 2.3 has experimental support for storing private keys in the TPM.  On Gentoo this requires:
+GnuPG ≥ 2.3 has experimental support for storing private keys in the TPM. On Gentoo this requires:
 
 ```bash
 # Ensure gnupg is built with the 'tpm' USE flag
@@ -1694,52 +1691,51 @@ echo "app-crypt/gnupg tpm" >> /etc/portage/package.use/gnupg
 emerge --ask app-crypt/gnupg
 ```
 
-Configuration is complex and the feature is still marked experimental upstream.  It is not recommended for production use in an APT‑hardened environment until it stabilises.  The Gentoo TPM wiki page has a dedicated section on GPG/TPM integration that you can consult when the feature matures.
+Configuration is complex and the feature is still marked experimental upstream. It is not recommended for production use in an APT‑hardened environment until it stabilises. The Gentoo TPM wiki page has a dedicated section on GPG/TPM integration that you can consult when the feature matures.
 
 ---
 
 ### 10A.9 — Security Considerations
 
-| Threat | TPM Mitigation | Limitation |
-|--------|---------------|------------|
-| Evil‑maid attack (malicious firmware) | PCR[0] sealing detects firmware modification | If attacker also has the recovery key, they can bypass TPM |
-| Cold‑boot attack (DRAM extraction) | TPM PIN provides a second factor; LUKS master key never in RAM in plaintext | PIN is prompted before PCR validation, so a compromised initramfs could capture it |
-| SSH key theft | Private key never leaves the TPM; PIN required for use | Physical possession + PIN circumvention still possible |
-| Sniffing attacks on the TPM bus | Bus encryption on modern TPMs (check your firmware) | Not all TPM implementations encrypt the bus |
-| Virtual FIDO2 interposition | Root can interpose on the virtual HID device | Physical FIDO2 key is stronger for this use case |
+| Threat                                | TPM Mitigation                                                              | Limitation                                                                         |
+| ------------------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Evil‑maid attack (malicious firmware) | PCR[0] sealing detects firmware modification                                | If attacker also has the recovery key, they can bypass TPM                         |
+| Cold‑boot attack (DRAM extraction)    | TPM PIN provides a second factor; LUKS master key never in RAM in plaintext | PIN is prompted before PCR validation, so a compromised initramfs could capture it |
+| SSH key theft                         | Private key never leaves the TPM; PIN required for use                      | Physical possession + PIN circumvention still possible                             |
+| Sniffing attacks on the TPM bus       | Bus encryption on modern TPMs (check your firmware)                         | Not all TPM implementations encrypt the bus                                        |
+| Virtual FIDO2 interposition           | Root can interpose on the virtual HID device                                | Physical FIDO2 key is stronger for this use case                                   |
 
 ---
 
 ### 10A.10 — Summary of TPM Integration
 
-| Feature | Guide Section | Status |
-|---------|---------------|--------|
-| LUKS2 unlock via TPM2+PIN | Part 10 | ✅ Fully configured |
-| LUKS recovery key enrollment | Part 10 | ✅ Configured |
-| TPM PCR sealing (0+2+7+12) | Part 10.2 | ✅ Configured |
-| TPM‑backed SSH keys | Part 19 | ✅ Configured |
-| TPM SSH key Git signing | Section 10A.2.6 | ✅ Optional |
-| TPM diagnostic tools (`tpm2‑tools`) | Section 10A.3 | Recommended |
-| TPM virtual FIDO2 (`tpm‑fido`) | Section 10A.4 | ⚠️ Experimental / from‑source |
-| TPM‑backed sudo PIN (`pinpam`) | Section 10A.5 | ⚠️ Experimental / from‑source |
-| TPM‑backed GPG keys | Section 10A.8 | ⚠️ Experimental |
-| `systemd‑pcrlock` | Section 10A.6 | ⚠️ Experimental |
-| Manual TPM recovery after firmware update | Part 29 | ✅ Configured |
+| Feature                                   | Guide Section   | Status                        |
+| ----------------------------------------- | --------------- | ----------------------------- |
+| LUKS2 unlock via TPM2+PIN                 | Part 10         | ✅ Fully configured           |
+| LUKS recovery key enrollment              | Part 10         | ✅ Configured                 |
+| TPM PCR sealing (0+2+7+12)                | Part 10.2       | ✅ Configured                 |
+| TPM‑backed SSH keys                       | Part 19         | ✅ Configured                 |
+| TPM SSH key Git signing                   | Section 10A.2.6 | ✅ Optional                   |
+| TPM diagnostic tools (`tpm2‑tools`)       | Section 10A.3   | Recommended                   |
+| TPM virtual FIDO2 (`tpm‑fido`)            | Section 10A.4   | ⚠️ Experimental / from‑source |
+| TPM‑backed sudo PIN (`pinpam`)            | Section 10A.5   | ⚠️ Experimental / from‑source |
+| TPM‑backed GPG keys                       | Section 10A.8   | ⚠️ Experimental               |
+| `systemd‑pcrlock`                         | Section 10A.6   | ⚠️ Experimental               |
+| Manual TPM recovery after firmware update | Part 29         | ✅ Configured                 |
 
 All of the above is verified against the Gentoo Wiki (specifically the [Trusted Platform Module/SSH page](https://wiki.gentoo.org/wiki/Trusted_Platform_Module/SSH), which documents `tpm2‑pkcs11` installation and `PKCS11Provider` configuration), the systemd man pages (`systemd‑pcrlock(8)` confirms the prediction and NV‑Index policy mechanism), and the `systemd‑cryptenroll(1)` manual page.
-
 
 ---
 
 ## Part 10B — `systemd-homed`: Per‑User Encrypted Home Directories
 
-Your LUKS‑encrypted root filesystem protects all data at rest against physical theft of a powered‑off machine.  `systemd-homed` adds a **second, independent encryption layer** for each user: every home directory becomes its own LUKS2 container, sealed with a user‑chosen passphrase or a FIDO2/TPM token.  Critically, the home directory can be **automatically locked when the system suspends** — the LUKS master key is evicted from kernel memory, so a cold‑boot or DMA attack on a sleeping machine reveals nothing.
+Your LUKS‑encrypted root filesystem protects all data at rest against physical theft of a powered‑off machine. `systemd-homed` adds a **second, independent encryption layer** for each user: every home directory becomes its own LUKS2 container, sealed with a user‑chosen passphrase or a FIDO2/TPM token. Critically, the home directory can be **automatically locked when the system suspends** — the LUKS master key is evicted from kernel memory, so a cold‑boot or DMA attack on a sleeping machine reveals nothing.
 
-This is defence‑in‑depth: an attacker who compromises the root filesystem (e.g., via a kernel exploit) still cannot read the contents of a locked home directory without the user’s credentials.  The `systemd-homed` service is included in `sys-apps/systemd` and is enabled via the `homed` USE flag.
+This is defence‑in‑depth: an attacker who compromises the root filesystem (e.g., via a kernel exploit) still cannot read the contents of a locked home directory without the user’s credentials. The `systemd-homed` service is included in `sys-apps/systemd` and is enabled via the `homed` USE flag.
 
 ### 10B.1 — Kernel Requirements
 
-`systemd-homed` with the LUKS backend requires the following kernel options.  The `cachyos-sources` `.config` already enables most of these; verify in `make menuconfig` if any build fails:
+`systemd-homed` with the LUKS backend requires the following kernel options. The `cachyos-sources` `.config` already enables most of these; verify in `make menuconfig` if any build fails:
 
 ```
 Device Drivers --->
@@ -1768,7 +1764,7 @@ All of the above are verified against the [Gentoo wiki’s `systemd-homed` artic
 
 ### 10B.2 — Installation and USE Flags
 
-`systemd-homed` requires the `homed` USE flag on `sys-apps/systemd` and on `sys-auth/pambase`.  Add them to your existing configuration in `/etc/portage/package.use`:
+`systemd-homed` requires the `homed` USE flag on `sys-apps/systemd` and on `sys-auth/pambase`. Add them to your existing configuration in `/etc/portage/package.use`:
 
 ```bash
 # /etc/portage/package.use/systemd — append 'homed' to the existing line
@@ -1801,7 +1797,7 @@ systemctl is-active systemd-homed.service   # should print "active"
 
 ### 10B.3 — NSS Configuration
 
-Update the Name Service Switch configuration so that `systemd-homed` users are recognised by the system.  Edit `/etc/nsswitch.conf` and add `systemd` to the `passwd`, `shadow`, and `group` lines:
+Update the Name Service Switch configuration so that `systemd-homed` users are recognised by the system. Edit `/etc/nsswitch.conf` and add `systemd` to the `passwd`, `shadow`, and `group` lines:
 
 ```bash
 # /etc/nsswitch.conf (relevant lines)
@@ -1816,23 +1812,23 @@ Without this change, tools like `ls -l`, `id`, and `sudo` will not resolve `syst
 
 `systemd-homed` supports several storage backends; the **LUKS2 backend** is the only one appropriate for this hardened configuration:
 
-| Backend | Encryption | Portable | Lock on Suspend | Recommendation |
-|---------|-----------|----------|-----------------|----------------|
-| `luks` | LUKS2 on a loopback file or partition | Yes | Yes (with PAM `suspend=true`) | **This guide** |
-| `fscrypt` | Native filesystem encryption (ext4/f2fs) | No | No | Weak: no suspend‑lock |
-| `directory` | Plain directory, no encryption | No | No | Insecure — do not use |
-| `subvolume` | Btrfs subvolume, no encryption | No | No | Insecure — do not use |
-| `cifs` | Remote CIFS mount | N/A | N/A | Network only |
+| Backend     | Encryption                               | Portable | Lock on Suspend               | Recommendation        |
+| ----------- | ---------------------------------------- | -------- | ----------------------------- | --------------------- |
+| `luks`      | LUKS2 on a loopback file or partition    | Yes      | Yes (with PAM `suspend=true`) | **This guide**        |
+| `fscrypt`   | Native filesystem encryption (ext4/f2fs) | No       | No                            | Weak: no suspend‑lock |
+| `directory` | Plain directory, no encryption           | No       | No                            | Insecure — do not use |
+| `subvolume` | Btrfs subvolume, no encryption           | No       | No                            | Insecure — do not use |
+| `cifs`      | Remote CIFS mount                        | N/A      | N/A                           | Network only          |
 
-The `luks` backend stores the home directory as a LUKS2‑encrypted loopback file at `/home/<username>.home`.  This file can be moved between compatible systems — your entire user identity is portable.  The home directory is mounted at `/home/<username>` when the user logs in and unmounted when the last session ends.
+The `luks` backend stores the home directory as a LUKS2‑encrypted loopback file at `/home/<username>.home`. This file can be moved between compatible systems — your entire user identity is portable. The home directory is mounted at `/home/<username>` when the user logs in and unmounted when the last session ends.
 
-At login, the LUKS2 volume is decrypted and the filesystem inside is mounted.  The loopback file can be transparently discarded (trimmed) when the user logs out by enabling both `--luks-discard=true` (online discard while mounted) and `--luks-offline-discard=true` (offline discard on logout).  However, enabling discard leaks information about which sectors are in use; for an APT threat model, leave both discard options at their defaults (`false`) unless disk space is critically constrained.
+At login, the LUKS2 volume is decrypted and the filesystem inside is mounted. The loopback file can be transparently discarded (trimmed) when the user logs out by enabling both `--luks-discard=true` (online discard while mounted) and `--luks-offline-discard=true` (offline discard on logout). However, enabling discard leaks information about which sectors are in use; for an APT threat model, leave both discard options at their defaults (`false`) unless disk space is critically constrained.
 
 ### 10B.5 — Creating a `systemd-homed` User
 
-> **This section assumes the `ahsan` user already exists (created in Section 6.6) and has data in `/home/ahsan`.  If you have not yet rebooted into the installed system, complete Part 26 first, then return here.**
+> **This section assumes the `ahsan` user already exists (created in Section 6.6) and has data in `/home/ahsan`. If you have not yet rebooted into the installed system, complete Part 26 first, then return here.**
 
-There is no `homectl convert` command.  Migrating an existing traditional user to `systemd-homed` is a manual process following the [upstream conversion guide](https://systemd.io/CONVERTING_TO_HOMED/).  The steps below follow that guide, adapted for this system.
+There is no `homectl convert` command. Migrating an existing traditional user to `systemd-homed` is a manual process following the [upstream conversion guide](https://systemd.io/CONVERTING_TO_HOMED/). The steps below follow that guide, adapted for this system.
 
 **Step 1: Log in as root on the console**
 
@@ -1877,7 +1873,7 @@ vigr -s     # delete the corresponding line in /etc/gshadow
 
 **Step 5: Create the new `systemd-homed` user**
 
-Use the same UID and GID from Step 2.  The `--storage=luks` flag selects the encrypted LUKS2 backend.  The `--recovery-key=yes` flag prints a 48‑character recovery key — **store it offline immediately**, identically to your LUKS disk recovery key.
+Use the same UID and GID from Step 2. The `--storage=luks` flag selects the encrypted LUKS2 backend. The `--recovery-key=yes` flag prints a 48‑character recovery key — **store it offline immediately**, identically to your LUKS disk recovery key.
 
 ```bash
 homectl create ahsan \
@@ -1889,7 +1885,7 @@ homectl create ahsan \
     --recovery-key=yes
 ```
 
-You will be prompted to set a password for the new user.  Choose a strong, unique passphrase — this is used both for login and to decrypt the LUKS2 home container.
+You will be prompted to set a password for the new user. Choose a strong, unique passphrase — this is used both for login and to decrypt the LUKS2 home container.
 
 **Step 6: Migrate the old data into the new home directory**
 
@@ -1897,7 +1893,7 @@ You will be prompted to set a password for the new user.  Choose a strong, uniqu
 homectl with ahsan -- rsync -aHAXv --remove-source-files /home/ahsan.saved/ .
 ```
 
-This command mounts the new home directory, runs `rsync` as root to copy the old data in, and unmounts the home directory when `rsync` completes.  The `--remove-source-files` flag deletes files from the old backup as they are copied.
+This command mounts the new home directory, runs `rsync` as root to copy the old data in, and unmounts the home directory when `rsync` completes. The `--remove-source-files` flag deletes files from the old backup as they are copied.
 
 **Step 7: Verify**
 
@@ -1919,9 +1915,9 @@ ls -lh /home/ahsan.home
 
 ### 10B.6 — PAM Integration and Automatic Locking on Suspend
 
-For `systemd-homed` to work with SSH, the display manager (SDDM), and `sudo`, the PAM stack must load `pam_systemd_home.so`.  Gentoo’s `sys-auth/pambase` already includes this module when the `homed` USE flag is enabled (Section 10B.2), so no manual PAM edits are required for basic functionality.
+For `systemd-homed` to work with SSH, the display manager (SDDM), and `sudo`, the PAM stack must load `pam_systemd_home.so`. Gentoo’s `sys-auth/pambase` already includes this module when the `homed` USE flag is enabled (Section 10B.2), so no manual PAM edits are required for basic functionality.
 
-However, for the lock‑on‑suspend feature — which evicts the LUKS master key from memory when the system suspends — the `suspend=true` parameter must be added to the `pam_systemd_home.so` lines in the PAM configuration.  This is controlled by the `$SYSTEMD_HOME_SUSPEND` environment variable that `pam_systemd_home.so` reads, but the authoritative method is to set the parameter directly in the PAM stack.
+However, for the lock‑on‑suspend feature — which evicts the LUKS master key from memory when the system suspends — the `suspend=true` parameter must be added to the `pam_systemd_home.so` lines in the PAM configuration. This is controlled by the `$SYSTEMD_HOME_SUSPEND` environment variable that `pam_systemd_home.so` reads, but the authoritative method is to set the parameter directly in the PAM stack.
 
 Add `suspend=true` to every `pam_systemd_home.so` entry in `/etc/pam.d/system-auth`:
 
@@ -1932,7 +1928,7 @@ account   sufficient  pam_systemd_home.so
 session   optional    pam_systemd_home.so
 ```
 
-> **SSH note**: SSH public‑key authentication via TPM‑backed keys (Part 19) continues to work.  The `PKCS11Provider` is independent of the user’s login password.  After a suspend‑and‑resume, the `ssh-agent` socket may persist, but the home directory must be re‑activated before any files inside it can be accessed.
+> **SSH note**: SSH public‑key authentication via TPM‑backed keys (Part 19) continues to work. The `PKCS11Provider` is independent of the user’s login password. After a suspend‑and‑resume, the `ssh-agent` socket may persist, but the home directory must be re‑activated before any files inside it can be accessed.
 
 Additionally, configure the display manager to lock the session on suspend:
 
@@ -1947,30 +1943,30 @@ LockOnSuspend=yes
 EOF
 ```
 
-> **Important**: `LockOnSuspend=yes` instructs the display manager to lock the screen, but the LUKS key eviction is triggered by `pam_systemd_home.so suspend=true`, not by `logind`.  Both must be configured for the full suspend‑lock behaviour.  Additionally, at least one active PAM session for the user must have `suspend=true` set; if no such session exists (e.g., the user logged in via a session that lacks this parameter), the home directory will **not** be suspended.
+> **Important**: `LockOnSuspend=yes` instructs the display manager to lock the screen, but the LUKS key eviction is triggered by `pam_systemd_home.so suspend=true`, not by `logind`. Both must be configured for the full suspend‑lock behaviour. Additionally, at least one active PAM session for the user must have `suspend=true` set; if no such session exists (e.g., the user logged in via a session that lacks this parameter), the home directory will **not** be suspended.
 
 ### 10B.7 — Interaction with the Existing Hardening Setup
 
-| Component | Impact |
-|-----------|--------|
-| **LUKS2 full‑disk encryption** | Unchanged — `systemd-homed` adds a second, per‑user LUKS layer inside the already‑encrypted root filesystem. |
-| **TPM2 LUKS unlock (Part 10)** | Unaffected — `systemd-homed` manages user home directories, not the root filesystem.  You may also enroll a TPM2 or FIDO2 token on the homed container via `homectl update ahsan --fido2-device=auto` or `--tpm2-device=auto`. |
-| **AppArmor** | No changes needed — `apparmor.d` does not ship a `systemd-homed` profile, but `homed` runs as a system service confined by systemd’s own sandboxing. |
-| **`svc-harden.py` (Part 23)** | Run `sudo svc-harden.py profile systemd-homed.service` after the service has been active for a week to profile its runtime behaviour and apply confinement directives. |
-| **Snapper snapshots** | The `/home/ahsan.home` loopback file is a single large binary blob.  Snapper snapshots of the `/home` subvolume will include the entire LUKS container, which can consume snapshot space rapidly.  Consider excluding `/home/*.home` from timeline snapshots or reducing the home timeline retention. |
-| **fstab** | No changes — `systemd-homed` mounts home directories dynamically; the `/home` entry in fstab remains a plain Btrfs subvolume. |
-| **NVIDIA drivers** | Unchanged — GPU state is unaffected by home directory encryption. |
+| Component                      | Impact                                                                                                                                                                                                                                                                                              |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **LUKS2 full‑disk encryption** | Unchanged — `systemd-homed` adds a second, per‑user LUKS layer inside the already‑encrypted root filesystem.                                                                                                                                                                                        |
+| **TPM2 LUKS unlock (Part 10)** | Unaffected — `systemd-homed` manages user home directories, not the root filesystem. You may also enroll a TPM2 or FIDO2 token on the homed container via `homectl update ahsan --fido2-device=auto` or `--tpm2-device=auto`.                                                                       |
+| **AppArmor**                   | No changes needed — `apparmor.d` does not ship a `systemd-homed` profile, but `homed` runs as a system service confined by systemd’s own sandboxing.                                                                                                                                                |
+| **`svc-harden.py` (Part 23)**  | Run `sudo svc-harden.py profile systemd-homed.service` after the service has been active for a week to profile its runtime behaviour and apply confinement directives.                                                                                                                              |
+| **Snapper snapshots**          | The `/home/ahsan.home` loopback file is a single large binary blob. Snapper snapshots of the `/home` subvolume will include the entire LUKS container, which can consume snapshot space rapidly. Consider excluding `/home/*.home` from timeline snapshots or reducing the home timeline retention. |
+| **fstab**                      | No changes — `systemd-homed` mounts home directories dynamically; the `/home` entry in fstab remains a plain Btrfs subvolume.                                                                                                                                                                       |
+| **NVIDIA drivers**             | Unchanged — GPU state is unaffected by home directory encryption.                                                                                                                                                                                                                                   |
 
 ### 10B.8 — Security Considerations
 
-| Threat | Without `systemd-homed` | With `systemd-homed` + `suspend=true` |
-|--------|--------------------------|---------------------------------------|
-| Cold‑boot attack on suspended machine | DRAM contains plaintext `/home` data; attacker extracts it | LUKS key is evicted from RAM before suspend; DRAM contains only ciphertext |
-| Root compromise (kernel exploit) | Attacker reads `/home/ahsan` directly | Home directory is an encrypted LUKS container; attacker must also obtain the user’s passphrase or TPM token |
-| Physical theft of powered‑on machine | Attacker can read unencrypted `/home` | Home directory remains encrypted while the user is locked; re‑authentication is required |
-| Malicious root user | root can `su` to any user and read their files | root can still `su`, but the home directory must be activated before its contents are readable; `homectl activate ahsan` requires the user’s password or a recovery key |
+| Threat                                | Without `systemd-homed`                                    | With `systemd-homed` + `suspend=true`                                                                                                                                   |
+| ------------------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cold‑boot attack on suspended machine | DRAM contains plaintext `/home` data; attacker extracts it | LUKS key is evicted from RAM before suspend; DRAM contains only ciphertext                                                                                              |
+| Root compromise (kernel exploit)      | Attacker reads `/home/ahsan` directly                      | Home directory is an encrypted LUKS container; attacker must also obtain the user’s passphrase or TPM token                                                             |
+| Physical theft of powered‑on machine  | Attacker can read unencrypted `/home`                      | Home directory remains encrypted while the user is locked; re‑authentication is required                                                                                |
+| Malicious root user                   | root can `su` to any user and read their files             | root can still `su`, but the home directory must be activated before its contents are readable; `homectl activate ahsan` requires the user’s password or a recovery key |
 
-> **Note on `suspend=true`**: This feature requires systemd ≥ 245.  The kernel must support `CONFIG_DM_CRYPT` and `CONFIG_BLK_DEV_LOOP`.  Both are satisfied by `cachyos-sources` (≥ 6.13) and systemd (≥ 255) in this guide.
+> **Note on `suspend=true`**: This feature requires systemd ≥ 245. The kernel must support `CONFIG_DM_CRYPT` and `CONFIG_BLK_DEV_LOOP`. Both are satisfied by `cachyos-sources` (≥ 6.13) and systemd (≥ 255) in this guide.
 
 ### 10B.9 — Recovery and Troubleshooting
 
@@ -1984,7 +1980,7 @@ homectl authenticate ahsan
 homectl passwd ahsan
 ```
 
-> **Important**: `homectl passwd` will fail if a recovery key is defined and you cannot provide it.  This is by design — the recovery key is the fallback authentication path.
+> **Important**: `homectl passwd` will fail if a recovery key is defined and you cannot provide it. This is by design — the recovery key is the fallback authentication path.
 
 **Home directory fails to mount at login**: Check the homed journal:
 
@@ -1993,9 +1989,10 @@ journalctl -u systemd-homed.service -n 50
 ```
 
 Common causes:
+
 - The loopback file `/home/ahsan.home` has been deleted or corrupted.
 - Kernel lacks required options (`CONFIG_BLK_DEV_LOOP`, `CONFIG_DM_CRYPT`; see Section 10B.1).
-- The filesystem inside the LUKS container is marked dirty.  Follow the [Gentoo wiki’s repair procedure](https://wiki.gentoo.org/wiki/Systemd/systemd-homed#Manual_homed_mount_and_repair) to mount and `fsck` the filesystem manually.
+- The filesystem inside the LUKS container is marked dirty. Follow the [Gentoo wiki’s repair procedure](https://wiki.gentoo.org/wiki/Systemd/systemd-homed#Manual_homed_mount_and_repair) to mount and `fsck` the filesystem manually.
 - The `nsswitch.conf` has not been updated (Section 10B.3); tools cannot resolve the user.
 
 **Manual mount for emergency data access**:
@@ -2014,17 +2011,14 @@ losetup -d /dev/loop0
 
 ### 10B.10 — Summary
 
-| Feature | Status |
-|---------|--------|
-| Per‑user LUKS2 encryption | ✅ Configured via `--storage=luks` |
-| Lock on suspend (LUKS key eviction) | ✅ Configured via `pam_systemd_home.so suspend=true` |
-| Recovery key | ✅ Generated — store offline |
-| NSS integration | ✅ Configured via `/etc/nsswitch.conf` |
-| PAM integration | ✅ Automatic via `pambase[homed]` + manual `suspend=true` |
-| Migration from traditional `/home` | ✅ Supported via the upstream manual procedure |
-
-
-
+| Feature                             | Status                                                    |
+| ----------------------------------- | --------------------------------------------------------- |
+| Per‑user LUKS2 encryption           | ✅ Configured via `--storage=luks`                        |
+| Lock on suspend (LUKS key eviction) | ✅ Configured via `pam_systemd_home.so suspend=true`      |
+| Recovery key                        | ✅ Generated — store offline                              |
+| NSS integration                     | ✅ Configured via `/etc/nsswitch.conf`                    |
+| PAM integration                     | ✅ Automatic via `pambase[homed]` + manual `suspend=true` |
+| Migration from traditional `/home`  | ✅ Supported via the upstream manual procedure            |
 
 ---
 
@@ -2054,7 +2048,7 @@ EOF
 
 ---
 
-## Part 12 — Zram Swap Configuration  
+## Part 12 — Zram Swap Configuration
 
 ```bash
 emerge sys-apps/zram-generator
@@ -2070,7 +2064,7 @@ systemctl start dev-zram0.swap
 
 ---
 
-## Part 13 — Snapper Integration  
+## Part 13 — Snapper Integration
 
 ```bash
 # Install snapper (can be done after first boot)
@@ -2133,7 +2127,7 @@ BASHRC
 
 ---
 
-## Part 14 — AppArmor Configuration  
+## Part 14 — AppArmor Configuration
 
 ### 14.1 — Installation and Kernel Setup
 
@@ -2180,7 +2174,6 @@ systemctl enable apparmor.service
 `sec-policy/apparmor-profiles` provides the default abstractions shipped by upstream; it is a dependency required by apparmor.d.
 
 ---
-
 
 ### 14.2 — AppArmor Parser Configuration
 
@@ -2264,20 +2257,20 @@ EOF
 
 Key XDG variables and their defaults (defined in `/etc/apparmor.d/tunables/home`):
 
-| Variable | Default |
-|---|---|
-| `@{XDG_DESKTOP_DIR}` | `Desktop` |
-| `@{XDG_DOCUMENTS_DIR}` | `Documents` |
-| `@{XDG_DOWNLOAD_DIR}` | `Downloads` |
-| `@{XDG_MUSIC_DIR}` | `Music` |
-| `@{XDG_PICTURES_DIR}` | `Pictures` |
-| `@{XDG_VIDEOS_DIR}` | `Videos` |
-| `@{XDG_PROJECTS_DIR}` | `Projects` |
-| `@{XDG_CACHE_DIR}` | `.cache` |
-| `@{XDG_CONFIG_DIR}` | `.config` |
-| `@{XDG_DATA_DIR}` | `.local/share` |
-| `@{XDG_STATE_DIR}` | `.local/state` |
-| `@{XDG_BIN_DIR}` | `.local/bin` |
+| Variable               | Default        |
+| ---------------------- | -------------- |
+| `@{XDG_DESKTOP_DIR}`   | `Desktop`      |
+| `@{XDG_DOCUMENTS_DIR}` | `Documents`    |
+| `@{XDG_DOWNLOAD_DIR}`  | `Downloads`    |
+| `@{XDG_MUSIC_DIR}`     | `Music`        |
+| `@{XDG_PICTURES_DIR}`  | `Pictures`     |
+| `@{XDG_VIDEOS_DIR}`    | `Videos`       |
+| `@{XDG_PROJECTS_DIR}`  | `Projects`     |
+| `@{XDG_CACHE_DIR}`     | `.cache`       |
+| `@{XDG_CONFIG_DIR}`    | `.config`      |
+| `@{XDG_DATA_DIR}`      | `.local/share` |
+| `@{XDG_STATE_DIR}`     | `.local/state` |
+| `@{XDG_BIN_DIR}`       | `.local/bin`   |
 
 If your home directory layout differs (e.g., `~/dev` for projects, `~/media` for music), append your paths to the corresponding variables here.
 
@@ -2289,9 +2282,11 @@ After installation, follow this workflow:
 
 1. **Reboot** with all profiles in complain mode.
 2. **Check** AppArmor logs daily:
+
    ```bash
    aa-log
    ```
+
 3. **Run** in complain mode for at least a week.
 4. **Report** any raised logs to the project.
 5. **Only if no logs are raised** for your daily usage, switch to enforce mode.
@@ -2310,33 +2305,33 @@ sudo make install
 
 **Enforce — these profiles are mature and stable:**
 
-| Profile | Application | Rationale |
-|---|---|---|
-| `systemd` | systemd PID 1 | Extremely well‑tested |
-| `systemd-journald` | Journal daemon | High‑value target |
-| `systemd-logind` | Login session management | Stable profile |
-| `NetworkManager` | Network management | Internet‑facing |
-| `bluetoothd` | Bluetooth daemon | High attack surface |
-| `dbus-system` | System D‑Bus | IPC broker |
-| `dbus-session` | Session D‑Bus | User IPC |
-| `polkit` | Policy kit | Privilege escalation broker |
-| `sshd` | SSH daemon | Internet‑facing |
-| `cups` | Print daemon | Legacy protocol attack surface |
-| `avahi-daemon` | mDNS daemon | Network‑facing |
-| `rtkit-daemon` | Real‑time scheduler | Privilege escalation vector |
-| `colord` | Color management | D‑Bus accessible |
-| `sddm` | Display manager | Authentication boundary |
+| Profile            | Application              | Rationale                      |
+| ------------------ | ------------------------ | ------------------------------ |
+| `systemd`          | systemd PID 1            | Extremely well‑tested          |
+| `systemd-journald` | Journal daemon           | High‑value target              |
+| `systemd-logind`   | Login session management | Stable profile                 |
+| `NetworkManager`   | Network management       | Internet‑facing                |
+| `bluetoothd`       | Bluetooth daemon         | High attack surface            |
+| `dbus-system`      | System D‑Bus             | IPC broker                     |
+| `dbus-session`     | Session D‑Bus            | User IPC                       |
+| `polkit`           | Policy kit               | Privilege escalation broker    |
+| `sshd`             | SSH daemon               | Internet‑facing                |
+| `cups`             | Print daemon             | Legacy protocol attack surface |
+| `avahi-daemon`     | mDNS daemon              | Network‑facing                 |
+| `rtkit-daemon`     | Real‑time scheduler      | Privilege escalation vector    |
+| `colord`           | Color management         | D‑Bus accessible               |
+| `sddm`             | Display manager          | Authentication boundary        |
 
 **Complain mode — needs site‑specific tuning:**
 
-| Profile | Reason |
-|---|---|
-| Firefox, Chromium | Rapidly evolving permissions |
-| Electron apps | Vary per‑app |
-| Code editors (VSCode, etc.) | Plugin system requires broad file access |
-| Python, Node.js interpreters | Too broad to confine without per‑script profiles |
-| Steam, Wine | Game executables have arbitrary permission requirements |
-| Flatpak + bwrap | Conditional on usage |
+| Profile                      | Reason                                                  |
+| ---------------------------- | ------------------------------------------------------- |
+| Firefox, Chromium            | Rapidly evolving permissions                            |
+| Electron apps                | Vary per‑app                                            |
+| Code editors (VSCode, etc.)  | Plugin system requires broad file access                |
+| Python, Node.js interpreters | Too broad to confine without per‑script profiles        |
+| Steam, Wine                  | Game executables have arbitrary permission requirements |
+| Flatpak + bwrap              | Conditional on usage                                    |
 
 ---
 
@@ -2411,18 +2406,18 @@ The `apparmor.d` project ships over 1500 profiles with a clear design philosophy
 
 A systematic review of the `apparmor.d` repository as of April 2026 reveals the following coverage:
 
-| Tool | Pre‑built Profile? | Location | Notes |
-|------|--------------------|----------|-------|
-| `git` | ✅ Yes | `apparmor.d/profiles-g-l/` | Mature profile; ready for enforce after testing |
-| `gcc` | ✅ Yes | `apparmor.d/profiles-g-l/` | Covers the C compiler; C++ is handled by the same binary |
-| `make` | ✅ Yes | `apparmor.d/profiles-m-r/` | Covers GNU Make; other build tools (ninja, cmake) are not profiled |
-| `python3` | ✅ Yes | `apparmor.d/profiles-m-r/` | Confines the interpreter itself; see §14B.3 for scripting limitations |
-| `npm` | ✅ Yes | `apparmor.d/profiles-m-r/` | Covers the Node.js package manager |
-| `emacs` | ❌ No | — | Must be generated from scratch; see §14B.6 |
-| `neovim` | ❌ No | — | Must be generated from scratch; see §14B.5 |
-| `cargo` | ❌ No | — | Rust package manager is not yet profiled |
-| `cmake` | ❌ No | — | Must be generated if needed |
-| `ninja` | ❌ No | — | Must be generated if needed |
+| Tool      | Pre‑built Profile? | Location                   | Notes                                                                 |
+| --------- | ------------------ | -------------------------- | --------------------------------------------------------------------- |
+| `git`     | ✅ Yes             | `apparmor.d/profiles-g-l/` | Mature profile; ready for enforce after testing                       |
+| `gcc`     | ✅ Yes             | `apparmor.d/profiles-g-l/` | Covers the C compiler; C++ is handled by the same binary              |
+| `make`    | ✅ Yes             | `apparmor.d/profiles-m-r/` | Covers GNU Make; other build tools (ninja, cmake) are not profiled    |
+| `python3` | ✅ Yes             | `apparmor.d/profiles-m-r/` | Confines the interpreter itself; see §14B.3 for scripting limitations |
+| `npm`     | ✅ Yes             | `apparmor.d/profiles-m-r/` | Covers the Node.js package manager                                    |
+| `emacs`   | ❌ No              | —                          | Must be generated from scratch; see §14B.6                            |
+| `neovim`  | ❌ No              | —                          | Must be generated from scratch; see §14B.5                            |
+| `cargo`   | ❌ No              | —                          | Rust package manager is not yet profiled                              |
+| `cmake`   | ❌ No              | —                          | Must be generated if needed                                           |
+| `ninja`   | ❌ No              | —                          | Must be generated if needed                                           |
 
 The profiles that do exist are installed in `/etc/apparmor.d` when you run `make install` from the `apparmor.d` source tree. Verify their presence:
 
@@ -2439,6 +2434,7 @@ ls /etc/apparmor.d/usr.bin.npm
 This is the single most important technical limitation to understand before confining development tools. AppArmor attaches profiles to **executable files by path**. When you run `./script.sh` and that file has a profile at `/path/to/script.sh`, the profile attaches. When you run `python3 ./script.py`, AppArmor sees only the interpreter (`/usr/bin/python3`) being executed and attaches **its** profile—not any profile that may exist for the script file.
 
 This has two consequences:
+
 1. Confining `python3` globally affects every Python script on the system—including package managers, build scripts, and system services—and will almost certainly break functionality.
 2. It is **not possible to provide a per‑script profile** when scripts are invoked through an interpreter.
 
@@ -2528,9 +2524,10 @@ Emacs is significantly harder to confine than Neovim for several architectural r
 4. **Sub‑process model**: Emacs spawns external tools extensively—`git`, `make`, `grep`, `find`, `aspell`, language servers, formatters—each of which may or may not have its own AppArmor profile. Stacking and nesting profiles correctly is challenging.
 
 **Recommendation**: Rather than attempting AppArmor confinement, use a **dedicated sandbox** for Emacs when processing untrusted content:
-* Run Emacs inside `bubblewrap` (`bwrap`) with a restricted view of the filesystem.
-* Use `distrobox` or `podman` to isolate a development environment that includes Emacs.
-* For MUA (mail) workflows, use the already‑profiled `thunderbird` or `evolution` instead of Emacs‑based mail clients.
+
+- Run Emacs inside `bubblewrap` (`bwrap`) with a restricted view of the filesystem.
+- Use `distrobox` or `podman` to isolate a development environment that includes Emacs.
+- For MUA (mail) workflows, use the already‑profiled `thunderbird` or `evolution` instead of Emacs‑based mail clients.
 
 ### 14B.7 — Confining Language‑Specific Package Managers
 
@@ -2588,28 +2585,28 @@ The tables below summarise the recommended approach for each category of develop
 
 **Tools with existing `apparmor.d` profiles — deploy directly:**
 
-| Tool | Command | Initial Mode |
-|------|---------|-------------|
-| `git` | `sudo aa-complain git` | complain → test → `aa-logprof` → enforce |
+| Tool   | Command                 | Initial Mode                             |
+| ------ | ----------------------- | ---------------------------------------- |
+| `git`  | `sudo aa-complain git`  | complain → test → `aa-logprof` → enforce |
 | `make` | `sudo aa-complain make` | complain → test → `aa-logprof` → enforce |
-| `gcc` | `sudo aa-complain gcc` | complain → test → `aa-logprof` → enforce |
-| `npm` | `sudo aa-complain npm` | complain → test → `aa-logprof` → enforce |
+| `gcc`  | `sudo aa-complain gcc`  | complain → test → `aa-logprof` → enforce |
+| `npm`  | `sudo aa-complain npm`  | complain → test → `aa-logprof` → enforce |
 
 **Tools without profiles — generate first:**
 
-| Tool | Command |
-|------|---------|
-| `neovim` | `sudo aa-genprof /usr/bin/nvim` |
-| `cargo` | `sudo aa-genprof /usr/bin/cargo` |
-| `cmake` | `sudo aa-genprof /usr/bin/cmake` |
+| Tool     | Command                          |
+| -------- | -------------------------------- |
+| `neovim` | `sudo aa-genprof /usr/bin/nvim`  |
+| `cargo`  | `sudo aa-genprof /usr/bin/cargo` |
+| `cmake`  | `sudo aa-genprof /usr/bin/cmake` |
 
 **Tools where confinement is not recommended:**
 
-| Tool | Reason | Alternative |
-|------|--------|-------------|
+| Tool      | Reason                                    | Alternative                                      |
+| --------- | ----------------------------------------- | ------------------------------------------------ |
 | `python3` | Interpreter problem — affects all scripts | Use `bwrap`, containers, or virtual environments |
-| `node` | Same interpreter problem | Use `npm` profile + per‑project `bwrap` |
-| `emacs` | Architectural complexity | Use `bwrap`, `distrobox`, or `podman` |
+| `node`    | Same interpreter problem                  | Use `npm` profile + per‑project `bwrap`          |
+| `emacs`   | Architectural complexity                  | Use `bwrap`, `distrobox`, or `podman`            |
 
 ### 14B.10 — Ongoing Maintenance
 
@@ -2628,7 +2625,7 @@ For profiles you generated yourself, periodically review the local override file
 
 ---
 
-## Part 15 — Auditd Hardening  
+## Part 15 — Auditd Hardening
 
 ### 15.1 — Installation
 
@@ -2675,7 +2672,6 @@ EOF
 Place custom rules in `/etc/audit/rules.d/`. Files must end with `.rules`. The `augenrules` program (enabled via `/etc/conf.d/auditd`) merges them into `/etc/audit/audit.rules` at service startup.
 
 `nvim /etc/audit/rules.d/99-hardening.rules`
-
 
 ```bash
 ## ============================================================
@@ -2884,7 +2880,7 @@ ausearch -k module_load
 
 ---
 
-## Part 16 — Kernel Module Blacklisting  
+## Part 16 — Kernel Module Blacklisting
 
 `mkdir -p /etc/modprobe.d/ && nvim /etc/modprobe.d/blacklist-hardening.conf`
 
@@ -3029,7 +3025,7 @@ blacklist sr_mod
 
 ---
 
-## Part 17 — IOMMU and DMA Protection  
+## Part 17 — IOMMU and DMA Protection
 
 ### Required UEFI/BIOS Settings
 
@@ -3049,10 +3045,10 @@ iommu=force
 
 **`iommu=pt` vs `iommu=force` trade-off:**
 
-| Parameter | Behavior | Performance | Security |
-|---|---|---|---|
-| `iommu=pt` | Passthrough mode: only devices with explicit IOMMU groups get DMA isolation | Higher (no translation overhead for most devices) | Weaker: untranslated devices can access all physical memory |
-| `iommu=force` | All DMA transactions go through the IOMMU | Lower (~5-10% I/O overhead on heavy workloads) | Stronger: every DMA transaction is validated against the IOMMU page table |
+| Parameter     | Behavior                                                                    | Performance                                       | Security                                                                  |
+| ------------- | --------------------------------------------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------- |
+| `iommu=pt`    | Passthrough mode: only devices with explicit IOMMU groups get DMA isolation | Higher (no translation overhead for most devices) | Weaker: untranslated devices can access all physical memory               |
+| `iommu=force` | All DMA transactions go through the IOMMU                                   | Lower (~5-10% I/O overhead on heavy workloads)    | Stronger: every DMA transaction is validated against the IOMMU page table |
 
 **Decision**: `iommu=force` for this threat model. Nation-state actors with physical access can connect a malicious Thunderbolt/PCIe device specifically to exploit DMA paths that passthrough mode leaves unprotected. The 5-10% I/O performance hit is acceptable on a workstation with NVMe drives (still vastly outperforms any spinning disk).
 
@@ -3087,20 +3083,22 @@ cat /sys/class/iommu/dmar*/intel-iommu/cap 2>/dev/null || \
 ### IOMMU + TME Interaction
 
 Both IOMMU and TME operate independently:
+
 - TME encrypts DRAM contents (protects against physical memory extraction)
 - IOMMU restricts which physical memory addresses each DMA master can access (protects against DMA attacks from malicious PCIe devices)
 
 They are complementary: IOMMU prevents a malicious device from reading arbitrary memory; TME ensures that even if a device could read physical memory (e.g., before IOMMU is initialized), it sees encrypted data.
 
 **Gap**: There is a brief window during early boot (before IOMMU is initialized by the kernel) where DMA attacks are theoretically possible. This window is minimized by:
+
 1. The i9-13900K's UEFI firmware pre-programming the IOMMU before OS handoff (Intel DMAR tables in ACPI)
 2. The `intel_iommu=on` parameter instructing the kernel to activate IOMMU as early as possible
 
 ---
 
-## Part 18 — Network Hardening  
+## Part 18 — Network Hardening
 
-This `firewalld` configuration (Section 18.1) controls network‑level traffic with a strict default‑drop policy.  This section adds three complementary layers:
+This `firewalld` configuration (Section 18.1) controls network‑level traffic with a strict default‑drop policy. This section adds three complementary layers:
 
 1. **Application‑layer outbound filtering** (OpenSnitch) — every new outbound connection from an application requires explicit authorisation.
 2. **Host‑based intrusion detection** — file‑integrity monitoring (AIDE) and periodic rootkit scans (rkhunter + chkrootkit) to detect post‑compromise tampering.
@@ -3168,15 +3166,15 @@ firewall-cmd --get-active-zones
 > **Note on backends:** On Gentoo, firewalld uses **nftables** as its default backend.  
 > No additional USE flags are required unless you explicitly need the legacy iptables backend.
 
-> **Interface names:** The Ethernet and Wi‑Fi interface names (`eno1`, `wlan0`) are placeholders.  Replace them with the actual names shown by `ip link` or `nmcli device`.  If you have no Wi‑Fi card, remove `wlan0` from the loop — the `2>/dev/null || true` ensures a silent no‑op for non‑existent interfaces.
+> **Interface names:** The Ethernet and Wi‑Fi interface names (`eno1`, `wlan0`) are placeholders. Replace them with the actual names shown by `ip link` or `nmcli device`. If you have no Wi‑Fi card, remove `wlan0` from the loop — the `2>/dev/null || true` ensures a silent no‑op for non‑existent interfaces.
 
 ---
 
 ### 18.2 — Application‑Layer Firewall: OpenSnitch
 
-Your `firewalld` configuration blocks unsolicited inbound traffic, but any application can initiate an outbound connection by default.  OpenSnitch adds **per‑application outbound control**: when a new application tries to reach the internet, you are prompted to allow or deny the connection, and your decision is stored as a persistent rule.
+Your `firewalld` configuration blocks unsolicited inbound traffic, but any application can initiate an outbound connection by default. OpenSnitch adds **per‑application outbound control**: when a new application tries to reach the internet, you are prompted to allow or deny the connection, and your decision is stored as a persistent rule.
 
-Nation‑state APT actors frequently exfiltrate data through compromised applications — a malicious browser extension or a backdoored binary that phones home is a core TTP in your threat model.  OpenSnitch closes this gap by making **every new outbound connection** explicitly authorised.
+Nation‑state APT actors frequently exfiltrate data through compromised applications — a malicious browser extension or a backdoored binary that phones home is a core TTP in your threat model. OpenSnitch closes this gap by making **every new outbound connection** explicitly authorised.
 
 Since version 1.8.0 (late 2025), OpenSnitch uses its own dedicated nftables table (`opensnitch`), avoiding any conflict with your existing `firewalld` rules.
 
@@ -3215,14 +3213,14 @@ Launch the GUI as your user (not root):
 opensnitch-ui &
 ```
 
-The GUI connects to the daemon over a Unix socket.  On first launch, the rules list will be empty; prompts will appear as applications start making connections.  For convenience, add `opensnitch-ui` to your Hyprland autostart (`exec-once` in `~/.config/hypr/hyprland.conf`).
+The GUI connects to the daemon over a Unix socket. On first launch, the rules list will be empty; prompts will appear as applications start making connections. For convenience, add `opensnitch-ui` to your Hyprland autostart (`exec-once` in `~/.config/hypr/hyprland.conf`).
 
 #### 18.2.4 — Initial Learning Period
 
-A modern desktop generates dozens of outbound connections per minute.  To avoid prompt fatigue:
+A modern desktop generates dozens of outbound connections per minute. To avoid prompt fatigue:
 
-1. **First week**: set the default outbound policy to `accept` in `/etc/opensnitchd/default-config.json` so connections are logged but not blocked.  This captures a complete picture of normal network behaviour.
-2. **After one week**: review the connection logs in the GUI.  Identify anomalous destinations (an unknown IP, a PDF reader phoning home, etc.).
+1. **First week**: set the default outbound policy to `accept` in `/etc/opensnitchd/default-config.json` so connections are logged but not blocked. This captures a complete picture of normal network behaviour.
+2. **After one week**: review the connection logs in the GUI. Identify anomalous destinations (an unknown IP, a PDF reader phoning home, etc.).
 3. **Switch to `deny` default**: change the default policy to `deny` and begin explicitly allowing only verified connections.
 
 During this period, your `firewalld` rules remain fully active — nothing is exposed to inbound attacks.
@@ -3236,7 +3234,7 @@ sudo svc-harden.py analyze opensnitchd.service
 sudo svc-harden.py apply opensnitchd.service
 ```
 
-Suggested directives: `NoNewPrivileges=yes`, `PrivateTmp=yes`, `ProtectSystem=strict`, `ProtectHome=yes`, `MemoryDenyWriteExecute=yes`, `RestrictAddressFamilies=AF_UNIX AF_NETLINK`.  Do **not** apply `PrivateNetwork=yes` — the daemon needs network access.
+Suggested directives: `NoNewPrivileges=yes`, `PrivateTmp=yes`, `ProtectSystem=strict`, `ProtectHome=yes`, `MemoryDenyWriteExecute=yes`, `RestrictAddressFamilies=AF_UNIX AF_NETLINK`. Do **not** apply `PrivateNetwork=yes` — the daemon needs network access.
 
 Generate an AppArmor profile with `aa-genprof` (Part 14B):
 
@@ -3248,12 +3246,12 @@ After testing, the profile may be placed in `/etc/apparmor.d/local/usr.bin.opens
 
 #### 18.2.6 — Interaction with Existing Hardening
 
-| Component | Interaction |
-|-----------|-------------|
-| **firewalld** | OpenSnitch uses a separate nftables table; no port or zone rules need modification. |
-| **AppArmor** | Profiles for individual applications are evaluated independently; OpenSnitch sees the real process path. |
-| **`dnscrypt-proxy` / `systemd-resolved`** | DNS queries appear as outbound UDP 853/TCP 853; allow these services explicitly in OpenSnitch. |
-| **`svc-harden.py`** | Hardening the daemon with systemd directives is recommended. |
+| Component                                 | Interaction                                                                                              |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| **firewalld**                             | OpenSnitch uses a separate nftables table; no port or zone rules need modification.                      |
+| **AppArmor**                              | Profiles for individual applications are evaluated independently; OpenSnitch sees the real process path. |
+| **`dnscrypt-proxy` / `systemd-resolved`** | DNS queries appear as outbound UDP 853/TCP 853; allow these services explicitly in OpenSnitch.           |
+| **`svc-harden.py`**                       | Hardening the daemon with systemd directives is recommended.                                             |
 
 #### 18.2.7 — Verification
 
@@ -3269,24 +3267,24 @@ sudo svc-harden.py analyze opensnitchd.service
 
 ### 18.3 — Host‑Based Intrusion Detection: Evaluation
 
-Your guide already implements several detection controls: `auditd` (Part 15), AppArmor (Part 14), and the Portage supply‑chain auditing pipeline (Part 21).  A dedicated Host‑Based Intrusion Detection System (HIDS) could add file‑integrity monitoring (cryptographic checksums), rootkit detection, and active response.  The table below evaluates the leading options for a standalone APT‑hardened workstation.
+Your guide already implements several detection controls: `auditd` (Part 15), AppArmor (Part 14), and the Portage supply‑chain auditing pipeline (Part 21). A dedicated Host‑Based Intrusion Detection System (HIDS) could add file‑integrity monitoring (cryptographic checksums), rootkit detection, and active response. The table below evaluates the leading options for a standalone APT‑hardened workstation.
 
-| Tool | Type | Resource Footprint | Gentoo Package | Recommended? |
-|------|------|--------------------|----------------|--------------|
-| **Wazuh** | Full HIDS (FIM + log analysis + rootkit detection + SIEM) | ~7.5 GB RAM (manager + indexer + dashboard) | Not packaged; must be built from source | ❌ — Enterprise SIEM; resource overhead is incompatible with a single‑user workstation |
-| **OSSEC** | Full HIDS (FIM + log analysis + rootkit detection) | ~50 MB RAM | `app‑forensics/ossec-hids` (GURU) | ❌ — Last stable release was 2021; effectively unmaintained |
-| **Samhain** | FIM (signed baseline database, stealth mode) | Very low | `app-forensics/samhain` (GURU) | ⚠️ — Excellent integrity guarantees, but the GURU ebuild is not yet stable |
-| **AIDE** | FIM (checksum baseline, simple) | Very low | `app-forensics/aide` | ✅ — The best balance of simplicity and security; already listed in your `package.accept_keywords` |
-| **rkhunter** | Rootkit scanner (signature‑based) | Negligible | `app-forensics/rkhunter` | ✅ — Useful for detecting known rootkits and anomalous files |
-| **chkrootkit** | Rootkit scanner (binary signature matching) | Negligible | `app-forensics/chkrootkit` | ✅ — Complements rkhunter with a different signature set |
+| Tool           | Type                                                      | Resource Footprint                          | Gentoo Package                          | Recommended?                                                                                       |
+| -------------- | --------------------------------------------------------- | ------------------------------------------- | --------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| **Wazuh**      | Full HIDS (FIM + log analysis + rootkit detection + SIEM) | ~7.5 GB RAM (manager + indexer + dashboard) | Not packaged; must be built from source | ❌ — Enterprise SIEM; resource overhead is incompatible with a single‑user workstation             |
+| **OSSEC**      | Full HIDS (FIM + log analysis + rootkit detection)        | ~50 MB RAM                                  | `app‑forensics/ossec-hids` (GURU)       | ❌ — Last stable release was 2021; effectively unmaintained                                        |
+| **Samhain**    | FIM (signed baseline database, stealth mode)              | Very low                                    | `app-forensics/samhain` (GURU)          | ⚠️ — Excellent integrity guarantees, but the GURU ebuild is not yet stable                         |
+| **AIDE**       | FIM (checksum baseline, simple)                           | Very low                                    | `app-forensics/aide`                    | ✅ — The best balance of simplicity and security; already listed in your `package.accept_keywords` |
+| **rkhunter**   | Rootkit scanner (signature‑based)                         | Negligible                                  | `app-forensics/rkhunter`                | ✅ — Useful for detecting known rootkits and anomalous files                                       |
+| **chkrootkit** | Rootkit scanner (binary signature matching)               | Negligible                                  | `app-forensics/chkrootkit`              | ✅ — Complements rkhunter with a different signature set                                           |
 
-**Conclusion:** Deploy **AIDE** for cryptographic file‑integrity monitoring (Section 18.4) and both **rkhunter** + **chkrootkit** for lightweight rootkit detection (Section 18.5).  A full SIEM (Wazuh) is not needed on a single workstation.
+**Conclusion:** Deploy **AIDE** for cryptographic file‑integrity monitoring (Section 18.4) and both **rkhunter** + **chkrootkit** for lightweight rootkit detection (Section 18.5). A full SIEM (Wazuh) is not needed on a single workstation.
 
 ---
 
 ### 18.4 — AIDE: File Integrity Monitoring
 
-AIDE computes SHA‑256 checksums of critical system files and compares them against a known‑good baseline database.  Unlike `auditd` path‑based rules, AIDE detects content changes regardless of when they occurred — even if an attacker disables auditd or tampers with the audit log.
+AIDE computes SHA‑256 checksums of critical system files and compares them against a known‑good baseline database. Unlike `auditd` path‑based rules, AIDE detects content changes regardless of when they occurred — even if an attacker disables auditd or tampers with the audit log.
 
 #### 18.4.1 — Installation and Initial Baseline
 
@@ -3359,7 +3357,7 @@ sudo /usr/local/bin/weekly-security-scan.sh
 
 ### 18.5 — Rootkit Detection: `rkhunter` and `chkrootkit`
 
-Both tools are signature‑based pattern matchers — they detect known rootkits and suspicious system characteristics.  They complement each other by checking for different signatures and are lightweight enough to run after every kernel update.
+Both tools are signature‑based pattern matchers — they detect known rootkits and suspicious system characteristics. They complement each other by checking for different signatures and are lightweight enough to run after every kernel update.
 
 #### 18.5.1 — Installation
 
@@ -3396,7 +3394,7 @@ chmod +x /etc/kernel/postinst.d/98-rootkit-check.sh
 
 #### 18.5.3 — Tuning False Positives
 
-Both tools produce false positives on a modern system.  After the first scan:
+Both tools produce false positives on a modern system. After the first scan:
 
 - For `rkhunter`: edit `/etc/rkhunter.conf.local` and add `ALLOWHIDDENDIR`, `ALLOWHIDDENFILE`, `SCRIPTWHITELIST` entries for paths you have verified.
 - For `chkrootkit`: use the `-e` flag to exclude known‑safe strings, or consult the upstream `README.FALSE‑POSITIVES`.
@@ -3429,10 +3427,10 @@ Application
                           └─► Authoritative DNS
 ```
 
-* `dnscrypt‑proxy` listens on `127.0.0.1:5300` (not port 53, so it never competes with systemd‑resolved).
-* `systemd‑resolved` listens on `127.0.0.53:53` (the standard stub address).
-* `systemd‑resolved` forwards every upstream query to `dnscrypt‑proxy`.
-* Applications use `127.0.0.53` via the `/etc/resolv.conf` symlink.
+- `dnscrypt‑proxy` listens on `127.0.0.1:5300` (not port 53, so it never competes with systemd‑resolved).
+- `systemd‑resolved` listens on `127.0.0.53:53` (the standard stub address).
+- `systemd‑resolved` forwards every upstream query to `dnscrypt‑proxy`.
+- Applications use `127.0.0.53` via the `/etc/resolv.conf` symlink.
 
 #### systemd‑resolved
 
@@ -3657,7 +3655,7 @@ systemctl enable --now cockpit.socket
 
 ---
 
-## Part 19 — SSH Hardening with TPM‑Backed Keys  
+## Part 19 — SSH Hardening with TPM‑Backed Keys
 
 A TPM can store SSH private keys, making them much harder for an attacker—or malware—to extract: the key never leaves the TPM. This is comparable in security to a YubiKey but uses the TPM already on your motherboard.
 
@@ -3981,15 +3979,15 @@ aa-status | grep -E "sshd|enforce"
 
 ### 19.8 — TPM‑Based Key Usage Cheat Sheet
 
-| Task | Command |
-|------|---------|
-| Initialise store | `tpm2_ptool init` |
-| Create token | `tpm2_ptool addtoken --pid=1 --label=ssh --userpin=… --sopin=…` |
-| Create key (ecc256) | `tpm2_ptool addkey --label=ssh --userpin=… --algorithm=ecc256` |
-| List keys | `tpm2_ptool list` |
-| Show public key | `ssh‑keygen -D /usr/lib64/libtpm2_pkcs11.so` |
-| Connect once | `ssh -I /usr/lib64/libtpm2_pkcs11.so user@host` |
-| Load into agent | `ssh‑add -s /usr/lib64/libtpm2_pkcs11.so` |
+| Task                | Command                                                         |
+| ------------------- | --------------------------------------------------------------- |
+| Initialise store    | `tpm2_ptool init`                                               |
+| Create token        | `tpm2_ptool addtoken --pid=1 --label=ssh --userpin=… --sopin=…` |
+| Create key (ecc256) | `tpm2_ptool addkey --label=ssh --userpin=… --algorithm=ecc256`  |
+| List keys           | `tpm2_ptool list`                                               |
+| Show public key     | `ssh‑keygen -D /usr/lib64/libtpm2_pkcs11.so`                    |
+| Connect once        | `ssh -I /usr/lib64/libtpm2_pkcs11.so user@host`                 |
+| Load into agent     | `ssh‑add -s /usr/lib64/libtpm2_pkcs11.so`                       |
 
 ---
 
@@ -4012,11 +4010,9 @@ ssh-keygen -D /usr/lib64/libtpm2_pkcs11.so
 ssh -I /usr/lib64/libtpm2_pkcs11.so user@remote.host.tld
 ```
 
-
-
 ---
 
-## Part 20 — PAM and Authentication Hardening  
+## Part 20 — PAM and Authentication Hardening
 
 ### Gentoo‑Specific PAM Notes
 
@@ -4025,11 +4021,12 @@ Gentoo, like Arch, does not use a PAM configuration manager. PAM stack files in 
 Additionally, Gentoo provides `sys-auth/pambase`, which ships the default PAM configuration. Its `pwquality` USE flag controls whether `pam_pwquality.so` is integrated into the system auth stack for password quality validation.
 
 The key files are:
-* `/etc/pam.d/system-auth` — core PAM stack, included by most services
-* `/etc/pam.d/system-login` — login‑specific stack (includes `system-auth`)
-* `/etc/security/faillock.conf` — `pam_faillock` configuration (preferred method over inline arguments)
-* `/etc/security/pwquality.conf` — `pam_pwquality` configuration
-* `/etc/security/limits.conf` — resource limits
+
+- `/etc/pam.d/system-auth` — core PAM stack, included by most services
+- `/etc/pam.d/system-login` — login‑specific stack (includes `system-auth`)
+- `/etc/security/faillock.conf` — `pam_faillock` configuration (preferred method over inline arguments)
+- `/etc/security/pwquality.conf` — `pam_pwquality` configuration
+- `/etc/security/limits.conf` — resource limits
 
 ### Installation
 
@@ -4271,7 +4268,7 @@ faillock --user ahsan
 
 ---
 
-## Part 21 — Supply Chain Monitoring  
+## Part 21 — Supply Chain Monitoring
 
 A nation-state supply-chain adversary targets the package distribution pipeline — tampered ebuilds, malicious source tarballs, or compromised repository metadata — to inject code before it ever reaches the compiler. The controls below make every link in that chain cryptographically verifiable and auditable.
 
@@ -4294,8 +4291,9 @@ PORTAGE_ELOG_CLASSES="warn info error log qa"
 ```
 
 After applying these settings, every `emerge` produces:
-* A full build log at `/var/log/portage/<category>:<package>:<timestamp>.log`.
-* An ELOG summary at `/var/log/portage/elog/<category>:<package>:<timestamp>.log`.
+
+- A full build log at `/var/log/portage/<category>:<package>:<timestamp>.log`.
+- An ELOG summary at `/var/log/portage/elog/<category>:<package>:<timestamp>.log`.
 
 The `PORTAGE_ELOG_SYSTEM` variable accepts any space‑separated combination of `save`, `custom`, `syslog`, `mail`, `save_summary`, and `mail_summary`; `save` is the minimum required to write these logs to disk. The ELOG logs can be browsed with `app-portage/elogv`.
 
@@ -4519,7 +4517,7 @@ cat /var/log/portage-audit.json 2>/dev/null | tail -3 || echo "No audit entries 
 
 ---
 
-## Part 22 — Ongoing Monitoring, Log Review, and Vulnerability Alerting  
+## Part 22 — Ongoing Monitoring, Log Review, and Vulnerability Alerting
 
 ### 22.1 — Mail Relay with msmtp
 
@@ -4573,7 +4571,7 @@ echo "Test mail from $(hostname)" | msmtp your-address@proton.me
 
 The script below extracts key metrics from the audit log and emails a summary. All audit keys reference the hardened ruleset deployed in Part 18. Recipient addresses and alert thresholds are defined at the top of the script so they can be changed without modifying complex shell logic.
 
-This script uses `ausearch --start today --end now` and `journalctl --since="today"`, both of which are well‑known patterns confirmed in the Red Hat documentation  and the `ausearch` man page reference .
+This script uses `ausearch --start today --end now` and `journalctl --since="today"`, both of which are well‑known patterns confirmed in the Red Hat documentation and the `ausearch` man page reference .
 
 ```bash
 cat > /usr/local/bin/daily-audit-summary.sh << 'SCRIPT'
@@ -4816,21 +4814,20 @@ echo "Test from $(hostname)" | msmtp -v your-address@proton.me
 aa-status | head -5
 ```
 
-
 ---
 
-## Part 23 — systemd Service Hardening  
+## Part 23 — systemd Service Hardening
 
 System‑level service confinement complements AppArmor and bubblewrap by restricting daemons at the service‑manager level, before the binary even starts. This tool automates analysis, interactive hardening, SHH‑based profiling, testing, rollback, and bisection.
 
 ### 23.1 – Prerequisites
 
-| Component | Package / Install Command | Purpose |
-|-----------|--------------------------|---------|
-| Python 3.11+ | already present | Runtime for the script |
-| `systemd‑analyze` | part of `sys‑apps/systemd` | Security analysis |
-| `strace` ≥ 6.6 | `emerge --ask dev-util/strace` | Required by SHH |
-| SHH (optional) | `cargo install --root /usr/local systemd-hardening-helper` | Behaviour‑based profiler |
+| Component         | Package / Install Command                                  | Purpose                  |
+| ----------------- | ---------------------------------------------------------- | ------------------------ |
+| Python 3.11+      | already present                                            | Runtime for the script   |
+| `systemd‑analyze` | part of `sys‑apps/systemd`                                 | Security analysis        |
+| `strace` ≥ 6.6    | `emerge --ask dev-util/strace`                             | Required by SHH          |
+| SHH (optional)    | `cargo install --root /usr/local systemd-hardening-helper` | Behaviour‑based profiler |
 
 If SHH is not installed, the `profile` subcommand will print an error with the exact installation instructions and exit.
 
@@ -5819,35 +5816,39 @@ if __name__ == "__main__":
 
 ### 23.3 – Detailed Usage Walkthrough
 
-Below is a step‑by‑step guide through every subcommand of `svc‑harden.py`.  All examples assume you are root (use `sudo`) and that the script is installed at `/usr/local/bin/svc‑harden.py`.  For brevity, the service `cockpit.service` is used as a running example, but the same workflow applies to any systemd service.
+Below is a step‑by‑step guide through every subcommand of `svc‑harden.py`. All examples assume you are root (use `sudo`) and that the script is installed at `/usr/local/bin/svc‑harden.py`. For brevity, the service `cockpit.service` is used as a running example, but the same workflow applies to any systemd service.
 
 ---
 
 #### 23.3.1 – Preliminaries
 
-1.  **Ensure the service is running** – `svc‑harden.py apply`, `profile`, and `test` will restart the service; it must be in a working baseline state first.
+1. **Ensure the service is running** – `svc‑harden.py apply`, `profile`, and `test` will restart the service; it must be in a working baseline state first.
+
     ```bash
     systemctl start cockpit.service
     systemctl status cockpit.service
     ```
 
-2.  **Verify SHH availability (if you plan to profile)**:
+2. **Verify SHH availability (if you plan to profile)**:
+
     ```bash
     shh --version   # should print "Systemd hardening helper X.Y.Z"
     ```
+
     If it is missing, install it with `cargo install --root /usr/local systemd-hardening-helper` and ensure `dev-util/strace` is emerged.
 
 ---
 
 #### 23.3.2 – `analyze` – See What Can Be Improved
 
-This is the first command to run on any service.  It does **not** modify anything; it only prints the current exposure score and lists every directive from our hardening table that is currently absent or set to an insecure value.
+This is the first command to run on any service. It does **not** modify anything; it only prints the current exposure score and lists every directive from our hardening table that is currently absent or set to an insecure value.
 
 ```bash
 sudo svc‑harden.py analyze cockpit.service
 ```
 
 **Expected output** (truncated):
+
 ```
 ══════════════════════════════════════════════════════════════════════
   SECURITY ANALYSIS: cockpit.service
@@ -5872,10 +5873,11 @@ sudo svc‑harden.py analyze cockpit.service
    ...
 ```
 
-**How to read this**:  
-- The **exposure score** is a unit‑less number between 0 (best) and 10 (worst).  Our goal is to drive it as low as possible without breaking the service.  
-- Every listed directive is missing – the service is currently not protected by it.  
-- Directives with a caution note (e.g., `PrivateDevices`) may break services that legitimately need those resources.  When you later use `apply`, you can skip them.
+**How to read this**:
+
+- The **exposure score** is a unit‑less number between 0 (best) and 10 (worst). Our goal is to drive it as low as possible without breaking the service.
+- Every listed directive is missing – the service is currently not protected by it.
+- Directives with a caution note (e.g., `PrivateDevices`) may break services that legitimately need those resources. When you later use `apply`, you can skip them.
 
 Repeat `analyze` after each hardening step to see the score change.
 
@@ -5899,8 +5901,8 @@ You will see one directive after another, for example:
   Apply? [y/N/e(dit)]:
 ```
 
-- `y` – accept the suggested value (`yes`).  
-- `N` (or just Enter) – skip this directive.  
+- `y` – accept the suggested value (`yes`).
+- `N` (or just Enter) – skip this directive.
 - `e` – enter a different value (e.g., `NoNewPrivileges=no` or `ProtectSystem=full` instead of `strict`).
 
 After you go through all 28 directives, the tool shows a preview of the drop‑in file that will be written, then asks for confirmation:
@@ -5922,7 +5924,7 @@ After you go through all 28 directives, the tool shows a preview of the drop‑i
   Write this drop‑in and restart the service? [y/N]:
 ```
 
-Answer `y` and the service will be restarted immediately with the new restrictions.  If it fails to start, the tool prints an error message and advises you to run `bisect`.
+Answer `y` and the service will be restarted immediately with the new restrictions. If it fails to start, the tool prints an error message and advises you to run `bisect`.
 
 ---
 
@@ -5936,18 +5938,21 @@ sudo svc‑harden.py profile cockpit.service
 
 **What happens step‑by‑step**:
 
-1.  **The tool checks that `shh` and `strace` are available**; if not, it prints installation instructions and exits.
-2.  It runs `shh service start‑profile cockpit.service`, which restarts the service under `strace`.
-3.  You see:
+1. **The tool checks that `shh` and `strace` are available**; if not, it prints installation instructions and exits.
+2. It runs `shh service start‑profile cockpit.service`, which restarts the service under `strace`.
+3. You see:
+
     ```
     ═══ PROFILING ACTIVE ═══
     cockpit.service is now being traced with strace.
     Please exercise the service – perform all its normal operations.
     Press ENTER when you are finished …
     ```
-4.  **Now interact with the service** – for Cockpit, you might open `https://localhost:9090`, log in, browse storage, check logs, and even run a few terminal commands inside the web UI.  The more operations you perform, the more complete the profile will be.
-5.  Press Enter when done.
-6.  SHH finishes profiling and prints its recommendations.  The tool parses them and shows:
+
+4. **Now interact with the service** – for Cockpit, you might open `https://localhost:9090`, log in, browse storage, check logs, and even run a few terminal commands inside the web UI. The more operations you perform, the more complete the profile will be.
+5. Press Enter when done.
+6. SHH finishes profiling and prints its recommendations. The tool parses them and shows:
+
     ```
     ──────────────────────────────────────────────────
     SHH RECOMMENDATIONS (automatically pre‑selected)
@@ -5958,9 +5963,10 @@ sudo svc‑harden.py profile cockpit.service
     ...
     ```
 
-7.  If SHH suggested any directives that are not in our standard table (e.g., advanced path restrictions like `ReadOnlyPaths=/etc`), they appear in an **ADDITIONAL SHH DIRECTIVES** block for your review.
+7. If SHH suggested any directives that are not in our standard table (e.g., advanced path restrictions like `ReadOnlyPaths=/etc`), they appear in an **ADDITIONAL SHH DIRECTIVES** block for your review.
 
-8.  You now enter an **interactive review** loop where you can toggle any directive on or off, or reset to just SHH’s defaults.  For instance:
+8. You now enter an **interactive review** loop where you can toggle any directive on or off, or reset to just SHH’s defaults. For instance:
+
     ```
     Current selection:
       NoNewPrivileges = yes
@@ -5970,13 +5976,14 @@ sudo svc‑harden.py profile cockpit.service
     [a]pply   [t]oggle a directive   [r]eset to SHH defaults   [q]uit
     Choice:
     ```
-    - `t` asks for a directive name; if it is currently selected, it is removed; if not, it is added (if it was in the SHH recommendations).  
-    - `r` discards your edits and goes back to what SHH suggested.  
+
+    - `t` asks for a directive name; if it is currently selected, it is removed; if not, it is added (if it was in the SHH recommendations).
+    - `r` discards your edits and goes back to what SHH suggested.
     - `a` proceeds to write the drop‑in.
 
-9.  After choosing `a`, you see the preview and confirm writing, exactly as in `apply`.
+9. After choosing `a`, you see the preview and confirm writing, exactly as in `apply`.
 
-> **Tip**: Run `profile` a second time later (e.g., after a major software update) to refresh the profile.  The tool will overwrite the existing drop‑in, so the old manual configuration will be replaced by the new profiled one.
+> **Tip**: Run `profile` a second time later (e.g., after a major software update) to refresh the profile. The tool will overwrite the existing drop‑in, so the old manual configuration will be replaced by the new profiled one.
 
 ---
 
@@ -5988,9 +5995,9 @@ After applying a hardening profile, always verify that the service works as expe
 sudo svc‑harden.py test cockpit.service --test-cmd "curl -s -o /dev/null -w '%{http_code}' https://localhost:9090"
 ```
 
-- The service is restarted.  
-- If the restart fails, the command immediately reports failure.  
-- If the restart succeeds, the last 20 lines of the journal are printed, and then the optional `--test‑cmd` is executed.  
+- The service is restarted.
+- If the restart fails, the command immediately reports failure.
+- If the restart succeeds, the last 20 lines of the journal are printed, and then the optional `--test‑cmd` is executed.
 - A return code of `0` from the test command means success; any non‑zero code or a timeout is reported as failure.
 
 **Without `--test‑cmd`**, the tool only checks that the service came back as `active` – a quick sanity check.
@@ -6005,7 +6012,7 @@ If the hardened profile causes problems and `bisect` isn’t needed (or you just
 sudo svc‑harden.py revert cockpit.service
 ```
 
-The drop‑in file is deleted and the service is restarted with its original unit file.  All previous manual or SHH‑based hardening is gone.
+The drop‑in file is deleted and the service is restarted with its original unit file. All previous manual or SHH‑based hardening is gone.
 
 ---
 
@@ -6017,7 +6024,7 @@ When a service fails to start after hardening, but you are unsure which directiv
 sudo svc‑harden.py bisect cockpit.service
 ```
 
-The tool reads the current hardening drop‑in, disables one directive at a time, and tries to restart the service.  As soon as the service becomes `active` again, it reports the culprit:
+The tool reads the current hardening drop‑in, disables one directive at a time, and tries to restart the service. As soon as the service becomes `active` again, it reports the culprit:
 
 ```
   CULPRIT IDENTIFIED: ProtectHome = yes
@@ -6026,21 +6033,21 @@ The tool reads the current hardening drop‑in, disables one directive at a time
   [c] Leave as‑is
 ```
 
-- **`a`** – remove the offending directive while keeping all others.  The drop‑in is updated and the service is restarted.  
-- **`b`** – calls `revert` (remove everything).  
+- **`a`** – remove the offending directive while keeping all others. The drop‑in is updated and the service is restarted.
+- **`b`** – calls `revert` (remove everything).
 - **`c`** – leaves the broken configuration unchanged (useful if you want to fix it manually).
 
 ---
 
 #### 23.3.8 – `log` – Audit Trail
 
-Every action (`analyze`, `apply`, `profile`, `test`, `revert`, `bisect`) is recorded in a newline‑delimited JSON file at `/var/log/svc‑harden‑audit.json`.  To review all changes ever made:
+Every action (`analyze`, `apply`, `profile`, `test`, `revert`, `bisect`) is recorded in a newline‑delimited JSON file at `/var/log/svc‑harden‑audit.json`. To review all changes ever made:
 
 ```bash
 sudo svc‑harden.py log
 ```
 
-Each entry shows a timestamp, the action, the affected service, and further details (e.g., which directives were applied, whether the restart succeeded, etc.).  This log can be shipped alongside auditd logs for long‑term monitoring.
+Each entry shows a timestamp, the action, the affected service, and further details (e.g., which directives were applied, whether the restart succeeded, etc.). This log can be shipped alongside auditd logs for long‑term monitoring.
 
 ---
 
@@ -6048,15 +6055,15 @@ Each entry shows a timestamp, the action, the affected service, and further deta
 
 For each service you want to harden, follow this general flow:
 
-1.  `analyze` – see what’s missing.  
-2.  Either:  
-    - `apply` (if you know the service well), **or**  
-    - `profile` (if you want behaviour‑based recommendations).  
-3.  `test` – confirm the service still works.  
-4.  If the test fails, `bisect` to isolate the problem, then `revert` if necessary.  
-5.  Repeat for the next service.
+1. `analyze` – see what’s missing.
+2. Either:
+    - `apply` (if you know the service well), **or**
+    - `profile` (if you want behaviour‑based recommendations).
+3. `test` – confirm the service still works.
+4. If the test fails, `bisect` to isolate the problem, then `revert` if necessary.
+5. Repeat for the next service.
 
-Always `test` critical services before rebooting the system, so you can catch failures in a controlled state.  A broken `sshd` or `firewalld` after a reboot can be disastrous on a remote machine.
+Always `test` critical services before rebooting the system, so you can catch failures in a controlled state. A broken `sshd` or `firewalld` after a reboot can be disastrous on a remote machine.
 
 ---
 
@@ -6064,16 +6071,16 @@ Always `test` critical services before rebooting the system, so you can catch fa
 
 Run `svc‑harden.py analyze` (or `profile`) on every active system service. Priorities:
 
-| Priority | Service | Suggested Workflow | Reason |
-|----------|---------|---------------------|--------|
-| 1 | `sshd.service` | manual `apply` | Internet‑facing; high‑value target |
-| 2 | `cockpit.service` | manual `apply` | Management UI on localhost |
-| 3 | `NetworkManager.service` | manual `apply` | Controls all networking |
-| 4 | `firewalld.service` | manual `apply` | Firewall daemon runs as root |
-| 5 | `auditd.service` | `profile` (SHH) | Complex runtime behaviour |
-| 6 | `dnscrypt‑proxy.service` | `profile` (SHH) | Network daemon with dynamic patterns |
-| 7 | `systemd‑resolved.service` | `profile` (SHH) | DNS stub resolver |
-| 8 | `nvidia‑persistenced.service` | manual `apply` | Simple, well‑understood service |
+| Priority | Service                       | Suggested Workflow | Reason                               |
+| -------- | ----------------------------- | ------------------ | ------------------------------------ |
+| 1        | `sshd.service`                | manual `apply`     | Internet‑facing; high‑value target   |
+| 2        | `cockpit.service`             | manual `apply`     | Management UI on localhost           |
+| 3        | `NetworkManager.service`      | manual `apply`     | Controls all networking              |
+| 4        | `firewalld.service`           | manual `apply`     | Firewall daemon runs as root         |
+| 5        | `auditd.service`              | `profile` (SHH)    | Complex runtime behaviour            |
+| 6        | `dnscrypt‑proxy.service`      | `profile` (SHH)    | Network daemon with dynamic patterns |
+| 7        | `systemd‑resolved.service`    | `profile` (SHH)    | DNS stub resolver                    |
+| 8        | `nvidia‑persistenced.service` | manual `apply`     | Simple, well‑understood service      |
 
 For complex network daemons, prefer SHH profiling because it captures the exact runtime behaviour. For simple, well‑understood services, interactive `apply` is faster.
 
@@ -6096,19 +6103,19 @@ If you are learning Python, studying this script alongside the `systemd.exec(5)`
 
 ---
 
-## Part 24 — System Packages (Desktop)  
+## Part 24 — System Packages (Desktop)
 
 > **Install all packages listed in `README.md` sections for desktop, development, containers, and scientific computing.** The full emerge list from the personal runbook includes:
 
 ```bash
-emerge --ask app-admin/bitwarden-desktop-bin app-admin/sysstat app-arch/7zip app-arch/unzip app-arch/unrar app-arch/zip app-admin/btrfs-assistant app-backup/snapper app-containers/containerd app-containers/distrobox app-containers/podman app-containers/podman-compose app-containers/pods app-editors/emacs app-editors/neovim app-eselect/eselect-repository app-forensics/aide app-forensics/lynis app-misc/brightnessctl app-misc/jq app-misc/yazi app-office/obsidian app-portage/eix app-portage/gentoolkit app-portage/smart-live-rebuild app-shells/atuin app-shells/fzf app-shells/gentoo-zsh-completions app-shells/starship app-shells/zoxide app-shells/zsh app-text/texlab app-text/pandoc app-text/xournalpp app-text/zathura app-text/zathura-pdf-mupdf app-text/zathura-meta app-text/zotero-bin dev-build/meson dev-libs/libzip dev-libs/tree-sitter-bash dev-libs/tree-sitter-c dev-libs/tree-sitter-vim dev-libs/tree-sitter-html dev-lua/luarocks dev-python/pynvim dev-util/git-delta dev-util/tree-sitter-cli dev-vcs/git dev-vcs/lazygit dev-vcs/git-lfs gnome-base/librsvg gui-apps/grim gui-apps/qt6ct gui-apps/slurp gui-apps/wl-clipboard gui-libs/xdg-desktop-portal-hyprland gui-wm/hyprland media-fonts/jetbrains-mono media-fonts/ubuntu-font-family media-fonts/nerdfonts media-video/mpv net-firewall/firewalld net-misc/curl net-misc/wget sci-chemistry/pymol sys-apps/bat sys-apps/eza sys-apps/fd sys-apps/haveged sys-apps/ripgrep sys-apps/util-linux sys-auth/seatd sys-power/upower sys-process/audit sys-process/btop virtual/pkgconfig x11-base/xwayland x11-misc/qt5ct x11-themes/kvantum x11-themes/papirus-icon-theme www-client/brave-browser www-client/zen-bin gnome-base/gvfs 
+emerge --ask app-admin/bitwarden-desktop-bin app-admin/sysstat app-arch/7zip app-arch/unzip app-arch/unrar app-arch/zip app-admin/btrfs-assistant app-backup/snapper app-containers/containerd app-containers/distrobox app-containers/podman app-containers/podman-compose app-containers/pods app-editors/emacs app-editors/neovim app-eselect/eselect-repository app-forensics/aide app-forensics/lynis app-misc/brightnessctl app-misc/jq app-misc/yazi app-office/obsidian app-portage/eix app-portage/gentoolkit app-portage/smart-live-rebuild app-shells/atuin app-shells/fzf app-shells/gentoo-zsh-completions app-shells/starship app-shells/zoxide app-shells/zsh app-text/texlab app-text/pandoc app-text/xournalpp app-text/zathura app-text/zathura-pdf-mupdf app-text/zathura-meta app-text/zotero-bin dev-build/meson dev-libs/libzip dev-libs/tree-sitter-bash dev-libs/tree-sitter-c dev-libs/tree-sitter-vim dev-libs/tree-sitter-html dev-lua/luarocks dev-python/pynvim dev-util/git-delta dev-util/tree-sitter-cli dev-vcs/git dev-vcs/lazygit dev-vcs/git-lfs gnome-base/librsvg gui-apps/grim gui-apps/qt6ct gui-apps/slurp gui-apps/wl-clipboard gui-libs/xdg-desktop-portal-hyprland gui-wm/hyprland media-fonts/jetbrains-mono media-fonts/ubuntu-font-family media-fonts/nerdfonts media-video/mpv net-firewall/firewalld net-misc/curl net-misc/wget sci-chemistry/pymol sys-apps/bat sys-apps/eza sys-apps/fd sys-apps/haveged sys-apps/ripgrep sys-apps/util-linux sys-auth/seatd sys-power/upower sys-process/audit sys-process/btop virtual/pkgconfig x11-base/xwayland x11-misc/qt5ct x11-themes/kvantum x11-themes/papirus-icon-theme www-client/brave-browser www-client/zen-bin gnome-base/gvfs
 ```
 
 > **Note**: Some packages listed in README.md (e.g., `nvidia-drivers`) are hardware‑dependent. Install only what applies to your system.
 
 ---
 
-## Part 25 — Login Banner  
+## Part 25 — Login Banner
 
 ```bash
 cat > /etc/issue << 'EOF'
@@ -6120,7 +6127,7 @@ cp /etc/issue /etc/issue.net
 
 ---
 
-## Part 26 — Final System Setup and First Boot  
+## Part 26 — Final System Setup and First Boot
 
 ### 26.1 — User Account (already configured)
 
@@ -6166,7 +6173,7 @@ reboot
 
 ---
 
-## Part 27 — Post‑Install: TPM2 Enrollment and Verification  
+## Part 27 — Post‑Install: TPM2 Enrollment and Verification
 
 After first boot (you will be prompted for the LUKS passphrase):
 
@@ -6187,13 +6194,12 @@ dmesg | grep "Intel-IOMMU: enabled"
 cat /sys/kernel/security/lsm
 ```
 
-
 ---
 
-## Part 28 — Post‑Install Chroot Re‑Entry  
+## Part 28 — Post‑Install Chroot Re‑Entry
 
 If you need to re‑enter the installed system from a live environment (e.g., for boot repair, UKI regeneration, or `snapper rollback`), the procedure below remounts the entire LUKS‑LVM‑Btrfs stack independently of the running kernel’s
-fstab.  **All commands assume you have booted from a Gentoo Live‑DVD/USB** (or any rescue environment with `cryptsetup`, `lvm2`, and `btrfs‑progs`).
+fstab. **All commands assume you have booted from a Gentoo Live‑DVD/USB** (or any rescue environment with `cryptsetup`, `lvm2`, and `btrfs‑progs`).
 
 ### 28.1 — Open LUKS and Activate LVM
 
@@ -6209,7 +6215,7 @@ lvs                 # verify vg0/root is visible
 
 ### 28.2 — Mount the Btrfs Root
 
-The root subvolume is mounted **without a `subvol=` option** so that the kernel automatically selects the current default subvolume — the one that `snapper` would have set during the last rollback.  This guarantees you always mount the active, running root.
+The root subvolume is mounted **without a `subvol=` option** so that the kernel automatically selects the current default subvolume — the one that `snapper` would have set during the last rollback. This guarantees you always mount the active, running root.
 
 ```bash
 BTRFS_OPTS="defaults,noatime,compress=zstd:1,space_cache=v2"
@@ -6219,8 +6225,8 @@ mkdir -p /mnt/gentoo
 mount -o ${BTRFS_OPTS} /dev/vg0/root /mnt/gentoo
 ```
 
-> **Why no `subvol=`?**  When the `subvol=` option is omitted, Btrfs mounts the
-> *current default* subvolume (the one set by `btrfs subvolume set-default`).
+> **Why no `subvol=`?** When the `subvol=` option is omitted, Btrfs mounts the
+> _current default_ subvolume (the one set by `btrfs subvolume set-default`).
 > This is the same behaviour that the running system’s fstab uses, and it means
 > you never accidentally mount a stale snapshot.
 
@@ -6248,7 +6254,7 @@ findmnt --real --target /mnt/gentoo
 ```
 
 > **About `BTRFS_NOCOW`:** These subvolumes had CoW disabled at creation time
-> via `chattr +C` (Part 4).  The `BTRFS_NOCOW` variable simply omits
+> via `chattr +C` (Part 4). The `BTRFS_NOCOW` variable simply omits
 > `compress=zstd:1` because compression is incompatible with `nodatacow`, but
 > it does **not** pass a `nodatacow` mount option — that is handled at the
 > attribute level.
@@ -6274,10 +6280,10 @@ chmod 1777 /dev/shm
 mount -t binfmt_misc none /mnt/gentoo/proc/sys/fs/binfmt_misc 2>/dev/null || true
 ```
 
-> **Why `--make-rslave`?**  When `systemd` later unmounts something inside the
+> **Why `--make-rslave`?** When `systemd` later unmounts something inside the
 > chroot (e.g. a stale `/sys/fs/cgroup`), `rslave` prevents that unmount from
 > propagating backward to the live environment’s `/sys`, which would otherwise
-> tear down the host’s cgroup hierarchy.  This is the standard Gentoo Handbook
+> tear down the host’s cgroup hierarchy. This is the standard Gentoo Handbook
 > recommendation.
 
 ### 28.5 — Copy DNS Configuration and Enter the Chroot
@@ -6303,25 +6309,29 @@ export PS1="(chroot) ${PS1}"
 
 Once inside the chroot you can, for example:
 
-* **Rebuild a broken UKI:**
+- **Rebuild a broken UKI:**
+
   ```bash
   KVER=$(ls /lib/modules/ | sort -V | tail -1)
   dracut --force /efi/EFI/Linux/gentoo-${KVER}.efi ${KVER}
   sbctl sign -s /efi/EFI/Linux/gentoo-${KVER}.efi
   ```
 
-* **Roll back with Snapper (if the root was mounted with a specific snapshot):**
+- **Roll back with Snapper (if the root was mounted with a specific snapshot):**
+
   ```bash
   snapper -c root list
   snapper -c root rollback <N>
   ```
 
-* **Fix a broken `/etc/fstab`:**
+- **Fix a broken `/etc/fstab`:**
+
   ```bash
   nano /etc/fstab
   ```
 
-* **Reset a forgotten root password:**
+- **Reset a forgotten root password:**
+
   ```bash
   passwd -u root   # unlock (if locked)
   passwd root      # set new password
@@ -6358,7 +6368,6 @@ reboot
 > This avoids “target is busy” errors if a process (e.g. `systemd-journald`
 > from the chroot) still holds a file descriptor.
 
-
 ---
 
 ## Part 29 — TPM2 Key Recovery
@@ -6373,12 +6382,12 @@ When the TPM refuses to unseal, the initramfs falls back to prompting for a pass
 
 For a nation‑state threat model, the inconvenience of typing a few commands after a firmware update is trivial compared to the risk of silently accepting a compromised boot chain:
 
-| Scenario | Risk of full automation |
-|---|---|
-| **Legitimate UEFI firmware update** | Low — but you still want to verify the update was signed and intentional. |
+| Scenario                                   | Risk of full automation                                                                                                               |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| **Legitimate UEFI firmware update**        | Low — but you still want to verify the update was signed and intentional.                                                             |
 | **Malicious firmware implant (evil‑maid)** | Very high — an attacker replaces the UEFI firmware or dbx; automation would silently accept the new PCR and unlock the disk for them. |
-| **Secure Boot key compromise** | Very high — if your db key is stolen and replaced, you must not re‑enroll until you have rotated the keys. |
-| **Kernel command‑line injection** | High — a modified UKI cmdline could weaken other hardening layers; automation would seal the key to the weakened state. |
+| **Secure Boot key compromise**             | Very high — if your db key is stolen and replaced, you must not re‑enroll until you have rotated the keys.                            |
+| **Kernel command‑line injection**          | High — a modified UKI cmdline could weaken other hardening layers; automation would seal the key to the weakened state.               |
 
 **Principle: every re‑enrollment must be preceded by a conscious human decision that the change was legitimate.** The script below makes the process quicker and less error‑prone, but it still requires you to explicitly invoke it.
 
@@ -6481,12 +6490,12 @@ The script prints the new recovery keys to stdout. Write them down **immediately
 
 ### 29.4 — What Happens During Re‑Enrollment
 
-| Step | Command | Effect |
-|------|---------|--------|
-| Wipe TPM2 token | `systemd-cryptenroll --wipe-slot=tpm2` | Removes the old (now‑invalid) PCR‑sealed key. The LUKS passphrase and recovery key remain untouched, so the volume is still accessible. |
-| Enroll new token | `systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=0+2+7+12 --tpm2-with-pin=yes` | Generates a fresh key inside the TPM and seals it against the current PCR values. |
-| Revoke old recovery key | `systemd-cryptenroll --wipe-slot=recovery` | Deletes the used recovery key. A used recovery key must be treated as compromised — anyone who saw it over your shoulder now possesses it. |
-| Generate new recovery key | `systemd-cryptenroll --recovery-key` | Creates a new high‑entropy recovery key and prints it to stdout. |
+| Step                      | Command                                                                           | Effect                                                                                                                                     |
+| ------------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Wipe TPM2 token           | `systemd-cryptenroll --wipe-slot=tpm2`                                            | Removes the old (now‑invalid) PCR‑sealed key. The LUKS passphrase and recovery key remain untouched, so the volume is still accessible.    |
+| Enroll new token          | `systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=0+2+7+12 --tpm2-with-pin=yes` | Generates a fresh key inside the TPM and seals it against the current PCR values.                                                          |
+| Revoke old recovery key   | `systemd-cryptenroll --wipe-slot=recovery`                                        | Deletes the used recovery key. A used recovery key must be treated as compromised — anyone who saw it over your shoulder now possesses it. |
+| Generate new recovery key | `systemd-cryptenroll --recovery-key`                                              | Creates a new high‑entropy recovery key and prints it to stdout.                                                                           |
 
 After the script completes, run `systemd-cryptenroll /dev/nvme0n1p2` to verify that each LUKS container shows exactly one `tpm2` slot and one `recovery` slot:
 
@@ -6505,11 +6514,11 @@ If the TPM chip is physically damaged, has been cleared by a firmware bug, or ha
 
 **Long‑term options:**
 
-| Option | Command | Security |
-|--------|---------|----------|
-| **Replace the TPM** (if discrete) | Hardware replacement; then re‑enroll | Best — restores hardware‑backed two‑factor unlock |
-| **Fall back to passphrase** | `systemd-cryptenroll --password /dev/nvme0n1p2` | Acceptable only with a strong (≥ 25‑character), high‑entropy passphrase generated by a password manager |
-| **Use FIDO2 token** | `systemd-cryptenroll --fido2-device=auto /dev/nvme0n1p2` | Requires a separate hardware token (YubiKey, Nitrokey); still provides two‑factor authentication |
+| Option                            | Command                                                  | Security                                                                                                |
+| --------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| **Replace the TPM** (if discrete) | Hardware replacement; then re‑enroll                     | Best — restores hardware‑backed two‑factor unlock                                                       |
+| **Fall back to passphrase**       | `systemd-cryptenroll --password /dev/nvme0n1p2`          | Acceptable only with a strong (≥ 25‑character), high‑entropy passphrase generated by a password manager |
+| **Use FIDO2 token**               | `systemd-cryptenroll --fido2-device=auto /dev/nvme0n1p2` | Requires a separate hardware token (YubiKey, Nitrokey); still provides two‑factor authentication        |
 
 If you fall back to a passphrase, increase the Argon2id memory parameter to at least `‑‑pbkdf‑memory 2097152` (2 GiB) to raise the brute‑force cost, since you have lost the hardware‑based rate‑limiting that the TPM provides.
 
@@ -6517,12 +6526,12 @@ If you fall back to a passphrase, increase the Argon2id memory parameter to at l
 
 ### 29.6 — PCR Justification (Repeated from Part 10)
 
-| PCR | Measures | Why Included | What changes it |
-|-----|----------|-------------|-----------------|
-| PCR[0] | UEFI firmware code | Detects firmware tampering | UEFI firmware update |
-| PCR[2] | Option ROM code | Detects malicious GPU/NIC UEFI ROMs via Thunderbolt/PCIe | Option ROM updates, GPU firmware updates |
-| PCR[7] | Secure Boot state (db, dbx, PK, KEK) | Seals against Secure Boot key rotation | Secure Boot key enrollment, dbx updates, shim updates |
-| PCR[12] | Kernel cmdline (measured by systemd‑stub) | Seals against modification of the embedded UKI cmdline | UKI rebuild with new cmdline |
+| PCR     | Measures                                  | Why Included                                             | What changes it                                       |
+| ------- | ----------------------------------------- | -------------------------------------------------------- | ----------------------------------------------------- |
+| PCR[0]  | UEFI firmware code                        | Detects firmware tampering                               | UEFI firmware update                                  |
+| PCR[2]  | Option ROM code                           | Detects malicious GPU/NIC UEFI ROMs via Thunderbolt/PCIe | Option ROM updates, GPU firmware updates              |
+| PCR[7]  | Secure Boot state (db, dbx, PK, KEK)      | Seals against Secure Boot key rotation                   | Secure Boot key enrollment, dbx updates, shim updates |
+| PCR[12] | Kernel cmdline (measured by systemd‑stub) | Seals against modification of the embedded UKI cmdline   | UKI rebuild with new cmdline                          |
 
 > **Choosing fewer PCRs**: If you find yourself re‑enrolling too often (e.g., after every kernel update because of PCR 12 changes), you can drop specific PCRs from the list. Dropping PCR 12 gives up protection against cmdline injection; dropping PCR 7 gives up protection against Secure Boot key replacement. For an APT threat model, the four‑PCR set above provides the best balance of security and manageability.
 
@@ -6531,6 +6540,7 @@ If you fall back to a passphrase, increase the Argon2id memory parameter to at l
 `systemd‑pcrlock` is a newer tool (available in systemd ≥ 255) that can **predict** what PCR values will look like after a legitimate firmware update and store a policy in TPM non‑volatile memory that allows unlocking across those predicted changes. It is designed to reduce the manual burden of firmware updates while still refusing to unlock the disk for unpredicted PCR states.
 
 The workflow is:
+
 ```bash
 # Before a firmware update:
 systemd-pcrlock unlock-firmware-code
@@ -6540,6 +6550,7 @@ systemd-pcrlock make-policy
 ```
 
 **Limitations as of April 2026:**
+
 - The tool is explicitly marked **experimental** by the systemd project and "might still change in behaviour and interface".
 - It cannot predict all possible firmware changes (a dbx update from your motherboard vendor may not be in the prediction model).
 - It still requires a recovery key as a fallback for truly unexpected PCR changes.
@@ -6571,6 +6582,7 @@ PCR mismatch detected at boot
 ```
 
 # POST INSTALL CHROOT
+
 ```bash
 cryptsetup luksOpen /dev/nvme1n1p2 crypt0
 cryptsetup luksOpen /dev/nvme0n1p1 crypt1
