@@ -182,6 +182,7 @@ format = " [py](italic) [${symbol}${version}]($style)"
 style = "bold bright-yellow"
 symbol = "[⌉](bold bright-blue)⌊ "
 version_format = "${raw}"
+python_binary = ["./venv/bin/python", "python3", "python"]
 
 [ruby]
 format = " [rb](italic) [${symbol}${version}]($style)"

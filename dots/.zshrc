@@ -277,7 +277,12 @@ unsetopt BEEP
 # ============================================================================
 
 # Initialize completion system
-autoload -Uz compinit
+
+
+fpath=(${ASDF_DATA_DIR:-$HOME/.asdf}/completions $fpath)
+
+autoload -Uz compinit && compinit
+
 
 # Completion initialization
 # Only regenerate .zcompdump once a day for faster startup
@@ -935,5 +940,3 @@ function y() {
     [ "$cwd" != "$PWD" ] && [ -d "$cwd" ] && builtin cd -- "$cwd"
     rm -f -- "$tmp"
 }
-
-export PATH="/home/ahsan/.pixi/bin:$PATH"
