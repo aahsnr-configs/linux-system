@@ -1,11 +1,5 @@
 ;;; init.el -*- lexical-binding: t; -*-
 
-;; This file controls what Doom modules are enabled and what order they load in.
-;; Remember to run 'doom sync' after modifying it.
-;;
-;; Press 'K' on a module to view its documentation, and 'gd' to browse its
-;; directory.
-
 (doom! :input
        ;;bidi
        ;;chinese
@@ -27,28 +21,31 @@
        indent-guides
        modeline
        nav-flash
-       ophints                              ; highlight operator regions
-       (popup +all +defaults)               ; window rule manager (your `popper` analog)
+       ophints
+       (popup +all +defaults)
        treemacs
        unicode
        (vc-gutter +pretty)
        window-select
-       workspaces                           ; tab-bar + perspective workspaces (your perspective.el)
+       workspaces
        zen
 
        :editor
-       (evil +everywhere)                   ; evil, evil-collection, evil-surround, evil-numbers, evil-args, etc.
-       file-templates                       ; your file-templates section
-       fold                                 ; treesit-fold + vimish-fold integration
-       (format +onsave)                     ; apheleia
+       (evil +everywhere)
+       file-templates
+       fold
+       (format +onsave)
        multiple-cursors
-       snippets                             ; yasnippet + doom-snippets + yasnippet-capf
+       snippets
        word-wrap
 
        :emacs
-       (dired +icons +dirvish)              ; dired + dirvish
+       (dired
+         +icons
+         +dirvish)
        electric
-       (ibuffer +icons)
+       (ibuffer
+         +icons)
        undo
        vc
 
@@ -79,10 +76,14 @@
        tty
 
        :lang
-       (cc +tree-sitter +lsp)
+       (cc
+         +tree-sitter
+         +lsp)
        data
        emacs-lisp
-       (json +tree-sitter +lsp)
+       (json
+         +tree-sitter
+         +lsp)
        (latex
          +cdlatex
          +fold
@@ -107,7 +108,9 @@
          +lsp
          +uv)
        (sh +lsp)
-       (yaml +tree-sitter +lsp)
+       (yaml
+         +tree-sitter
+         +lsp)
 
        :config
        literate
