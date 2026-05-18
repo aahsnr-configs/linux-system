@@ -30,13 +30,14 @@
        (ligatures
          +extra)
        modeline
-       nav-flash
        ophints
-       (popup +all +defaults)
+       (popup
+         +all
+         +defaults)
        treemacs
        unicode
-       (vc-gutter +pretty)
-       window-select
+       (vc-gutter
+         +pretty)
        workspaces
 
        :editor
@@ -44,7 +45,6 @@
        file-templates
        fold
        (format +onsave)
-       multiple-cursors
        snippets
        word-wrap
 
