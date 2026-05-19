@@ -1,0 +1,15 @@
+[project]
+name = "doom-stitcher"
+version = "0.1.0"
+description = "Agentic workflow to translate vanilla Emacs to literate Doom Emacs"
+requires-python = "=3.13.12"
+dependencies = [
+    "pydantic-ai",
+    "langgraph",
+    "litellm",
+    "python-dotenv",
+    "openai",
+]
+
+[tool.uv]
+python = "3.13"

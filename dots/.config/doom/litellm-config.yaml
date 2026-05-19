@@ -1,0 +1,58 @@
+# ===== GHOST agentic POOL =====
+model_list:
+  # Secondary: Gemini 2.5 Flash (v8: replaces Claude Sonnet 4.6 — 1,500 RPD free, 1M context)
+  - model_name: ghost-agentic
+    litellm_params:
+      model: gemini/gemini-3-flash-preview
+      api_key: os.environ/GOOG_1
+      rpm: 15
+      rpd: 250
+
+  - model_name: ghost-agentic
+    litellm_params:
+      model: gemini/gemini-3-flash-preview
+      api_key: os.environ/GOOG_2
+      rpm: 15
+      rpd: 250
+
+  - model_name: ghost-agentic
+    litellm_params:
+      model: gemini/gemini-3-flash-preview
+      api_key: os.environ/GOOG_3
+      rpm: 15
+      rpd: 250
+
+  - model_name: ghost-agentic
+    litellm_params:
+      model: gemini/gemini-3-flash-preview
+      api_key: os.environ/GOOG_4
+      rpm: 15
+      rpd: 250
+
+  - model_name: ghost-agentic
+    litellm_params:
+      model: gemini/gemini-3-flash-preview
+      api_key: os.environ/GOOG_5
+      rpm: 15
+      rpd: 250
+
+  - model_name: ghost-agentic
+    litellm_params:
+      model: gemini/gemini-3-flash-preview
+      api_key: os.environ/GOOG_6
+      rpm: 15
+      rpd: 250
+
+  - model_name: ghost-agentic
+    litellm_params:
+      model: gemini/gemini-3-flash-preview
+      api_key: os.environ/GOOG_7
+      rpm: 15
+      rpd: 250
+
+  - model_name: ghost-agentic
+    litellm_params:
+      model: gemini/gemini-3-flash-preview
+      api_key: os.environ/GOOG_8
+      rpm: 15
+      rpd: 250
