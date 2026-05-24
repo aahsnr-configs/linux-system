@@ -105,6 +105,8 @@ lsblk -d -o NAME,SIZE,MODEL
 
 ### 2.2 — Wipe Existing Metadata (and optionally TRIM the SSDs)
 
+- [ ] **DONE**
+
 ```bash
 wipefs -af /dev/nvme0n1
 wipefs -af /dev/nvme1n1
@@ -114,6 +116,8 @@ blkdiscard -f /dev/nvme1n1
 ```
 
 ### 2.3 — Partition Drives
+
+- [ ] **DONE**
 
 ```bash
 # ── nvme0n1 (500 GB — ESP + LVM PV) ──
@@ -134,13 +138,17 @@ gdisk /dev/nvme1n1
 
 ### 2.4 — Format ESP
 
+- [ ] **DONE**
+
 ```bash
-mkfs.vfat -F 32 -n ESP /dev/nvme0n1p1
+mkfs.vfat -F 32 -n ESP /dev/nvme1n1p1
 ```
 
 ### 2.5 — LUKS2 Format (Argon2id on Both)
 
-No GRUB constraint → Argon2id everywhere. High memory cost raises the bar for GPU brute‑force.  
+- [ ] **DONE**
+
+No GRUB constraint → Argon2id everywhere. High memory cost raises the bar for GPU brute‑force.
 The `‑‑label` option sets a human‑readable name inside the LUKS2 header (requires cryptsetup ≥ 2.1.0, which is standard in any modern live environment).
 
 ```bash
@@ -155,7 +163,7 @@ cryptsetup luksFormat \
   --pbkdf-parallel 4 \
   --iter-time 5000 \
   --label crypt0 \
-  /dev/nvme0n1p2
+  /dev/nvme1n1p2
 
 # ── nvme1n1p1 (1 TB PV) ──
 cryptsetup luksFormat \
@@ -168,32 +176,35 @@ cryptsetup luksFormat \
   --pbkdf-parallel 4 \
   --iter-time 5000 \
   --label crypt1 \
-  /dev/nvme1n1p1
+  /dev/nvme0n1p1
 ```
 
 > **Argon2id parameters**: `‑‑pbkdf‑memory 1048576` = 1 GiB RAM for KDF. On the i9‑13900K with ≥ 32 GiB RAM this adds ≈ 2 s to boot. APT actors with GPU clusters cannot efficiently parallelise 1 GiB‑memory Argon2id.
 
 ### 2.6 — Open LUKS Containers
 
-```bash
-cryptsetup luksOpen /dev/nvme0n1p2 crypt0
-cryptsetup luksOpen /dev/nvme1n1p1 crypt1
+- [ ] **DONE**
 
-CRYPT0_UUID=$(cryptsetup luksUUID /dev/nvme0n1p2)
-CRYPT1_UUID=$(cryptsetup luksUUID /dev/nvme1n1p1)
+```bash
+cryptsetup luksOpen /dev/nvme1n1p2 crypt0
+cryptsetup luksOpen /dev/nvme0n1p1 crypt1
+
+CRYPT0_UUID=$(cryptsetup luksUUID /dev/nvme1n1p2)
+CRYPT1_UUID=$(cryptsetup luksUUID /dev/nvme0n1p1)
 echo "CRYPT0_UUID=$CRYPT0_UUID"  >  /root/luks-uuids.txt
 echo "CRYPT1_UUID=$CRYPT1_UUID"  >> /root/luks-uuids.txt
 ```
 
 ### 2.7 — LUKS Header Backup
 
-The LUKS header (~4 MiB per container) stores cipher parameters and encrypted master keys. **If the header is corrupted, all data is permanently lost.** Back up each header to offline storage immediately.
+- [ ] **DONE**
+      The LUKS header (~4 MiB per container) stores cipher parameters and encrypted master keys. **If the header is corrupted, all data is permanently lost.** Back up each header to offline storage immediately.
 
 ```bash
 mkdir -p /tmp/luks-backups
-cryptsetup luksHeaderBackup /dev/nvme0n1p2 \
+cryptsetup luksHeaderBackup /dev/nvme1n1p2 \
   --header-backup-file /tmp/luks-backups/luks-header-crypt0.img
-cryptsetup luksHeaderBackup /dev/nvme1n1p1 \
+cryptsetup luksHeaderBackup /dev/nvme0n1p1 \
   --header-backup-file /tmp/luks-backups/luks-header-crypt1.img
 ```
 
@@ -203,12 +214,16 @@ cryptsetup luksHeaderBackup /dev/nvme1n1p1 \
 
 ### 3.1 — Create Physical Volumes and Volume Group
 
+- [ ] **DONE**
+
 ```bash
 pvcreate /dev/mapper/crypt0 /dev/mapper/crypt1
 vgcreate vg0 /dev/mapper/crypt0 /dev/mapper/crypt1
 ```
 
 ### 3.2 — Create Linear Logical Volume
+
+- [ ] **DONE**
 
 ```bash
 # Linear LV using all free space (~1.45 TB)
@@ -230,11 +245,15 @@ In this minimal‑var layout only `/var/tmp` receives its own subvolume; all oth
 
 ### 4.1 — Create Btrfs Filesystem
 
+- [ ] **DONE**
+
 ```bash
 mkfs.btrfs -L gentoo /dev/vg0/root
 ```
 
 ### 4.2 — Mount Top‑Level Volume and Create Subvolumes
+
+- [ ] **DONE**
 
 ```bash
 mkdir -p /mnt/gentoo
@@ -250,7 +269,6 @@ btrfs subvolume create /mnt/gentoo/@/home
 btrfs subvolume create /mnt/gentoo/@/opt
 btrfs subvolume create /mnt/gentoo/@/root
 btrfs subvolume create /mnt/gentoo/@/srv
-btrfs subvolume create /mnt/gentoo/@/tmp
 
 mkdir -p /mnt/gentoo/@/usr
 btrfs subvolume create /mnt/gentoo/@/usr/local
@@ -288,16 +306,20 @@ mount -o defaults,noatime,compress=zstd:1,space_cache=v2 \
 
 ### 4.3 — Create Mount Point Skeleton
 
+- [ ] **DONE**
+
 ```bash
-mkdir -p /mnt/gentoo/{.snapshots,home,nix,opt,root,srv,tmp,usr/local,var}
+mkdir -p /mnt/gentoo/{.snapshots,home,nix,opt,root,srv,usr/local,var}
 mkdir -p /mnt/gentoo/var/tmp
 mkdir -p /mnt/gentoo/efi
 ```
 
 ### 4.4 — Mount All Subvolumes and ESP
 
+- [ ] **DONE**
+
 ```bash
-BTRFS_OPTS="defaults,noatime,compress=zstd:1,space_cache=v2"
+BTRFS_OPTS="defaults,noatime,compress=zstd:3,space_cache=v2"
 
 mount /dev/vg0/root /mnt/gentoo/.snapshots   -o ${BTRFS_OPTS},subvol=@/.snapshots
 mount /dev/vg0/root /mnt/gentoo/home         -o ${BTRFS_OPTS},subvol=@/home
@@ -305,16 +327,17 @@ mount /dev/vg0/root /mnt/gentoo/nix          -o ${BTRFS_OPTS},subvol=@/nix
 mount /dev/vg0/root /mnt/gentoo/opt          -o ${BTRFS_OPTS},subvol=@/opt
 mount /dev/vg0/root /mnt/gentoo/root         -o ${BTRFS_OPTS},subvol=@/root
 mount /dev/vg0/root /mnt/gentoo/srv          -o ${BTRFS_OPTS},subvol=@/srv
-mount /dev/vg0/root /mnt/gentoo/tmp          -o ${BTRFS_OPTS},subvol=@/tmp
 mount /dev/vg0/root /mnt/gentoo/usr/local    -o ${BTRFS_OPTS},subvol=@/usr/local
 mount /dev/vg0/root /mnt/gentoo/var          -o ${BTRFS_OPTS},subvol=@/var
 mount /dev/vg0/root /mnt/gentoo/var/tmp      -o ${BTRFS_OPTS},subvol=@/var/tmp
 
-mount /dev/nvme0n1p1 /mnt/gentoo/efi
+mount /dev/nvme1n1p1 /mnt/gentoo/efi
 mkdir -p /mnt/gentoo/efi/EFI/Linux
 ```
 
 ### 4.5 — Subvolume Justification
+
+- [ ] **DONE**
 
 | Subvolume          | Mount point   | Rationale                      |
 | ------------------ | ------------- | ------------------------------ |
@@ -336,13 +359,17 @@ mkdir -p /mnt/gentoo/efi/EFI/Linux
 
 ### 5.1 — Download and Extract
 
+- [ ] **DONE**
+
 ```bash
 cd /mnt/gentoo
-wget https://distfiles.gentoo.org/releases/amd64/autobuilds/20260503T164604Z/stage3-amd64-nomultilib-systemd-20260503T164604Z.tar.xz
+wget https://distfiles.gentoo.org/releases/amd64/autobuilds/20260517T170110Z/stage3-amd64-nomultilib-systemd-20260517T170110Z.tar.xz
 tar xpvf stage3-*.tar.xz --xattrs-include='*.*' --numeric-owner
 ```
 
 ### 5.2 — Seed Portage Config
+
+- [ ] **DONE**
 
 ```bash
 mkdir --parents /mnt/gentoo/etc/portage/repos.conf
@@ -351,6 +378,8 @@ cp /mnt/gentoo/usr/share/portage/config/repos.conf \
 ```
 
 ### 5.3 — Chroot Prep
+
+- [ ] **DONE**
 
 ```bash
 cp --dereference /etc/resolv.conf /mnt/gentoo/etc/
@@ -366,416 +395,45 @@ cp /root/luks-uuids.txt /mnt/gentoo/root/luks-uuids.txt
 
 ### 5.4 — Place Configuration Files (before chroot)
 
-All of the following files must be written inside the target system **before** entering the chroot. Use `cat > /mnt/gentoo/... << 'EOF'` or `nano` as preferred.
-
-#### `/mnt/gentoo/etc/portage/make.conf`
+- [ ] **DONE**
 
 `rm -rf /mnt/gentoo/etc/portage/make.conf && nvim /mnt/gentoo/etc/portage/make.conf`
-
-```bash
-COMMON_FLAGS="-O3 -march=raptorlake -pipe -flto -fno-plt -fno-semantic-interposition"
-CPU_FLAGS_X86="aes avx avx2 f16c fma3 mmx mmxext pclmul popcnt rdrand sha sse sse2 sse3 sse4_1 sse4_2 sse4a ssse3 vpclmulqdq"
-CFLAGS="${COMMON_FLAGS}"
-CXXFLAGS="${COMMON_FLAGS}"
-FCFLAGS="${COMMON_FLAGS}"
-FFLAGS="${COMMON_FLAGS}"
-LDFLAGS="${COMMON_FLAGS} ${LDFLAGS}"
-CGO_CFLAGS="${CFLAGS}"
-CGO_CXXFLAGS="${CXXFLAGS}"
-CGO_FFLAGS="${FFLAGS}"
-CGO_LDFLAGS="${LDFLAGS}"
-MAKEOPTS="-j22"
-NOCOMMON_OVERRIDE_LIBTOOL="yes"
-EMERGE_DEFAULT_OPTS="--jobs=10 --keep-going=y --ask"
-#ACCEPT_KEYWORDS="~amd64"
-ACCEPT_LICENSE="*"
-VIDEO_CARDS="nvidia"
-USE="systemd -cups -elogind -fips -gnome -handbook gtk4 vdpau clang \
-     -kde -motif -pulseaudio -quicktime -smartcard gtk tpm opengl \
-     apparmor appindicator -bluetooth firmware lvm gstreamer nftables \
-     gui keyring libnotify lto pgo jit nvenc nvidia pipewire -iptables \
-     qt5 qt6 udisks upower wayland zstd X -ccache -accessibility \
-     cryptsetup device-mapper audit policykit hardened vulkan llvm"
-L10N="en"
-LINGUAS="en"
-ABI_X86="64"
-PORTDIR="/var/db/repos/gentoo"
-DISTDIR="/var/cache/distfiles"
-PKGDIR="/var/cache/binpkgs"
-
-# Secure Boot signing certificate and key (from sbctl)
-SECUREBOOT_SIGN_KEY="/var/lib/sbctl/keys/db/db.key"
-SECUREBOOT_SIGN_CERT="/var/lib/sbctl/keys/db/db.pem"
-LC_MESSAGES=C
-```
 
 #### `/mnt/gentoo/etc/portage/package.use`
 
 `rm -R /mnt/gentoo/etc/portage/package.use/ && nvim /mnt/gentoo/etc/portage/package.use`
 
-```bash
-sys-apps/systemd cryptsetup boot tpm
-sys-kernel/installkernel dracut uki
-sys-kernel/dracut systemd
-sys-fs/cryptsetup pwquality
-sys-kernel/linux-firmware compress-zstd
-x11-drivers/nvidia-drivers wayland powerd persistenced
-media-gfx/imv -X gif heif icu jpeg jpegxl png svg tiff
-gui-wm/hyprland hyprpm -uwsm
-app-admin/ananicy-cpp bpf cachyos-rules clang
-dev-util/bpftool clang llvm
-dev-util/perf libpfm
-sys-kernel/cachyos-sources kcfi -hardened
-media-video/pipewire sound-server extra gstreamer gsettings pipewire-alsa ffmpeg
-app-editors/emacs -X tree-sitter imagemagick mailutils jit dynamic-loading gtk gui
-sys-devel/gcc default-stack-clash-protection graphite go -fortran
-llvm-runtimes/compiler-rt-sanitizers orc profile
-llvm-core/clang-runtime sanitize
-dev-lang/python -jit tk
-#net-wireless/wpa_supplicant dbus
-gui-apps/noctalia-qs -dwl -niri -i3 -bluetooth
-media-libs/libcanberra alsa
-dev-libs/libutf8proc -cjk
-dev-cpp/cpptrace unwind
-net-misc/networkmanager -wifi -wext nftables gnutls -resolvconf -nss
-app-admin/cockpit firewalld pcp udisks
-net-firewall/firewalld gui
-sys-auth/pambase pwquality -passwdqc
-app-text/aspell unicode l10n_en
-app-shells/atuin server system-sqlite
-sys-apps/rng-tools jitterentropy
-gnome-base/gvfs keyring
-sys-fs/lvm2 -static -static-libs
-x11-terms/kitty -X wayland
-app-office/obsidian appindicator
-app-text/papers djvu gnome-keyring nautilus
-app-editors/neovim lua_single_target_luajit
-app-text/enchant aspell nuspell voikko
-media-libs/freetype harfbuzz
-llvm-runtimes/clang-runtime polly
-dev-build/cmake -gui
-app-text/xmlto text
-net-firewall/nftables json python xtables
-net-misc/networkmanager -iptables
-sys-auth/polkit -gtk
-```
-
 #### `/mnt/gentoo/etc/portage/package.accept_keywords`
 
 `rm -R /mnt/gentoo/etc/portage/package.accept_keywords && nvim /mnt/gentoo/etc/portage/package.accept_keywords`
-
-```bash
-##/etc/portage/package.accept_keywords
-=gui-apps/noctalia-shell-9999 ** ~amd64
-=gui-apps/noctalia-qs-9999 ** ~amd64
-app-admin/bitwarden-desktop-bin ~amd64
-app-admin/sysstat ~amd64
-app-arch/7zip ~amd64
-app-arch/unzip ~amd64
-app-arch/unrar ~amd64
-app-arch/zip ~amd64
-app-backup/btrfs-assistant ~amd64
-dev-libs/libutf8proc ~amd64
-sys-kernel/linux-headers ~amd64
-dev-lua/luv ~amd64
-dev-libs/libuv ~amd64
-app-backup/snapper ~amd64
-app-backup/snapper-gui ~amd64
-app-containers/* ~amd64
-app-containers/podman ~amd64
-app-containers/podman-compose ~amd64
-app-containers/podman-tui ~amd64
-app-containers/pods ~amd64
-dev-cpp/sdbus-c++ ~amd64
-app-crypt/johntheripper ~amd64
-app-editors/emacs ~amd64
-app-editors/neovim ~amd64
-app-emacs/emacs-common ~amd64
-app-forensics/aide ~amd64
-app-forensics/lynis ~amd64
-app-misc/brightnessctl ~amd64
-app-misc/yazi ~amd64
-app-office/obsidian ~amd64
-app-portage/gentoolkit ~amd64
-app-shells/fzf ~amd64
-app-shells/fzf-tab ~amd64
-app-shells/gentoo-zsh-completions ~amd64
-app-shells/gitstatus ~amd64
-app-shells/zoxide ~amd64
-app-shells/zsh ~amd64
-app-text/texlab ~amd64
-app-text/xournalpp ~amd64
-app-text/zathura ~amd64
-app-text/zathura-meta ~amd64
-app-text/zotero-bin ~amd64
-dev-libs/tree-sitter ~amd64
-dev-libs/tree-sitter-lua ~amd64
-dev-libs/tree-sitter-markdown ~amd64
-dev-libs/tree-sitter-query ~amd64
-dev-libs/tree-sitter-vim ~amd64
-dev-libs/unibilium ~amd64
-dev-vcs/git ~amd64
-dev-util/git-delta ~amd64
-dev-util/tree-sitter-cli ~amd64
-dev-vcs/git ~amd64
-dev-vcs/lazygit ~amd64
-dev-vcs/git-lfs ~amd64
-dev-tex/texlab ~amd64
-gui-apps/grim ~amd64
-gui-apps/qt6ct ~amd64
-gui-apps/slurp ~amd64
-gui-apps/wl-clipboard ~amd64
-gui-libs/egl-gbm
-gui-libs/egl-x11
-gui-libs/egl-wayland ~amd64
-gui-libs/greetd ~amd64
-gui-libs/gtk ~amd64
-gui-libs/libadwaita ~amd64
-gui-libs/wlroots ~amd64
-media-fonts/jetbrains-mono ~amd64
-media-fonts/ubuntu-font-family ~amd64
-media-fonts/nerdfonts ~amd64
-media-gfx/maim ~amd64
-media-libs/fcft ~amd64
-media-libs/nvidia-vaapi-driver ~amd64
-media-libs/mesa ~amd64
-net-analyzer/nmap ~amd64
-net-analyzer/wireshark ~amd64
-net-firewall/firewalld ~amd64
-net-im/discord ~amd64
-net-im/zoom ~amd64
-net-misc/curl ~amd64
-net-misc/wget ~amd64
-sci-biology/biopython ~amd64
-sci-chemistry/pymol ~amd64
-sec-policy/apparmor-profiles ~amd64
-sys-apps/apparmor ~amd64
-sys-apps/apparmor-utils ~amd64
-sys-apps/bat ~amd64
-sys-apps/eza ~amd64
-sys-apps/fd ~amd64
-sys-apps/fwupd ~amd64
-sys-apps/grep ~amd64
-sys-apps/ripgrep ~amd64
-app-admin/ananicy-rules-cachyos ~amd64
-app-admin/ananicy-cpp ~amd64
-sys-fs/btrfs-progs ~amd64
-app-crypt/sbctl ~amd64
-sys-firmware/intel-microcode ~amd64
-dev-libs/libdwarf ~amd64
-dev-cpp/cpptrace ~amd64
-sys-apps/rng-tools ~amd64
-sys-apps/zram-generator ~amd64
-sys-auth/seatd ~amd64
-sys-firmware/sof-firmware ~amd64
-sys-fs/btrfs-progs ~amd64
-sys-fs/dosfstools ~amd64
-sys-kernel/cachyos-sources ~amd64
-sys-kernel/dracut ~amd64
-sys-kernel/installkernel ~amd64
-sys-kernel/linux-firmware ~amd64
-sys-kernel/linux-headers ~amd64
-sys-kernel/modprobed-db ~amd64
-sys-libs/libapparmor ~amd64
-sys-process/acct ~amd64
-sys-process/audit ~amd64
-sys-process/bottom ~amd64
-sys-process/btop ~amd64
-sys-process/nvtop ~amd64
-x11-base/xwayland ~amd64
-x11-drivers/nvidia-drivers ~amd64
-x11-libs/libnotify ~amd64
-x11-misc/qt5ct ~amd64
-x11-themes/kvantum ~amd64
-www-apps/element ~amd64
-www-apps/beef ~amd64
-www-client/zen-browser ~amd64
-```
-
-#### `/mnt/gentoo/etc/portage/package.mask`
-
-`rm -R /mnt/gentoo/etc/portage/package.mask && nvim /mnt/gentoo/etc/portage/package.mask`
-
-```bash
-#dev-lang/python-3.13.2::gentoo
->=sys-kernel/cachyos-sources-7
-sys-auth/ananicy-cpp::CachyOS-kernels
-sys-auth/ananicy-cpp::guru
-#>=app-editors/neovim-0.11
-#>=dev-libs/glib-2.84
-#>=sys-kernel/cachyos-sources-6.14
-#app-emacs/po-mode::melpa
-#>=llvm-core/llvmgold-20
-#>=llvm-core/clang-20
-#>=llvm-core/clang-common-20
-#>=llvm-core/clang-runtime-20
-#>=llvm-core/clang-toolchain-symlinks-20
-#>=llvm-core/lld-20
-#>=llvm-core/lld-toolchain-symlinks-20
-#>=llvm-core/llvm-20
-#>=llvm-core/llvm-common-20
-#>=llvm-core/llvm-toolchain-symlinks-20
-#>=llvm-runtimes/compiler-rt-20
-#>=llvm-runtimes/compiler-rt-sanitizers-20
-#>=llvm-runtimes/libunwind-20
-#>=dev-util/spirv-llvm-translator-20
-```
 
 #### `/mnt/gentoo/etc/portage/package.env`
 
 `rm -R /mnt/gentoo/etc/portage/package.env && nvim /mnt/gentoo/etc/portage/package.env`
 
-```bash
-llvm-core/clang clang-lto-env polly-on-env
-llvm-core/clang-common clang-lto-env polly-on-env
-llvm-runtimes/clang-runtime clang-lto-env polly-on-env
-llvm-core/clang-toolchain-symlinks clang-lto-env polly-on-env
-llvm-core/lld clang-lto-env polly-on-env
-llvm-core/lld-toolchain-symlinks clang-lto-env polly-on-env
-llvm-core/llvm clang-lto-env
-llvm-core/llvm-common clang-lto-env polly-on-env
-llvm-core/llvm-toolchain-symlinks clang-lto-env polly-on-env
-llvm-runtimes/compiler-rt clang-lto-env polly-on-env
-llvm-runtimes/compiler-rt-sanitizers clang-lto-env polly-on-env
-llvm-runtimes/libunwind clang-lto-env polly-on-env
-dev-util/spirv-llvm-translator clang-lto-env polly-on-env
-dev-build/meson clang-lto-env polly-on-env
-media-libs/mesa clang-lto-env polly-plugin-env
-llvm-core/polly clang-lto-env polly-on-env
-dev-util/glslang clang-lto-env polly-on-env
-media-libs/libdisplay-info clang-lto-env polly-on-env
-dev-lang/python clang-lto-env polly-on-env
-gnome-base/librsvg clang-lto-env polly-on-env
-dev-build/cmake clang-lto-env polly-on-env
-sci-libs/gsl clang-lto-env polly-on-env
-dev-lang/python clang-lto-env
-media-video/ffmpeg clang-lto-env
-media-video/libavif clang-lto-env
-media-libs/dav1d clang-lto-env
-media-libs/aom clang-lto-env
-media-libs/x264 clang-lto-env
-media-libs/libvpx clang-lto-env
-sys-apps/systemd clang-lto-env
-sys-fs/btrfs-progs clang-lto-env
-sys-libs/zlib clang-lto-env
-dev-db/sqlite clang-lto-env
-app-shells/atuin clang-lto-env polly-plugin-env
-app-shells/starship clang-lto-env
-app-shells/zoxide clang-lto-env
-app-misc/czkawka clang-lto-env
-app-misc/yazi clang-lto-env
-gui-apps/alacritty-graphics clang-lto-env
-sys-apps/bat clang-lto-env
-sys-apps/eza clang-lto-env
-sys-apps/fd clang-lto-env
-sys-process/bottom clang-lto-env
-sys-apps/ripgrep clang-lto-env
-dev-util/git-delta clang-lto-env
-```
-
 #### `/mnt/gentoo/etc/portage/env/clang-lto-env`
 
 `nvim /mnt/gentoo/etc/portage/env/clang-lto-env`
-
-```bash
-# /etc/portage/env/clang-lto-env
-COMMON_FLAGS="-O3 -pipe -march=native -flto=thin -fno-semantic-interposition -fno-plt"
-CFLAGS="${COMMON_FLAGS}"
-CXXFLAGS="${COMMON_FLAGS}"
-HARDENING_FLAGS="-fcf-protection -D_FORTIFY_SOURCE=3 -fstack-protector-strong -fstack-clash-protection"
-CFLAGS="${CFLAGS} ${HARDENING_FLAGS}"
-CXXFLAGS="${CXXFLAGS} ${HARDENING_FLAGS}"
-CC="clang"
-CPP="clang-cpp"
-CXX="clang++"
-AR="llvm-ar"
-NM="llvm-nm"
-RANLIB="llvm-ranlib"
-LDFLAGS="${COMMON_FLAGS} ${LDFLAGS} -fuse-ld=lld"
-RUSTFLAGS="${RUSTFLAGS} -Clinker-plugin-lto"
-```
 
 #### `/mnt/gentoo/etc/portage/env/clang-nolto-env`
 
 `nvim /mnt/gentoo/etc/portage/env/clang-nolto-env`
 
-```bash
-### /etc/portage/env/clang-nolto-env
-COMMON_FLAGS="-O3 -pipe -march=native -fno-semantic-interposition -fno-plt"
-CFLAGS="${COMMON_FLAGS}"
-CXXFLAGS="${COMMON_FLAGS}"
-HARDENING_FLAGS="-fcf-protection -D_FORTIFY_SOURCE=3 -fstack-protector-strong -fstack-clash-protection"
-CFLAGS="${CFLAGS} ${HARDENING_FLAGS}"
-CXXFLAGS="${CXXFLAGS} ${HARDENING_FLAGS}"
-CC="clang"
-CXX="clang++"
-AR="llvm-ar"
-LD="ld.lld"
-NM="llvm-nm"
-RANLIB="llvm-ranlib"
-LDFLAGS="${COMMON_FLAGS} ${LDFLAGS} -fuse-ld=lld"
-```
-
 #### `/mnt/gentoo/etc/portage/env/polly-on-env`
 
 `nvim /mnt/gentoo/etc/portage/env/polly-on-env`
-
-```bash
-### /etc/portage/env/polly-on-env
-COMMON_FLAGS="${COMMON_FLAGS} -mllvm -polly -mllvm -polly-vectorizer=stripmine -mllvm -polly-omp-backend=LLVM -mllvm -polly-parallel -mllvm -polly-num-threads=9 -mllvm -polly-scheduling=dynamic"
-CFLAGS="${COMMON_FLAGS}"
-CXXFLAGS="${COMMON_FLAGS}"
-FCFLAGS="${COMMON_FLAGS}"
-FFLAGS="${COMMON_FLAGS}"
-```
 
 #### `/mnt/gentoo/etc/portage/env/polly-plugin-env`
 
 `nvim /mnt/gentoo/etc/portage/env/polly-plugin-env`
 
-```bash
-# /etc/portage/env/polly‑plugin‑env
-CFLAGS="${CFLAGS} -fpass-plugin=LLVMPolly.so"
-CXXFLAGS="${CXXFLAGS} -fpass-plugin=LLVMPolly.so"
-```
-
 #### `/mnt/gentoo/etc/portage/profile/use.mask`
-
-```bash
--lto
--gmp-autoupdate
--vulkan
--jit
-```
 
 #### `/mnt/gentoo/etc/portage/profile/package.provided`
 
-```bash
-### /etc/portage/profile/package.provided
-app-emacs/seq-2.24
-sys-kernel/gentoo-sources-6.19
-app-text/texlive-9999
-app-text/texlive-core-9999
-dev-tex/latexdiff-9999
-dev-texlive/texlive-basic-9999
-dev-texlive/texlive-fontsextra-9999
-dev-texlive/texlive-fontsrecommended-9999
-dev-texlive/texlive-fontutils-9999
-dev-texlive/texlive-formatsextra-9999
-dev-texlive/texlive-latex-9999
-dev-texlive/texlive-latexextra-9999
-dev-texlive/texlive-latexrecommended-9999
-dev-texlive/texlive-luatex-9999
-dev-texlive/texlive-mathscience-9999
-dev-texlive/texlive-plaingeneric-9999
-dev-texlive/texlive-pstricks-9999
-dev-texlive/texlive-xetex-9999
-dev-tex/tex4ht-999999999999
-virtual/latex-base-1.0
-virtual/tex-base-9999
-```
-
 ### 5.5 — Enter Chroot
+
+- [ ] **DONE**
 
 ```bash
 chroot /mnt/gentoo /bin/bash
@@ -788,6 +446,8 @@ export PS1="(chroot) ${PS1}"
 ## Part 6 — Base Configuration and Portage
 
 ### 6.1 — Sync Portage and Select Profile
+
+- [ ] **DONE**
 
 ```bash
 emerge-webrsync
@@ -803,6 +463,8 @@ source /etc/profile
 
 ### 6.2 — Timezone, Locale, Hostname
 
+- [ ] **DONE**
+
 ```bash
 ln -sf ../usr/share/zoneinfo/Asia/Dhaka /etc/localtime
 nano /etc/locale.gen
@@ -815,11 +477,15 @@ echo "workstation" > /etc/hostname
 
 ### 6.3 — Portage and Its REPOS
 
+- [ ] **DONE**
+
 ```bash
 emerge -aq --jobs=5 app-eselect/eselect-repository dev-vcs/git app-admin/sudo && eselect repository remove gentoo && eselect repository add gentoo git https://github.com/gentoo-mirror/gentoo.git  && emaint sync -r gentoo && eselect repository enable guru hyproverlay CachyOS-kernels xarblu-overlay && eselect repository create custom && emerge --sync
 ```
 
 ### 6.4 — Enable CachyOS‑Kernels Overlay
+
+- [ ] **DONE**
 
 ```bash
 eselect repository enable CachyOS-kernels hyproverlay
@@ -827,6 +493,8 @@ emaint sync -r CachyOS-kernels
 ```
 
 ### 6.5 — Enable GPG Commit Verification for Portage
+
+- [ ] **DONE**
 
 `nvim /etc/portage/repos.conf/gentoo.conf`
 
@@ -845,16 +513,20 @@ sync-openpgp-key-path = /usr/share/openpgp-keys/gentoo-release.asc
 
 ###  6.6 — Root Password and Administrative User
 
+- [ ] **DONE**
+
 ```bash
 passwd root
 passwd -l root
 
-useradd -m -G users,wheel,audio,video -s /bin/bash ahsan
+useradd -m -G users,wheel,audio,video,tss -s /bin/bash ahsan
 passwd ahsan
 EDITOR=nvim visudo
 ```
 
 ###  6.7 — Rebuild GCC and World
+
+- [ ] **DONE**
 
 ```bash
 emerge -av gcc && emerge -ev @world
@@ -865,6 +537,8 @@ emerge -av gcc && emerge -ev @world
 ## Part 7 — Kernel: CachyOS‑Sources with Clang + kCFI
 
 ## 7.1 — Install Kernel Sources and Required Packages
+
+- [ ] **DONE**
 
 ```bash
 # Install the kernel sources, firmware, sbctl (for Secure Boot signing),
@@ -884,12 +558,16 @@ cd /usr/src/linux
 
 ### 7.2.1 — Copy Your Minimal Hardened `.config` Into Place
 
+- [ ] **TODO**
+
 ```bash
 cp /path/to/hardened-kernel.config .config
 make olddefconfig    # safely adapt any new Kconfig symbols that appeared since the config was written
 ```
 
 ### 7.2.2 — Apply the Kernel’s Built‑in Hardening Fragment
+
+- [ ] **TODO**
 
 ```bash
 make hardening.config
@@ -899,15 +577,18 @@ The command is safe to run multiple times — it is idempotent.
 
 ### 7.2.3 — Fine‑Tune Interactively
 
-If you want to inspect the result or adjust anything, run the menu‑based configuration tool:
+- [ ] **TODO**
+      If you want to inspect the result or adjust anything, run the menu‑based configuration tool:
 
 ```bash
-make menuconfig LLVM=1
+make nconfig CC=clang LD=ld.lld LLVM=1 LLVM_IAS=1
 ```
 
 ---
 
 ## 7.3 — Build and Install
+
+- [ ] **TODO**
 
 ```bash
 # Compile the kernel and modules with Clang + ThinLTO
@@ -937,6 +618,8 @@ No UEFI boot entry manipulation is performed — the firmware directly loads the
 
 ### 7.3.1 — Verify the Kernel Was Built with Hardening Options
 
+- [ ] **TODO**
+
 After the build completes (or after the first successful boot), verify that the hardening options took effect:
 
 ```bash
@@ -951,6 +634,8 @@ zcat /proc/config.gz | grep -E "CONFIG_(STACKPROTECTOR_STRONG|HARDENED_USERCOPY|
 ---
 
 ## 7.4 — Generate Secure Boot Keys (Before First Boot)
+
+- [ ] **TODO**
 
 Dracut requires the Secure Boot signing keys to exist at the paths specified in its configuration (Part 8.1). Generate them now:
 
@@ -967,9 +652,13 @@ ls -l /var/lib/sbctl/keys/db/db.key /var/lib/sbctl/keys/db/db.pem
 
 ## Part 7B — NVIDIA Driver Setup
 
+- [ ] **TODO**
+
 This section covers installation and configuration of the proprietary NVIDIA driver stack, ensuring compatibility with Secure Boot, the Wayland compositor, and the system’s hardening measures.
 
 ### 7B.1 — Kernel Configuration for NVIDIA
+
+- [ ] **TODO**
 
 The minimal kernel config already enables every required symbol. In `make menuconfig`, verify the following (all three are already `=y`):
 
@@ -990,9 +679,13 @@ Device Drivers --->
 
 ### 7B.2 — Kernel Command Line and Modesetting
 
+- [ ] **TODO**
+
 For NVIDIA driver versions **560 and later**, modesetting is enabled by default for Wayland. The driver automatically sets `modeset=1` and `fbdev=1` without any kernel command‑line parameters. No `nvidia_drm.modeset=1` entry is needed in `/etc/kernel/cmdline`.
 
 ### 7B.3 — USE Flags
+
+- [ ] **TODO**
 
 The following USE flags for `x11-drivers/nvidia-drivers` are evaluated for this desktop setup (RTX 2080 Ti). The key flags are `kernel-open` and `modules-sign`.
 
@@ -1010,6 +703,8 @@ x11-drivers/nvidia-drivers modules-sign
 The `persistenced` and `powerd` flags that appeared in an earlier version of this guide either do not exist for the `nvidia-drivers` package on Gentoo or are not applicable to a desktop workstation. No extra flags are required.
 
 ### 7B.4 — Secure Boot and Module Signing
+
+- [ ] **TODO**
 
 Since this system uses Secure Boot with custom keys, all kernel modules — including the out‑of‑tree NVIDIA modules — must be signed to load at runtime. The `modules-sign` USE flag automates this process in Gentoo.
 
@@ -1034,6 +729,8 @@ The output must show a signature key, confirming the module is signed and will b
 
 ### 7B.5 — Install the Driver
 
+- [ ] **TODO**
+
 ```bash
 emerge --ask x11-drivers/nvidia-drivers
 ```
@@ -1048,6 +745,8 @@ modinfo nvidia | grep -E 'sig_|signer'
 The second command must show a signer and signature information — an empty output means the module is not signed and Secure Boot will block it.
 
 ### 7B.6 — Module Parameters and Blacklisting
+
+- [ ] **TODO**
 
 Create the main NVIDIA module configuration file:
 
@@ -1074,9 +773,13 @@ EOF
 
 ### 7B.7 — TPM and NVIDIA
 
+- [ ] **TODO**
+
 The TPM is used for LUKS PCR‑sealing at boot (Part 10) and for SSH key storage (Part 19). There is no direct integration between the TPM and the NVIDIA driver. The driver’s security on this system is ensured through module signing (Secure Boot) and confinement via AppArmor.
 
 ### 7B.8 — Rebuild the Initramfs and UKI
+
+- [ ] **TODO**
 
 The NVIDIA kernel modules must be included in the initramfs so that `nvidia‑drm` is available early enough for Wayland:
 
@@ -1099,6 +802,8 @@ sbctl sign -s /efi/EFI/Linux/gentoo-${KVER}.efi
 
 ### 7B.9 — AppArmor Integration for NVIDIA
 
+- [ ] **TODO**
+
 The `apparmor.d` project includes an `abstractions/nvidia` file that mediates access to NVIDIA device files and libraries. To integrate it:
 
 1. **Identify Profiles** — start with applications that have existing AppArmor profiles, such as Firefox (in complain mode) or SDDM (display manager).
@@ -1117,6 +822,8 @@ profile sddm /usr/bin/sddm {
 
 ### 7B.10 — Hardening the NVIDIA Persistence Daemon with `svc-harden.py`
 
+- [ ] **TODO**
+
 The `nvidia-persistenced` service can be hardened using `svc-harden.py` (Part 23):
 
 ```bash
@@ -1129,6 +836,8 @@ Suggested directives include `NoNewPrivileges=yes`, `PrivateTmp=yes`, `ProtectSy
 > **Note:** The `nvidia-persistenced.service` unit is created automatically when the `nvidia-drivers` package is emerged — it does not need to be enabled separately with `systemctl enable`.
 
 ### 7B.11 — Post‑Install Verification
+
+- [ ] **TODO**
 
 After the first successful boot:
 
@@ -1149,6 +858,8 @@ nvidia-smi
 This section covers the complete boot chain: generating a signed UKI that includes TPM2‑based LUKS unlock, microcode, NVIDIA modules, and the hardened kernel command line.
 
 ### 8.1 — Dracut UKI Configuration
+
+- [ ] **TODO**
 
 Dracut is configured to produce a signed Unified Kernel Image (UKI) that includes the kernel, initramfs, microcode, and embedded command line. The UKI is placed in `/efi/EFI/Linux/`, where the UEFI firmware will discover it automatically via the Boot Loader Specification fallback path — no bootloader is required.
 
@@ -1211,6 +922,8 @@ EOF
 
 ### 8.2 — Kernel Command Line (Embedded in the UKI)
 
+- [ ] **TODO**
+
 The kernel command line is stored in `/etc/kernel/cmdline`, which is read by `installkernel` and embedded directly into the UKI. This file is the standard location for kernel command-line parameters on a systemd‑based Gentoo system.
 
 ```bash
@@ -1252,6 +965,8 @@ EOF
 
 ### 8.3 — Crypttab for TPM2 Unlock
 
+- [ ] **TODO**
+
 The initramfs crypttab file (`/etc/crypttab.initramfs`) tells systemd-cryptsetup-generator to unlock the devices using the TPM2 token that was enrolled via `systemd-cryptenroll`. The `‑` in the keyfile column means “no keyfile; use TPM2/FIDO2”; the `tpm2-device=auto` option instructs systemd-cryptsetup to use the TPM2‑enrolled token slot.
 
 ```bash
@@ -1271,6 +986,8 @@ chmod 600 /etc/crypttab.initramfs
 
 ### 8.4 — Running System Crypttab (noauto)
 
+- [ ] **TODO**
+
 The running system's `/etc/crypttab` is separate from the initramfs version. The LUKS containers are already opened by dracut in the initramfs; adding `noauto` prevents systemd from attempting to open them a second time at runtime, which would produce confusing error messages and a long boot timeout.
 
 ```bash
@@ -1288,6 +1005,8 @@ EOF
 ---
 
 ### 8.5 — First UKI Build (Manual)
+
+- [ ] **TODO**
 
 After the kernel is installed (`make install`), the UKI is automatically generated by installkernel. If you need to rebuild it manually — for example, after editing `/etc/kernel/cmdline` or changing the dracut configuration — use:
 
@@ -1321,6 +1040,8 @@ lsinitrd /efi/EFI/Linux/cachyos-hardened-${KVER}.efi | grep -E "crypttab"
 
 ### 8.6 — Secure Boot Key Enrollment (After First Boot)
 
+- [ ] **TODO**
+
 After the first successful boot, ensure the UEFI firmware is in Setup Mode and enroll your custom keys:
 
 ```bash
@@ -1332,6 +1053,8 @@ sbctl status                     # Confirm: Installed ✔, Secure Boot ✔
 ---
 
 ### 8.7 — Automatic Re‑Signing After Kernel Updates
+
+- [ ] **TODO**
 
 The `sbctl` package ships a kernel‑install hook at `/usr/lib/kernel/install.d/91-sbctl.install` that automatically signs new UKIs when the systemd kernel‑install layout is used. However, this guide uses the traditional (non‑systemd) installkernel layout with `dracut uki`, so the systemd hook is **not triggered**. A manual post‑install hook is required:
 
@@ -1352,6 +1075,8 @@ chmod +x /etc/kernel/postinst.d/99-sbctl-sign.sh
 ---
 
 ### 8.8 — Verification
+
+- [ ] **TODO**
 
 After the first boot with Secure Boot active:
 
@@ -1374,6 +1099,8 @@ cat /proc/cmdline
 > **Complete this after first successful boot into the installed system.**
 
 ### 10.1 — Enroll Both LUKS Containers
+
+- [ ] **TODO**
 
 ```bash
 # Enroll TPM2+PIN on both LUKS containers
@@ -1453,6 +1180,8 @@ Because the private key is inside the TPM, the SSH client never sees it. The TPM
 
 #### 10A.2.2 — The `tss` Group and User Access
 
+- [ ] **TODO**
+
 For unprivileged users to access the TPM, they must be members of the `tss` group. This was done in Section 6.6 when you created the `ahsan` user. The Gentoo wiki explicitly documents this requirement.
 
 To verify:
@@ -1508,6 +1237,8 @@ If `ssh-keygen -D` prints a public key, the TPM is correctly provisioned.
 
 #### 10A.2.6 — Using TPM Keys with Git Commit Signing
 
+- [ ] **TODO**
+
 The TPM key can also sign Git commits. The Gentoo wiki documents this workflow using the SSH‑agent protocol already configured in Part 19.6.
 
 ```bash
@@ -1528,6 +1259,8 @@ Now every Git commit is signed by a key that never left the TPM. The signature p
 ---
 
 ### 10A.3 — TPM Diagnostic Tools
+
+- [ ] **TODO**
 
 The `app‑crypt/tpm2‑tools` package provides command‑line utilities for reading PCR values, inspecting keys, and testing attestation. Install it now:
 
@@ -2036,7 +1769,6 @@ UUID=${ROOT_UUID}  /home             btrfs  defaults,noatime,compress=zstd:1,spa
 UUID=${ROOT_UUID}  /opt              btrfs  defaults,noatime,compress=zstd:1,space_cache=v2,subvol=@/opt  0 0
 UUID=${ROOT_UUID}  /root             btrfs  defaults,noatime,compress=zstd:1,space_cache=v2,subvol=@/root  0 0
 UUID=${ROOT_UUID}  /srv              btrfs  defaults,noatime,compress=zstd:1,space_cache=v2,subvol=@/srv  0 0
-UUID=${ROOT_UUID}  /tmp              btrfs  defaults,noatime,compress=zstd:1,space_cache=v2,subvol=@/tmp  0 0
 UUID=${ROOT_UUID}  /usr/local        btrfs  defaults,noatime,compress=zstd:1,space_cache=v2,subvol=@/usr/local  0 0
 UUID=${ROOT_UUID}  /var              btrfs  defaults,noatime,compress=zstd:1,space_cache=v2,subvol=@/var  0 0
 UUID=${ROOT_UUID}  /var/tmp          btrfs  defaults,noatime,compress=zstd:1,space_cache=v2,subvol=@/var/tmp  0 0
@@ -2229,6 +1961,8 @@ sudo make install
 
 ### 14.4 — Configure Personal Directories
 
+- [ ] **TODO**
+
 The profiles heavily use the XDG directory variables. All the variables are lists you can append. This part is vital; failure to configure it correctly will cause breakage.
 
 The apparmor.d project installs tunables in `/etc/apparmor.d/tunables/home.d/`. On Ubuntu the file is named `ubuntu`; on Gentoo the project may not create a distribution‑specific file. Review what was installed:
@@ -2251,6 +1985,7 @@ cat > /etc/apparmor.d/tunables/home.d/gentoo << 'EOF'
 @{XDG_MUSIC_DIR}+="Music"
 @{XDG_PICTURES_DIR}+="Pictures"
 @{XDG_VIDEOS_DIR}+="Videos"
+@{XDG_GIT_DIR}+="Git"
 @{XDG_PROJECTS_DIR}+="Projects"
 EOF
 ```
@@ -3163,7 +2898,7 @@ echo "=== Active zones ==="
 firewall-cmd --get-active-zones
 ```
 
-> **Note on backends:** On Gentoo, firewalld uses **nftables** as its default backend.  
+> **Note on backends:** On Gentoo, firewalld uses **nftables** as its default backend.
 > No additional USE flags are required unless you explicitly need the legacy iptables backend.
 
 > **Interface names:** The Ethernet and Wi‑Fi interface names (`eno1`, `wlan0`) are placeholders. Replace them with the actual names shown by `ip link` or `nmcli device`. If you have no Wi‑Fi card, remove `wlan0` from the loop — the `2>/dev/null || true` ensures a silent no‑op for non‑existent interfaces.
@@ -3601,8 +3336,8 @@ systemctl restart NetworkManager
 systemctl enable NetworkManager
 ```
 
-> **PMF:** `pmf = 1` enables Protected Management Frames when the AP supports it; `pmf = 2` (required) may cause issues with older access points.  
-> **WPA3‑SAE:** The dispatcher enforces WPA3 for all Wi‑Fi connections; use `nmcli connection modify <name> wifi-sec.key-mgmt wpa-psk` to fall back to WPA2‑only access points.  
+> **PMF:** `pmf = 1` enables Protected Management Frames when the AP supports it; `pmf = 2` (required) may cause issues with older access points.
+> **WPA3‑SAE:** The dispatcher enforces WPA3 for all Wi‑Fi connections; use `nmcli connection modify <name> wifi-sec.key-mgmt wpa-psk` to fall back to WPA2‑only access points.
 > **MAC randomisation:** `ethernet.cloned-mac-address = random` randomises the MAC on each boot; `wifi.cloned-mac-address = stable-ssid` gives a stable per‑network randomisation to avoid captive‑portal confusion.
 
 ---
@@ -3650,7 +3385,7 @@ chmod 644 /etc/cockpit/ws-certs.d/cockpit.crt
 systemctl enable --now cockpit.socket
 ```
 
-> **Certificate pinning:** After first login, pin the certificate’s SHA‑256 fingerprint in your browser.  
+> **Certificate pinning:** After first login, pin the certificate’s SHA‑256 fingerprint in your browser.
 > **AppArmor:** No profile shipped by apparmor.d; bound to localhost only, and hardened with `svc-harden.py apply cockpit` (Part 23).
 
 ---
@@ -5824,18 +5559,18 @@ Below is a step‑by‑step guide through every subcommand of `svc‑harden.py`.
 
 1. **Ensure the service is running** – `svc‑harden.py apply`, `profile`, and `test` will restart the service; it must be in a working baseline state first.
 
-    ```bash
-    systemctl start cockpit.service
-    systemctl status cockpit.service
-    ```
+   ```bash
+   systemctl start cockpit.service
+   systemctl status cockpit.service
+   ```
 
 2. **Verify SHH availability (if you plan to profile)**:
 
-    ```bash
-    shh --version   # should print "Systemd hardening helper X.Y.Z"
-    ```
+   ```bash
+   shh --version   # should print "Systemd hardening helper X.Y.Z"
+   ```
 
-    If it is missing, install it with `cargo install --root /usr/local systemd-hardening-helper` and ensure `dev-util/strace` is emerged.
+   If it is missing, install it with `cargo install --root /usr/local systemd-hardening-helper` and ensure `dev-util/strace` is emerged.
 
 ---
 
@@ -5942,44 +5677,44 @@ sudo svc‑harden.py profile cockpit.service
 2. It runs `shh service start‑profile cockpit.service`, which restarts the service under `strace`.
 3. You see:
 
-    ```
-    ═══ PROFILING ACTIVE ═══
-    cockpit.service is now being traced with strace.
-    Please exercise the service – perform all its normal operations.
-    Press ENTER when you are finished …
-    ```
+   ```
+   ═══ PROFILING ACTIVE ═══
+   cockpit.service is now being traced with strace.
+   Please exercise the service – perform all its normal operations.
+   Press ENTER when you are finished …
+   ```
 
 4. **Now interact with the service** – for Cockpit, you might open `https://localhost:9090`, log in, browse storage, check logs, and even run a few terminal commands inside the web UI. The more operations you perform, the more complete the profile will be.
 5. Press Enter when done.
 6. SHH finishes profiling and prints its recommendations. The tool parses them and shows:
 
-    ```
-    ──────────────────────────────────────────────────
-    SHH RECOMMENDATIONS (automatically pre‑selected)
-    ──────────────────────────────────────────────────
-    ✅  NoNewPrivileges = yes
-    ✅  ProtectSystem = strict
-    ✅  ProtectHome = true
-    ...
-    ```
+   ```
+   ──────────────────────────────────────────────────
+   SHH RECOMMENDATIONS (automatically pre‑selected)
+   ──────────────────────────────────────────────────
+   ✅  NoNewPrivileges = yes
+   ✅  ProtectSystem = strict
+   ✅  ProtectHome = true
+   ...
+   ```
 
 7. If SHH suggested any directives that are not in our standard table (e.g., advanced path restrictions like `ReadOnlyPaths=/etc`), they appear in an **ADDITIONAL SHH DIRECTIVES** block for your review.
 
 8. You now enter an **interactive review** loop where you can toggle any directive on or off, or reset to just SHH’s defaults. For instance:
 
-    ```
-    Current selection:
-      NoNewPrivileges = yes
-      ProtectSystem = strict
-      ...
+   ```
+   Current selection:
+     NoNewPrivileges = yes
+     ProtectSystem = strict
+     ...
 
-    [a]pply   [t]oggle a directive   [r]eset to SHH defaults   [q]uit
-    Choice:
-    ```
+   [a]pply   [t]oggle a directive   [r]eset to SHH defaults   [q]uit
+   Choice:
+   ```
 
-    - `t` asks for a directive name; if it is currently selected, it is removed; if not, it is added (if it was in the SHH recommendations).
-    - `r` discards your edits and goes back to what SHH suggested.
-    - `a` proceeds to write the drop‑in.
+   - `t` asks for a directive name; if it is currently selected, it is removed; if not, it is added (if it was in the SHH recommendations).
+   - `r` discards your edits and goes back to what SHH suggested.
+   - `a` proceeds to write the drop‑in.
 
 9. After choosing `a`, you see the preview and confirm writing, exactly as in `apply`.
 
@@ -6057,8 +5792,8 @@ For each service you want to harden, follow this general flow:
 
 1. `analyze` – see what’s missing.
 2. Either:
-    - `apply` (if you know the service well), **or**
-    - `profile` (if you want behaviour‑based recommendations).
+   - `apply` (if you know the service well), **or**
+   - `profile` (if you want behaviour‑based recommendations).
 3. `test` – confirm the service still works.
 4. If the test fails, `bisect` to isolate the problem, then `revert` if necessary.
 5. Repeat for the next service.
@@ -6142,17 +5877,7 @@ id ahsan
 ### 26.2 — Enable Essential Services
 
 ```bash
-systemctl enable NetworkManager
-systemctl enable sshd
-systemctl enable firewalld
-systemctl enable auditd
-systemctl enable apparmor
-systemctl enable snapper-timeline.timer
-systemctl enable snapper-cleanup.timer
-systemctl enable snapper-boot.timer
-systemctl enable systemd-resolved
-systemctl enable dnscrypt-proxy
-systemctl enable cockpit.socket
+systemctl enable NetworkManager sshd apparmor firewalld auditd apparmor snapper-timeline.timer snapper-cleanup.timer snapper-boot.timer systemd-resolved dnscrypt-proxy cockpit.socket
 ```
 
 ### 26.3 — Regenerate UKI (First Time Manually)
@@ -6590,7 +6315,7 @@ cryptsetup luksOpen /dev/nvme0n1p1 crypt1
 vgchange -ay vg0
 lvs
 
-BTRFS_OPTS="defaults,noatime,compress=zstd:1,space_cache=v2"
+BTRFS_OPTS="defaults,noatime,compress=zstd:3,space_cache=v2"
 BTRFS_NOCOW="defaults,noatime,space_cache=v2"
 
 mount -o ${BTRFS_OPTS} /dev/vg0/root /mnt/gentoo
@@ -6602,7 +6327,6 @@ mount -o ${BTRFS_NOCOW},subvol=@/nix           /dev/vg0/root /mnt/gentoo/nix
 mount -o ${BTRFS_OPTS},subvol=@/opt            /dev/vg0/root /mnt/gentoo/opt
 mount -o ${BTRFS_OPTS},subvol=@/root           /dev/vg0/root /mnt/gentoo/root
 mount -o ${BTRFS_OPTS},subvol=@/srv            /dev/vg0/root /mnt/gentoo/srv
-mount -o ${BTRFS_OPTS},subvol=@/tmp            /dev/vg0/root /mnt/gentoo/tmp
 mount -o ${BTRFS_OPTS},subvol=@/usr/local      /dev/vg0/root /mnt/gentoo/usr/local
 mount -o ${BTRFS_NOCOW},subvol=@/var            /dev/vg0/root /mnt/gentoo/var
 mount -o ${BTRFS_NOCOW},subvol=@/var/tmp        /dev/vg0/root /mnt/gentoo/var/tmp

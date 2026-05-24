@@ -1,0 +1,73 @@
+# ~/.markdownlint-cli2.yaml — global markdownlint‑cli2 configuration
+# Place this file in your home directory to apply it everywhere.
+#
+# Rules reference: https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md
+
+# Inherit the default rule set (all rules enabled by default)
+config:
+  default: true
+
+# ── Disabled rules (personal preference) ────────────────────────────────
+# MD013 – Line length.  Prose is easier to read with soft wrapping;
+#         enforce a hard limit of 120 characters for code blocks only.
+MD013:
+  line_length: 120
+  code_block_line_length: 120
+  heading_line_length: 120
+  tables: false
+  headings: false
+  code_blocks: true
+
+# MD033 – Inline HTML.  Allow HTML in Markdown (useful for comments,
+#         embedded videos, or custom formatting).
+MD033: false
+
+# MD041 – First line in a file should be a top‑level heading.
+#         Not every Markdown file needs a title heading.
+MD041: false
+
+# MD024 – Duplicate heading.  Allow the same heading text in different
+#         sections (common in changelogs, FAQ, etc.).
+MD024: false
+
+# MD026 – Trailing punctuation in heading.  Allow question marks,
+#         exclamation marks, etc. in headings.
+MD026: false
+
+# MD029 – Ordered list item prefix.  Allow any numbering style.
+MD029: false
+
+# MD036 – Emphasis used instead of a heading.  Allow bold/italic lines
+#         as visual breaks (common in README files).
+MD036: false
+
+# MD040 – Fenced code blocks should have a language specified.
+#         Allow plain code blocks for ASCII art or unsupported languages.
+MD040: false
+
+# MD046 – Code block style.  Allow both indented and fenced code blocks.
+MD046: false
+
+# MD048 – Code fence style.  Allow both backticks and tildes.
+MD048: false
+
+# MD007 – Unordered list indentation.  Allow any indentation depth
+#         (default 2) for nested lists.
+MD007:
+  indent: 2
+
+# MD012 – Multiple consecutive blank lines.  Allow up to 2 blank lines
+#         before a heading (for visual separation).
+MD012:
+  maximum: 2
+
+# ── Additional settings ─────────────────────────────────────────────────
+# Exclude common non‑markdown directories/files
+ignores:
+  - node_modules/
+  - .git/
+  - "*.svg"
+  - "*.png"
+
+# Do not fix files automatically (fixes are applied manually)
+fix: false
