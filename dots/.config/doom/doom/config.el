@@ -1,0 +1,480 @@
+;; User- Information
+(setq user-full-name "Ahsanur Rahman"
+      user-mail-address "ahsanur041@proton.me")
+
+(setq inhibit-compacting-font-caches t)
+(global-so-long-mode 1)
+(size-indication-mode -1)
+(global-prettify-symbols-mode -1)
+
+(after! evil
+  (setq evil-want-fine-undo t
+        evil-vsplit-window-right t
+        evil-split-window-below t
+        evil-move-beyond-eol t))
+
+(after! evil-escape
+  (setq evil-escape-key-sequence "jk"
+        evil-escape-delay 0.2))
+
+;; Use visual line navigation, which is more intuitive when working with wrapped lines.
+(map! :nv "j" #'evil-next-visual-line
+      :nv "k" #'evil-previous-visual-line)
+
+(setq-default internal-border-width 5)
+(add-to-list 'default-frame-alist '(internal-border-width . 5))
+
+(setq frame-title-format
+      '((:eval (if (buffer-file-name)
+                   (abbreviate-file-name (buffer-file-name))
+                 "%b"))
+        " - Doom Emacs"))
+
+(setq-default indent-tabs-mode nil
+              tab-width 2
+              fill-column 80
+
+              ;; Line spacing
+              line-spacing 0.02)
+
+(setq confirm-kill-emacs nil)
+
+(setq-default scroll-conservatively 20
+              scroll-margin 0
+              scroll-preserve-screen-position t)
+
+(setq warning-suppress-types '((org-element)))
+
+(setq split-width-threshold 170
+      split-height-threshold nil)
+
+(setq-default bidi-inhibit-bpa t) ;; Emacs 27+ recommended
+(setq-default bidi-display-reordering nil)
+
+;; Scroll one line at a time (less "jumpy" than defaults)
+(setq hscroll-step 1
+      hscroll-margin 2
+      scroll-step 1
+      scroll-margin 0
+      scroll-conservatively 100000
+      scroll-preserve-screen-position t
+      auto-window-vscroll nil
+      ;; mouse
+      mouse-wheel-scroll-amount-horizontal 1
+      mouse-wheel-progressive-speed nil)
+
+(use-package! doom-themes
+  :custom
+  (doom-themes-enable-bold t)
+  (doom-themes-enable-italic t)
+  (doom-themes-treemacs-theme "doom-colors")
+  :config
+  (load-theme 'doom-tokyo-night t)
+  (doom-themes-neotree-config)
+  (doom-themes-treemacs-config)
+  (doom-themes-org-config))
+
+(setq doom-font (font-spec :family "JetBrains Mono" :size 13.0 :weight 'medium)
+      doom-variable-pitch-font (font-spec :family "JetBrains Mono" :size 13.0)
+      doom-big-font (font-spec :family "JetBrains Mono" :size 24))
+
+(add-hook! 'doom-first-buffer-hook
+  (size-indication-mode -1)
+  (setq-default mode-line-percent-position nil))
+
+(after! doom-modeline
+  (setq doom-modeline-height 25
+        doom-modeline-column-zero-based nil
+        doom-modeline-bar-width 3
+        doom-modeline-buffer-file-size nil
+        doom-modeline-buffer-file-name-style 'file-name
+        doom-modeline-buffer-encoding nil ; Hide UTF-8 encoding display
+        doom-modeline-percent-position nil ; Hide percentage position
+        doom-modeline-major-mode-icon t ; Hide major mode icon
+        doom-modeline-major-mode-color-icon t ; Disable colored major mode icon
+        doom-modeline-vcs-icon t
+        doom-modeline-vcs-max-length 0))
+
+(setq display-line-numbers-type t
+      display-line-numbers-width-start t)
+
+(remove-hook! '(text-mode-hook org-mode-hook) #'display-line-numbers-mode)
+
+(add-hook! (prog-mode
+            conf-mode
+            toml-ts-mode
+            yaml-mode
+            yaml-ts-mode)
+  #'display-line-numbers-mode)
+
+(after! persist-text-scale
+  (setq persist-text-scale-autosave-interval (* 7 60))
+  (persist-text-scale-mode))
+
+(after! smartparens
+  ;; Enable show-smartparens-mode globally
+  (show-smartparens-global-mode +1)
+  (add-hook 'prog-mode-hook #'doom-disable-show-paren-mode-h)
+  ;; But disable it in large files to prevent performance issues
+  (add-hook 'prog-mode-hook
+            (lambda ()
+              (when (> (buffer-size) 40000)
+                (show-smartparens-mode -1)))))
+
+(after! indent-bars
+  (setq indent-bars-color '(highlight :face-bg t :blend 0.225)
+        indent-bars-no-descend-string t
+        indent-bars-prefer-character t
+        indent-bars-treesit-ignore-blank-lines-types '("module")
+        indent-bars-treesit-scope '((python function_definition
+                                            class_definition
+                                            for_statement
+                                            if_statement
+                                            with_statement
+                                            while_statement)))
+
+  (when (modulep! :tools tree-sitter)
+    (require 'indent-bars-ts)))
+
+
+;; CRITICAL FIX: Disable indent-bars in Evil visual mode to prevent lag
+;; The heavy calculation of bars/scopes slows down the cursor drag loop.
+(defun +indent-bars-disable-in-visual-h ()
+  "Disable indent-bars-mode when entering Evil visual state."
+  (when (bound-and-true-p indent-bars-mode)
+    (indent-bars-mode -1)
+    (setq-local +indent-bars-was-enabled t)))
+
+(defun +indent-bars-enable-after-visual-h ()
+  "Re-enable indent-bars-mode when exiting Evil visual state."
+  (when (bound-and-true-p +indent-bars-was-enabled)
+    (indent-bars-mode 1)
+    (kill-local-variable '+indent-bars-was-enabled)))
+
+(add-hook 'evil-visual-state-entry-hook #'+indent-bars-disable-in-visual-h)
+(add-hook 'evil-visual-state-exit-hook #'+indent-bars-enable-after-visual-h)
+
+(use-package! rainbow-delimiters
+  :hook ((LaTeX-mode prog-mode) . rainbow-delimiters-mode))
+
+(custom-set-faces!
+  '(rainbow-delimiters-depth-1-face :foreground "#7aa2f7")  ; Blue
+  '(rainbow-delimiters-depth-2-face :foreground "#ff9e64")  ; Orange
+  '(rainbow-delimiters-depth-3-face :foreground "#9ece6a")  ; Green
+  '(rainbow-delimiters-depth-4-face :foreground "#7dcfff")  ; Cyan
+  '(rainbow-delimiters-depth-5-face :foreground "#bb9af7")  ; Magenta
+  '(rainbow-delimiters-depth-6-face :foreground "#e0af68")  ; Yellow
+  '(rainbow-delimiters-depth-7-face :foreground "#f7768e")  ; Red
+  '(rainbow-delimiters-depth-8-face :foreground "#9d7cd8")  ; Purple
+  '(rainbow-delimiters-depth-9-face :foreground "#73daca")) ; Teal
+
+(use-package! rainbow-mode
+  :hook ((prog-mode . rainbow-mode)
+         (LaTeX-mode . rainbow-mode)
+         (org-mode . rainbow-mode))
+  :config
+  (setq rainbow-html-colors t)
+  (setq rainbow-x-colors t)
+  (setq rainbow-latex-colors t))
+
+(defadvice! ar/indent-after-move-text-a (&rest _)
+  :after #'(move-text-up move-text-down)
+  "Indent the current line or region after moving, preserving mark state."
+  (let ((deactivate deactivate-mark))
+    (if (region-active-p)
+        (indent-region (region-beginning) (region-end))
+      (indent-region (line-beginning-position) (line-end-position)))
+    (setq deactivate-mark deactivate)))
+
+(map! :g "M-<up>"   #'move-text-up
+      :g "M-<down>" #'move-text-down)
+
+(defvar my/org-directory "~/org/" "The root directory for Org files.")
+(defvar my/org-roam-directory (expand-file-name "roam/" my/org-directory) "The directory for Org Roam files.")
+
+(after! org
+  (add-hook! 'org-mode-hook #'(lambda () (org-indent-mode -1)))
+  (add-hook! 'org-babel-after-execute-hook #'org-redisplay-inline-images)
+
+  (setq org-directory my/org-directory
+        org-agenda-files (list (expand-file-name "inbox.org" my/org-directory)
+                               (expand-file-name "projects.org" my/org-directory)
+                               (expand-file-name "habits.org" my/org-directory))
+        org-default-notes-file (expand-file-name "inbox.org" my/org-directory)
+
+        ;;Optimizations
+        org-src-fontify-natively t
+        org-hide-emphasis-markers nil
+        org-hide-leading-stars nil
+        ;; org-fontify-quote-and-verse-blocks nil
+        ;; org-fontify-whole-heading-line nil
+        ;; org-fontify-done-headline nil
+        ;; org-highlight-latex-and-related nil
+        org-startup-folded 'showeverything
+        org-cycle-separator-lines 2
+
+        ;; Babel setings
+        org-confirm-babel-evaluate nil
+
+        ;; Element cache - ESSENTIAL for large files
+        org-element-use-cache t
+        org-element-cache-persistent t
+
+        ;; Agenda optimization
+        org-agenda-inhibit-startup t
+        org-agenda-dim-blocked-tasks nil
+        org-agenda-use-tag-inheritance nil
+        org-agenda-ignore-properties '(effort appt category)
+        org-agenda-span 'day
+
+        ;; Image settings
+        ;; org-image-actual-width 600
+
+        ;; TODO keywords
+        org-todo-keywords
+        '((sequence "TODO(t)" "NEXT(n)" "PROG(p)" "WAIT(w@/!)" "|" "DONE(d!)" "CANCEL(c@)")
+          (sequence "PLAN(P)" "ACTIVE(A)" "PAUSED(x)" "|" "ACHIEVED(a)" "DROPPED(D)"))
+
+        org-archive-location (concat my/org-directory "archive/%s_archive::")
+        org-todo-keywords
+        '((sequence "TODO(t)" "NEXT(n)" "PROG(p)" "WAIT(w@/!)" "|" "DONE(d!)" "CANCEL(c@)")
+          (sequence "PLAN(P)" "ACTIVE(A)" "PAUSED(x)" "|" "ACHIEVED(a)" "DROPPED(D)"))
+
+        org-todo-keyword-faces
+        '(("TODO"      . (:foreground "#f38ba8" :weight bold))
+          ("NEXT"      . (:foreground "#fab387" :weight bold))
+          ("PROG"      . (:foreground "#89b4fa" :weight bold))
+          ("WAIT"      . (:foreground "#f9e2af" :weight bold))
+          ("DONE"      . (:foreground "#a6e3a1" :weight bold))
+          ("CANCEL"    . (:foreground "#6c7086" :weight bold))
+          ("PLAN"      . (:foreground "#94e2d5" :weight bold))
+          ("ACTIVE"    . (:foreground "#cba6f7" :weight bold))
+          ("PAUSED"    . (:foreground "#bac2de" :weight bold))
+          ("ACHIEVED"  . (:foreground "#a6e3a1" :weight bold))
+          ("DROPPED"   . (:foreground "#6c7086" :weight bold)))))
+
+
+(use-package! org-super-agenda
+  :after org-agenda
+  :hook (org-agenda-mode-hook . org-super-agenda-mode))
+
+(after! org
+  (setq org-src-tab-acts-natively t)
+  (setq org-modules nil)
+  (setq org-edit-src-content-indentation 2)
+  (setq org-src-preserve-indentation nil)
+(setq org-element-use-cache t)
+(setq org-element-cache-persistent t)
+(setq org-highlight-latex-and-related nil) ;; Performance: disable heavy fontification
+
+
+  )
+
+(use-package! org-ibullets
+  :commands org-ibullets-mode
+  :hook (org-mode . org-ibullets-mode))
+
+(setq resize-mini-windows t)
+
+(after! transient
+  (require 'nerd-icons)
+
+  (defun +toggles/main-title ()
+    (concat
+     (if (fboundp 'nerd-icons-faicon)
+         (nerd-icons-faicon "nf-fa-toggle_on" :face 'transient-heading :v-adjust 0.02)
+       "")
+     (propertize " Doom Toggles" 'face 'transient-heading)))
+
+  (defun +toggles/toggle-whitespace ()
+    (interactive)
+    (setq show-trailing-whitespace (not show-trailing-whitespace))
+    (redraw-display)
+    (message "Trailing whitespace %s" (if show-trailing-whitespace "ON" "OFF")))
+
+  (set-popup-rule! "^ \\*transient*" :ignore t)
+
+  (transient-define-prefix +toggles/main ()
+    "Global Toggles and Actions"
+
+    ;; 1. PREFIX DESCRIPTION (The Title)
+    ;; We define one master group that contains the columns.
+    ;; The description of this group becomes the Menu Title.
+    [:description +toggles/main-title
+
+     ;; 2. THE COLUMNS
+     ;; Nested vectors here create the side-by-side column layout.
+
+     ;; --- Col 1: Basic ---
+     ["Basic"
+      ("n" "Line numbers" doom/toggle-line-numbers :transient t)
+      ("a" "Aggressive indent" global-aggressive-indent-mode :transient t
+       :if (lambda () (fboundp 'global-aggressive-indent-mode)))
+      ("d" "Hungry delete" global-hungry-delete-mode :transient t
+       :if (lambda () (fboundp 'global-hungry-delete-mode)))
+      ("e" "Electric pair" electric-pair-mode :transient t)
+      ("c" "Spell check" flyspell-mode :transient t
+       :if (lambda () (featurep 'flyspell)))
+      ("s" "Pretty symbol" prettify-symbols-mode :transient t)
+      ("l" "Page break lines" global-page-break-lines-mode :transient t
+       :if (lambda () (fboundp 'global-page-break-lines-mode)))
+      ("b" "Battery" display-battery-mode :transient t)
+      ("i" "Time" display-time-mode :transient t)
+      ("m" "Modeline" (lambda () (interactive)
+                        (if (bound-and-true-p doom-modeline-mode)
+                            (doom-modeline-mode -1)
+                          (doom-modeline-mode 1)))
+       :transient t :if (lambda () (featurep 'doom-modeline)))]
+
+      ["Highlight"
+       ("h l" "Line" global-hl-line-mode :transient t)
+       ("h p" "Paren" show-paren-mode :transient t)
+       ("h s" "Symbol" symbol-overlay-mode :transient t
+        :if (lambda () (fboundp 'symbol-overlay-mode)))
+       ("h r" "Rainbow" rainbow-mode :transient t
+        :if (lambda () (fboundp 'rainbow-mode)))
+       ("h w" "Whitespace" +toggles/toggle-whitespace :transient t)
+       ("h d" "Delimiters" rainbow-delimiters-mode :transient t
+        :if (lambda () (fboundp 'rainbow-delimiters-mode)))
+       ("h i" "Indent guides" highlight-indent-guides-mode :transient t
+       :if (lambda () (fboundp 'highlight-indent-guides-mode)))
+       ("h t" "Todo" global-hl-todo-mode :transient t
+        :if (lambda () (fboundp 'global-hl-todo-mode)))]
+
+      ["Program"
+       ("f" "Flymake" flymake-mode :transient t)
+       ("O" "Hideshow" hs-minor-mode :transient t)
+       ("u" "Subword" subword-mode :transient t)
+       ("W" "Which func" which-function-mode :transient t)
+       ("E" "Debug on error" toggle-debug-on-error :transient t)
+       ("Q" "Debug on quit" toggle-debug-on-quit :transient t)
+       ("v" "Gutter" global-diff-hl-mode :transient t
+        :if (lambda () (modulep! :ui vc-gutter)))
+       ("V" "Live gutter" diff-hl-flydiff-mode :transient t
+        :if (lambda () (and (modulep! :ui vc-gutter) (fboundp 'diff-hl-flydiff-mode))))]
+
+     ;; --- Col 4: Theme ---
+     ["Theme"
+      ("t d" "Light (Modus)" (lambda () (interactive) (load-theme 'modus-operandi t)))
+      ("t k" "Dark (Modus)" (lambda () (interactive) (load-theme 'modus-vivendi t)))
+      ("t w" "Whiteboard" (lambda () (interactive) (load-theme 'whiteboard t)))
+      ("t t" "Tango" (lambda () (interactive) (load-theme 'tango t)))
+      ("t g" "Tango-dark" (lambda () (interactive) (load-theme 'tango-dark t)))
+      ("t l" "Leuven" (lambda () (interactive) (load-theme 'leuven t)))
+      ("t D" "Deeper-blue" (lambda () (interactive) (load-theme 'deeper-blue t)))
+      ("t o" "Other..." load-theme)
+      ("t c" "Customize" customize-themes)
+      ("t u" "Unload all" (lambda () (interactive) (mapc #'disable-theme custom-enabled-themes)))]
+
+     ;; --- Col 5: Package ---
+     ["Package"
+      ("p r" "Refresh archives" package-refresh-contents)
+      ("p l" "List packages" package-list-packages)
+      ("p i" "Install package" package-install)
+      ("p d" "Delete package" package-delete)
+      ("p a" "Autoremove" package-autoremove)
+      ;; HIDDEN TOGGLE KEY:
+      ;; We add F6 here at the end of the shortest column.
+      ;; :format " " makes it invisible (just a space).
+      ("<f6>" "" transient-quit-one :format " ")]]))
+
+;; 3. BINDING
+(map! :g "<f6>" #'+toggles/main)
+
+(after! prog-mode
+  ;; Unprettify when cursor approaches symbol
+  (setq prettify-symbols-unprettify-at-point 'right-edge)
+
+  ;; Define base symbols shared across modes
+  (defvar +prettify/base-alist
+    '(;; Relational
+      ("!=" . ?≠) ("<=" . ?≤) (">=" . ?≥) ("==" . ?≡)
+      ;; Arrows
+      ("->" . ?→) ("=>" . ?⇒) ("<-" . ?←)
+      ;; Math
+      ("sqrt" . ?√) ("sum" . ?∑) ("pi" . ?π)
+      ;; Common
+      ("..." . ?…) ("lambda" . ?λ))
+    "Base prettify symbols shared across multiple modes.")
+
+  ;; Doom Syntax: Use 'add-hook!' to apply symbols to all programming modes
+  (add-hook! 'prog-mode-hook
+    (defun +prettify/apply-defaults-h ()
+      "Append base symbols to the current mode's prettify list."
+      (setq prettify-symbols-alist
+            (append +prettify/base-alist prettify-symbols-alist)))))
+
+;; 2. Transient Menu Definition
+(after! transient
+  (require 'nerd-icons)
+
+  ;; --- HELPERS ---
+  (defun +prettify/title ()
+    "Returns the menu title with the original Code Tags icon."
+    (concat
+     (if (fboundp 'nerd-icons-mdicon)
+         (nerd-icons-mdicon "nf-md-code_tags" :face 'transient-heading :v-adjust 0.02)
+       "")
+     (propertize " Prettify Symbols" 'face 'transient-heading)))
+
+  (defun +prettify/toggle-unprettify ()
+    "Cycle through unprettify logic states."
+    (interactive)
+    (let ((states '(nil right-edge t))
+          (current prettify-symbols-unprettify-at-point))
+      (setq prettify-symbols-unprettify-at-point
+            (or (cadr (member current states)) (car states)))
+      (message "Unprettify logic: %s" prettify-symbols-unprettify-at-point)))
+
+  (defun +prettify/list-all ()
+    "List all active prettify symbols in the current buffer."
+    (interactive)
+    (let ((buf (get-buffer-create "*Prettify Symbols*")))
+      (with-current-buffer buf
+        (erase-buffer)
+        (insert (propertize "Active Prettify Symbols:\n\n" 'face 'bold))
+        (dolist (pair prettify-symbols-alist)
+          (insert (format "  %-10s ->   %c\n" (car pair) (cdr pair))))
+        (special-mode))
+      (display-buffer buf)))
+
+  (defun +prettify/reload ()
+    "Reload the mode to apply changes."
+    (interactive)
+    (prettify-symbols-mode -1)
+    (prettify-symbols-mode +1)
+    (message "Prettify symbols reloaded."))
+
+  ;; --- DEFINITION ---
+  (transient-define-prefix +prettify/transient ()
+    "Prettify Symbols Control"
+
+    ;; PREFIX DESCRIPTION (The Title)
+    ;; NOTE: The vectors below are DIRECT children of this group vector.
+    ;; Do not wrap them in an extra [...] or it will crash.
+    [:description +prettify/title
+
+     ;; --- Col 1: Toggle ---
+     ["Toggle"
+      ("s" "Mode" prettify-symbols-mode :transient t)
+      ("a" "Global Mode" global-prettify-symbols-mode :transient t)
+      ("u" "Unprettify logic" +prettify/toggle-unprettify :transient t)]
+
+     ;; --- Col 2: Info ---
+     ["Info"
+      ("p" "Describe at point" describe-char)
+      ("l" "List all" +prettify/list-all)
+      ("d" "Describe char..." describe-char)]
+
+     ;; --- Col 3: Edit ---
+     ["Edit"
+      ("r" "Reload" +prettify/reload :transient t)
+      ("i" "Insert Unicode" insert-char)
+
+      ;; HIDDEN TOGGLE KEY:
+      ;; Binds "C-c s" inside the menu to quit (format " " makes it invisible).
+      ;; This allows C-c s to toggle the menu OFF.
+      ("C-c s" "" transient-quit-one :format " ")]]))
+
+;; 3. Doom Syntax: Keybinding
+(map! :g "C-c s" #'+prettify/transient)

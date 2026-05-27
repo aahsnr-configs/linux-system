@@ -1,0 +1,2 @@
+- [ ] show documents only on request in lsp-bridge
+- [ ] use only TAB to enter a candidate in lsp-bridge; otherwise cycle through the candidates 

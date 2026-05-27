@@ -1,0 +1,24 @@
+[display]
+compact = true
+use_pager = true
+
+[style.command_name]
+color = "#c6a0f6"
+style = "bold"
+
+[style.description]
+color = "#cad3f5"
+
+[style.example_code]
+color = "#a6da95"
+
+[style.example_text]
+color = "#cad3f5"
+
+[style.example_variable]
+color = "#ed8796"
+style = "italic"
+
+[updates]
+auto_update = true
+auto_update_interval_hours = 720

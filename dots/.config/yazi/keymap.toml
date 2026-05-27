@@ -1,0 +1,314 @@
+# A TOML linter such as https://taplo.tamasfe.dev/ can use this schema to validate your config.
+# If you encounter any issues, please make an issue at https://github.com/yazi-rs/schemas.
+"$schema" = "https://yazi-rs.github.io/schemas/keymap.json"
+
+# ============================================================
+# keymap.toml — Keybindings Configuration
+# Version: 26.x  |  Updated: 2026-02
+#
+# Layers available (8 total):
+#   [mgr]     Main file manager
+#   [tasks]   Task manager popup
+#   [spot]    File spotter (info panel)
+#   [pick]    "Open with" picker
+#   [input]   Text input (rename, shell, etc.)
+#   [confirm] Yes/No dialogs (delete, overwrite…)
+#   [cmp]     URL completion in cd
+#   [help]    Help overlay
+#
+# Design:
+#   • Arrow keys (←↓↑→) for primary navigation
+#   • hjkl disabled in [mgr] (overriding them breaks muscle memory elsewhere)
+#   • j/k aliases kept in popups (tasks/pick/confirm/help) for convenience
+#   • "g" prefix  → quick directory jumps
+#   • "o" prefix  → sorting options
+#   • "." prefix  → toggle display options
+#   • "z" prefix  → plugin commands
+#   • "c" prefix  → clipboard / copy operations
+# ============================================================
+
+# ════════════════════════════════════════════════════════════
+#  [mgr] — Main File Manager
+# ════════════════════════════════════════════════════════════
+[mgr]
+prepend_keymap = [
+
+    # ── Arrow Navigation ─────────────────────────────────────
+    { on = "<Up>",    run = "arrow -1",           desc = "Move cursor up" },
+    { on = "<Down>",  run = "arrow 1",            desc = "Move cursor down" },
+    { on = "<Left>",  run = "leave",              desc = "Go to parent directory" },
+    { on = "<Right>", run = "plugin smart-enter", desc = "Enter dir or open file" },
+    { on = "<Enter>", run = "plugin smart-enter", desc = "Enter dir or open file" },
+
+    # ── Disable hjkl in manager (use arrow keys instead) ─────
+    # Binding them to "noop" silences them and hides from which-key.
+    { on = "h", run = "noop", desc = "(disabled — use ←)" },
+    { on = "j", run = "noop", desc = "(disabled — use ↓)" },
+    { on = "k", run = "noop", desc = "(disabled — use ↑)" },
+    { on = "l", run = "noop", desc = "(disabled — use →)" },
+
+    # ── Vim-style Page / Half-page Scroll ────────────────────
+    { on = "<C-u>",   run = "arrow -50%",  desc = "Scroll up half page" },
+    { on = "<C-d>",   run = "arrow 50%",   desc = "Scroll down half page" },
+    { on = "<C-b>",   run = "arrow -100%", desc = "Scroll up full page" },
+    { on = "<C-f>",   run = "arrow 100%",  desc = "Scroll down full page" },
+    { on = "<PageUp>",   run = "arrow -100%", desc = "Page up" },
+    { on = "<PageDown>", run = "arrow 100%",  desc = "Page down" },
+
+    # Top / Bottom (keep vim-style)
+    { on = ["g", "g"], run = "arrow top", desc = "Go to top of list" },
+    { on = "G",        run = "arrow bot", desc = "Go to bottom of list" },
+
+    # ── Preview Panel Scrolling ───────────────────────────────
+    { on = "<A-Up>",   run = "seek -5", desc = "Scroll preview up" },
+    { on = "<A-Down>", run = "seek 5",  desc = "Scroll preview down" },
+
+    # ── Directory History ─────────────────────────────────────
+    { on = "<A-Left>",  run = "back",    desc = "Go back in history" },
+    { on = "<A-Right>", run = "forward", desc = "Go forward in history" },
+
+    # ── File Spot (info, Tab key is default) ─────────────────
+    { on = "<Tab>", run = "spot", desc = "Spot (inspect) hovered file" },
+
+    # ── File Operations ──────────────────────────────────────
+    { on = "a", run = "create",           desc = "Create file (append / for dir)" },
+    { on = "A", run = "create --dir",     desc = "Create directory" },
+    { on = "r", run = "rename", desc = "Rename hovered file" },
+    { on = "d", run = "remove",           desc = "Move to trash" },
+    { on = "D", run = "remove --permanently", desc = "Permanently delete" },
+
+    # ── Yank / Paste ─────────────────────────────────────────
+    { on = "y", run = "yank",           desc = "Yank (copy) selected files" },
+    { on = "x", run = "yank --cut",     desc = "Yank (cut) selected files" },
+    { on = "p", run = "paste",          desc = "Paste yanked files" },
+    { on = "P", run = "paste --force",  desc = "Paste (overwrite if exists)" },
+    { on = "-", run = "link",           desc = "Symlink yanked files here" },
+    { on = "_", run = "link --relative", desc = "Symlink yanked files (relative)" },
+
+    # ── Clipboard — Copy Text (c prefix) ─────────────────────
+    { on = ["c", "p"], run = "copy path",           desc = "Copy absolute path" },
+    { on = ["c", "d"], run = "copy dirname",         desc = "Copy parent dir path" },
+    { on = ["c", "f"], run = "copy filename",        desc = "Copy filename" },
+    { on = ["c", "n"], run = "copy name_without_ext", desc = "Copy stem (no extension)" },
+
+    # ── Selection ────────────────────────────────────────────
+    { on = "<Space>",  run = "toggle",              desc = "Toggle selection of hovered" },
+    { on = "v",        run = "visual_mode",         desc = "Enter visual selection mode" },
+    { on = "V",        run = "visual_mode --unset", desc = "Enter visual unset mode" },
+    { on = "<C-a>",    run = "toggle_all",          desc = "Toggle all selected" },
+    { on = "<Escape>", run = "escape",              desc = "Cancel / clear / exit visual" },
+    { on = "<C-z>",    run = "suspend",             desc = "Suspend Yazi (fg to resume)" },
+
+    # ── Find / Filter / Search ───────────────────────────────
+    { on = "/",     run = "find",                desc = "Find (incremental, forward)" },
+    { on = "?",     run = "find --previous",     desc = "Find (incremental, backward)" },
+    { on = "n",     run = "find_arrow",          desc = "Jump to next find match" },
+    { on = "N",     run = "find_arrow --previous", desc = "Jump to prev find match" },
+    { on = "f",     run = "filter --smart",      desc = "Filter files (smart-case)" },
+    # Search with external tools (opens interactive keyword input)
+    { on = "F",     run = "search --via=fd",     desc = "Search filenames (fd)" },
+    { on = "s",     run = "search --via=rg",     desc = "Search contents (ripgrep)" },
+    { on = "<C-s>", run = "escape --search",     desc = "Cancel active search" },
+
+    # ── Open ─────────────────────────────────────────────────
+    { on = "o",       run = "open",              desc = "Open with default opener" },
+    { on = "O",       run = "open --interactive", desc = "Open with… (choose opener)" },
+    { on = "e",       run = "open",              desc = "Open with default opener" },
+
+    # ── Sorting (o prefix) ───────────────────────────────────
+    # Note: conflicts with the default "o" = open above; using "," prefix
+    # instead, keeping original defaults for "o" (open file).
+    # Override "," prefix sorting:
+    { on = [",", "a"], run = "sort alphabetical --dir-first",           desc = "Sort: name A-Z" },
+    { on = [",", "A"], run = "sort alphabetical --dir-first --reverse", desc = "Sort: name Z-A" },
+    { on = [",", "m"], run = "sort mtime --dir-first --reverse",        desc = "Sort: newest first" },
+    { on = [",", "M"], run = "sort mtime --dir-first",                  desc = "Sort: oldest first" },
+    { on = [",", "s"], run = "sort size --dir-first --reverse",         desc = "Sort: largest first" },
+    { on = [",", "S"], run = "sort size --dir-first",                   desc = "Sort: smallest first" },
+    { on = [",", "e"], run = "sort extension --dir-first",              desc = "Sort: extension" },
+    { on = [",", "n"], run = "sort natural --dir-first",                desc = "Sort: natural" },
+    { on = [",", "r"], run = "sort random",                             desc = "Sort: random shuffle" },
+
+    # ── Toggle Display Options (. prefix) ────────────────────
+    { on = [".", "h"], run = "hidden toggle",      desc = "Toggle hidden files" },
+    { on = [".", "s"], run = "linemode size",       desc = "Linemode: size" },
+    { on = [".", "m"], run = "linemode mtime",      desc = "Linemode: modified time" },
+    { on = [".", "b"], run = "linemode btime",      desc = "Linemode: birth time" },
+    { on = [".", "p"], run = "linemode permissions", desc = "Linemode: permissions" },
+    { on = [".", "o"], run = "linemode owner",       desc = "Linemode: owner" },
+    { on = [".", "n"], run = "linemode none",        desc = "Linemode: none" },
+
+    # ── Quick Directory Jumps (g prefix) ─────────────────────
+    # Note: "g g" (top) and "G" (bottom) defined above.
+    { on = ["g", "~"],      run = "cd ~",           desc = "Go: home directory" },
+    { on = ["g", "/"],      run = "cd /",           desc = "Go: root (/)" },
+    { on = ["g", "d"],      run = "cd ~/Downloads", desc = "Go: Downloads" },
+    { on = ["g", "D"],      run = "cd ~/Desktop",   desc = "Go: Desktop" },
+    { on = ["g", "."],      run = "cd ~/dotfiles",  desc = "Go: dotfiles" },
+    { on = ["g", "c"],      run = "cd ~/.config",   desc = "Go: ~/.config" },
+    { on = ["g", "l"],      run = "cd ~/.local",    desc = "Go: ~/.local" },
+    { on = ["g", "p"],      run = "cd ~/Pictures",  desc = "Go: Pictures" },
+    { on = ["g", "P"],      run = "cd ~/Projects",  desc = "Go: Projects" },
+    { on = ["g", "v"],      run = "cd ~/Videos",    desc = "Go: Videos" },
+    { on = ["g", "m"],      run = "cd ~/Music",     desc = "Go: Music" },
+    { on = ["g", "t"],      run = "cd /tmp",        desc = "Go: /tmp" },
+    { on = ["g", "M"],      run = "cd /run/media",  desc = "Go: media mounts" },
+    { on = ["g", "<Space>"], run = "cd --interactive", desc = "Go: interactive (zoxide)" },
+
+    # ── Tab Management ───────────────────────────────────────
+    { on = "t",        run = "tab_create --current",     desc = "New tab (current dir)" },
+    { on = "T",        run = "tab_create",               desc = "New tab (home dir)" },
+    { on = "W",        run = "close",                    desc = "Close current tab" },
+    { on = "<BackTab>", run = "tab_switch -1 --relative", desc = "Previous tab" },
+    # Number keys switch tabs (default is already bound in preset, keeping for clarity)
+    { on = "1", run = "tab_switch 0", desc = "Switch to tab 1" },
+    { on = "2", run = "tab_switch 1", desc = "Switch to tab 2" },
+    { on = "3", run = "tab_switch 2", desc = "Switch to tab 3" },
+    { on = "4", run = "tab_switch 3", desc = "Switch to tab 4" },
+    { on = "5", run = "tab_switch 4", desc = "Switch to tab 5" },
+    { on = "6", run = "tab_switch 5", desc = "Switch to tab 6" },
+    { on = "7", run = "tab_switch 6", desc = "Switch to tab 7" },
+    { on = "8", run = "tab_switch 7", desc = "Switch to tab 8" },
+    { on = "9", run = "tab_switch 8", desc = "Switch to tab 9" },
+
+    # ── Shell / External ─────────────────────────────────────
+    # "block" keeps Yazi hidden on alt screen while the shell runs
+    { on = "!",    run = 'shell "$SHELL" --block',      desc = "Open shell here" },
+    { on = "@",    run = "shell --interactive",         desc = "Run shell command" },
+    { on = "<C-g>", run = "shell 'lazygit' --block",   desc = "Open lazygit" },
+
+    # ── Plugins (z prefix) ───────────────────────────────────
+    # Compression (KKV9/archive)
+    { on = ["z", "z"], run = "plugin archive --args=zip",    desc = "Compress → ZIP" },
+    { on = ["z", "g"], run = "plugin archive --args=tar.gz", desc = "Compress → TAR.GZ" },
+    # Extraction (ad-hoc shell — bsdtar is available on Arch/Debian via libarchive)
+    { on = ["z", "x"], run = 'shell -- bsdtar -xvf "$1"',
+        desc = "Extract archive here" },
+    { on = ["z", "X"], run = '''shell -- mkdir -p "${1%.*}" && bsdtar -xvf "$1" -C "${1%.*}"''',
+        desc = "Extract to subfolder" },
+    # Other plugins
+    { on = ["z", "b"], run = "plugin bypass",  desc = "Bypass single-child dir" },
+    { on = ["z", "c"], run = "plugin chmod",   desc = "Chmod selected files" },
+    { on = ["z", "i"], run = "plugin git",     desc = "Git status overlay" },
+    { on = ["z", "h"], run = "plugin bunny",   desc = "Bunny bookmarks" },
+    { on = ["z", "m"], run = "plugin mount",   desc = "Mount manager" },
+
+    # ── Quit ─────────────────────────────────────────────────
+    { on = "q", run = "quit",               desc = "Quit (write cwd)" },
+    { on = "Q", run = "quit --no-cwd-file", desc = "Quit (no cwd)" },
+]
+
+# ════════════════════════════════════════════════════════════
+#  [tasks] — Task Manager Popup (default: w to open)
+# ════════════════════════════════════════════════════════════
+[tasks]
+prepend_keymap = [
+    { on = "<Escape>", run = "close",    desc = "Close task manager" },
+    { on = "q",        run = "close",    desc = "Close task manager" },
+    { on = "<Up>",     run = "arrow -1", desc = "Move cursor up" },
+    { on = "<Down>",   run = "arrow 1",  desc = "Move cursor down" },
+    { on = "k",        run = "arrow -1", desc = "Move cursor up (vim)" },
+    { on = "j",        run = "arrow 1",  desc = "Move cursor down (vim)" },
+    { on = "?",        run = "help",     desc = "Open help" },
+]
+
+# ════════════════════════════════════════════════════════════
+#  [spot] — File Spotter (info panel, default: <Tab>)
+# ════════════════════════════════════════════════════════════
+[spot]
+prepend_keymap = [
+    { on = "<Escape>", run = "close",    desc = "Close spotter" },
+    { on = "q",        run = "close",    desc = "Close spotter" },
+    { on = "<Up>",     run = "arrow -1", desc = "Move cursor up" },
+    { on = "<Down>",   run = "arrow 1",  desc = "Move cursor down" },
+    { on = "k",        run = "arrow -1", desc = "Move cursor up (vim)" },
+    { on = "j",        run = "arrow 1",  desc = "Move cursor down (vim)" },
+]
+
+# ════════════════════════════════════════════════════════════
+#  [pick] — "Open with" Picker
+# ════════════════════════════════════════════════════════════
+[pick]
+prepend_keymap = [
+    { on = "<Escape>", run = "close",    desc = "Cancel" },
+    { on = "q",        run = "close",    desc = "Cancel" },
+    { on = "<Up>",     run = "arrow -1", desc = "Move cursor up" },
+    { on = "<Down>",   run = "arrow 1",  desc = "Move cursor down" },
+    { on = "k",        run = "arrow -1", desc = "Move cursor up (vim)" },
+    { on = "j",        run = "arrow 1",  desc = "Move cursor down (vim)" },
+    { on = "<Enter>",  run = "close --submit", desc = "Confirm selection" },
+]
+
+# ════════════════════════════════════════════════════════════
+#  [input] — Text Input (rename, create, cd, shell…)
+# ════════════════════════════════════════════════════════════
+[input]
+prepend_keymap = [
+    # Close / Submit
+    # Note: default <Esc> enters Vi normal mode; override to close directly.
+    # "close --submit" submits the [cmp] completion layer (if open);
+    # "input:close --submit" submits the actual [input] rename/create dialog.
+    # Both must be listed together so Enter works in all input contexts.
+    { on = "<Escape>", run = "close",                                          desc = "Cancel input" },
+    { on = "<Enter>",  run = ["close --submit", "input:close --submit"],       desc = "Submit input" },
+
+    # Cursor movement
+    { on = "<Left>",  run = "move -1",        desc = "Move cursor left" },
+    { on = "<Right>", run = "move 1",         desc = "Move cursor right" },
+    { on = "<Home>",  run = "move -999",      desc = "Move to line start" },
+    { on = "<End>",   run = "move 999",       desc = "Move to line end" },
+    { on = "<C-a>",   run = "move -999",      desc = "Move to line start" },
+    { on = "<C-e>",   run = "move 999",       desc = "Move to line end" },
+
+    # History navigation
+    { on = "<Up>",   run = "arrow -1", desc = "Previous history entry" },
+    { on = "<Down>", run = "arrow 1",  desc = "Next history entry" },
+
+    # Delete
+    { on = "<C-h>",       run = "backspace",    desc = "Backspace" },
+    { on = "<Backspace>",  run = "backspace",    desc = "Backspace" },
+    { on = "<Delete>",     run = "delete",       desc = "Delete char under cursor" },
+]
+
+# ════════════════════════════════════════════════════════════
+#  [confirm] — Yes/No Dialogs (trash, delete, overwrite, quit)
+# ════════════════════════════════════════════════════════════
+[confirm]
+prepend_keymap = [
+    { on = "<Escape>", run = "close",    desc = "Cancel / No" },
+    { on = "q",        run = "close",    desc = "Cancel / No" },
+    { on = "n",        run = "close",    desc = "No" },
+    { on = "<Up>",     run = "arrow -1", desc = "Move cursor up" },
+    { on = "<Down>",   run = "arrow 1",  desc = "Move cursor down" },
+    { on = "k",        run = "arrow -1", desc = "Move cursor up (vim)" },
+    { on = "j",        run = "arrow 1",  desc = "Move cursor down (vim)" },
+    { on = "<Enter>",  run = "close --submit", desc = "Confirm / Yes" },
+    { on = "y",        run = "close --submit", desc = "Yes / confirm" },
+]
+
+# ════════════════════════════════════════════════════════════
+#  [cmp] — URL Completion (used while typing in cd)
+# ════════════════════════════════════════════════════════════
+[cmp]
+prepend_keymap = [
+    { on = "<Tab>",    run = "arrow 1",  desc = "Next completion candidate" },
+    { on = "<BackTab>", run = "arrow -1", desc = "Previous completion candidate" },
+    { on = "<Up>",     run = "arrow -1", desc = "Previous candidate" },
+    { on = "<Down>",   run = "arrow 1",  desc = "Next candidate" },
+    { on = "<Enter>",  run = "close --submit", desc = "Accept completion" },
+    { on = "<Escape>", run = "close",    desc = "Close completion" },
+]
+
+# ════════════════════════════════════════════════════════════
+#  [help] — Help Overlay (default: F1 or ~)
+# ════════════════════════════════════════════════════════════
+[help]
+prepend_keymap = [
+    { on = "<Escape>", run = "escape",   desc = "Clear search or close" },
+    { on = "q",        run = "close",    desc = "Close help" },
+    { on = "<Up>",     run = "arrow -1", desc = "Move cursor up" },
+    { on = "<Down>",   run = "arrow 1",  desc = "Move cursor down" },
+    { on = "k",        run = "arrow -1", desc = "Move cursor up (vim)" },
+    { on = "j",        run = "arrow 1",  desc = "Move cursor down (vim)" },
+    { on = "/",        run = "filter",   desc = "Filter help items" },
+]

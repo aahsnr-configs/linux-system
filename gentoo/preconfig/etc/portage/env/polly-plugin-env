@@ -1,0 +1,3 @@
+# /etc/portage/env/polly‑plugin‑env
+CFLAGS="${CFLAGS} -fpass-plugin=LLVMPolly.so"
+CXXFLAGS="${CXXFLAGS} -fpass-plugin=LLVMPolly.so"
