@@ -1,10 +1,10 @@
 # ~/.config/hypr/pyprland.toml
 [pyprland]
 plugins = [
-  "expose", 
-  "scratchpads", 
-  "magnify", 
-  "layout_center", 
+  "expose",
+  "scratchpads",
+  "magnify",
+  "layout_center",
   "toggle_special",
 ]
 
