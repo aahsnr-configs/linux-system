@@ -1,12 +1,12 @@
 [[plugin.deps]]
 use = "KKV9/archive"
-rev = "46a6b9f"
-hash = "771af2becc575a3f43d0542de823969d"
+rev = "e60e122"
+hash = "fbaf0adc8efc59555b748d36aab62d40"
 
 [[plugin.deps]]
 use = "Rolv-Apneseth/bypass"
-rev = "c1e5fcf"
-hash = "208e77480824f62558a5b037c8569d61"
+rev = "4a0c70e"
+hash = "3c66d95bf63fa16178e98967fbae9429"
 
 [[plugin.deps]]
 use = "stelcodes/bunny"
@@ -15,7 +15,7 @@ hash = "18a2829738214fe9bca99a2fef19113d"
 
 [[plugin.deps]]
 use = "yazi-rs/plugins:chmod"
-rev = "ac82af3"
+rev = "c2c16c8"
 hash = "f0c8c378184d5f8abd1b095a443d336d"
 
 [[plugin.deps]]
