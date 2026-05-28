@@ -1,0 +1,18 @@
+gentoo-apt-guide/           <-- Root project directory
+├── package.json            <-- File 1
+├── vite.config.ts          <-- File 2
+├── tsconfig.json           <-- File 3 (Upcoming)
+├── index.html              <-- File 4 (Upcoming)
+├── public/
+│   └── guide.md            <-- The complete README.md file you pasted to me
+└── src/
+    ├── main.tsx            <-- File 5 (Upcoming)
+    ├── index.css           <-- File 6 (Upcoming)
+    ├── App.tsx             <-- File 7 (Upcoming)
+    ├── types.ts            <-- File 8 (Upcoming)
+    ├── hooks/
+    │   └── useProgress.ts  <-- File 9 (Upcoming)
+    └── components/
+        ├── Sidebar.tsx         <-- File 10 (Upcoming)
+        ├── MarkdownRenderer.tsx<-- File 11 (Upcoming)
+        └── CodeBlock.tsx       <-- File 12 (Upcoming)
