@@ -1,0 +1,374 @@
+/* ============================================================
+   Catppuccin Macchiato Colorscheme & Global Styles
+   ============================================================ */
+
+:root {
+  /* Catppuccin Macchiato Palette */
+  --ctp-rosewater: #f4dbd6;
+  --ctp-flamingo: #f0c6c6;
+  --ctp-pink: #f5bde6;
+  --ctp-mauve: #c6a0f6;
+  --ctp-red: #ed8796;
+  --ctp-maroon: #ee99a0;
+  --ctp-peach: #f5a97f;
+  --ctp-yellow: #eed49f;
+  --ctp-green: #a6da95;
+  --ctp-teal: #8bd5ca;
+  --ctp-sky: #91d7e3;
+  --ctp-sapphire: #7dc4e4;
+  --ctp-blue: #8aadf4;
+  --ctp-lavender: #b7bdf8;
+  --ctp-text: #cad3f8;
+  --ctp-subtext1: #b8c0e0;
+  --ctp-subtext0: #a5adcb;
+  --ctp-overlay2: #939ab7;
+  --ctp-overlay1: #8087a2;
+  --ctp-overlay0: #6e738d;
+  --ctp-surface2: #5b6078;
+  --ctp-surface1: #494d64;
+  --ctp-surface0: #363a4f;
+  --ctp-base: #24273a;
+  --ctp-mantle: #1e2030;
+  --ctp-crust: #181926;
+
+  /* Layout Variables - Tightened */
+  --sidebar-width: 260px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  /* Updated Font Family */
+  font-family:
+    "JetBrainsMono Nerd Font", "JetBrains Mono", "Fira Code", "Noto Sans Mono",
+    monospace;
+  background-color: var(--ctp-base);
+  color: var(--ctp-text);
+  line-height: 1.5; /* Tighter line height */
+  -webkit-font-smoothing: antialiased;
+}
+
+.app-container {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Sidebar - Tightened */
+.sidebar {
+  width: var(--sidebar-width);
+  background-color: var(--ctp-mantle);
+  border-right: 1px solid var(--ctp-surface0);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.sidebar-header {
+  padding: 1rem;
+  border-bottom: 1px solid var(--ctp-surface0);
+}
+.sidebar-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ctp-mauve);
+}
+.sidebar-subtitle {
+  font-size: 0.7rem;
+  color: var(--ctp-subtext0);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 0.2rem;
+}
+
+.progress-container {
+  padding: 0.75rem 1rem;
+  background-color: var(--ctp-crust);
+  border-bottom: 1px solid var(--ctp-surface0);
+}
+.progress-label {
+  font-size: 0.75rem;
+  color: var(--ctp-subtext1);
+  margin-bottom: 0.4rem;
+  display: flex;
+  justify-content: space-between;
+}
+.progress-bar-bg {
+  height: 6px;
+  background-color: var(--ctp-surface0);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--ctp-blue), var(--ctp-mauve));
+  border-radius: 3px;
+  transition: width 0.4s ease-in-out;
+}
+
+.nav-list {
+  list-style: none;
+  padding: 0.5rem 0;
+  flex-grow: 1;
+}
+.nav-item {
+  display: block;
+  padding: 0.4rem 1rem;
+  color: var(--ctp-subtext0);
+  text-decoration: none;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-left: 3px solid transparent;
+}
+.nav-item:hover {
+  background-color: var(--ctp-surface0);
+  color: var(--ctp-text);
+}
+.nav-item.active {
+  background-color: var(--ctp-surface0);
+  color: var(--ctp-blue);
+  border-left: 3px solid var(--ctp-blue);
+  font-weight: 600;
+}
+
+/* Main Content - Tightened */
+.main-content {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 2rem 3rem;
+  background-color: var(--ctp-base);
+}
+
+/* ============================================================
+   Markdown Typography - COMPACT MODE
+   ============================================================ */
+
+.markdown-body.compact-mode h1 {
+  font-size: 1.6rem;
+  color: var(--ctp-mauve);
+  border-bottom: 1px solid var(--ctp-surface1);
+  padding-bottom: 0.3rem;
+  margin: 1.5rem 0 0.8rem 0;
+  font-weight: 800;
+}
+.markdown-body.compact-mode h2 {
+  font-size: 1.2rem;
+  color: var(--ctp-blue);
+  border-bottom: 1px solid var(--ctp-surface0);
+  padding-bottom: 0.2rem;
+  margin: 1.5rem 0 0.6rem 0;
+  font-weight: 700;
+}
+.markdown-body.compact-mode h3 {
+  font-size: 1rem;
+  color: var(--ctp-sky);
+  margin: 1rem 0 0.4rem 0;
+  font-weight: 700;
+}
+.markdown-body.compact-mode h4 {
+  font-size: 0.9rem;
+  color: var(--ctp-teal);
+  margin: 0.8rem 0 0.3rem 0;
+  font-weight: 600;
+}
+.markdown-body.compact-mode p {
+  margin-bottom: 0.6rem;
+  font-size: 0.9rem;
+}
+.markdown-body.compact-mode a {
+  color: var(--ctp-sapphire);
+  text-decoration: none;
+}
+.markdown-body.compact-mode a:hover {
+  color: var(--ctp-blue);
+  text-decoration: underline;
+}
+.markdown-body.compact-mode strong {
+  color: var(--ctp-rosewater);
+  font-weight: 700;
+}
+.markdown-body.compact-mode ul,
+.markdown-body.compact-mode ol {
+  padding-left: 1.5rem;
+  margin-bottom: 0.6rem;
+  font-size: 0.9rem;
+}
+.markdown-body.compact-mode li {
+  margin-bottom: 0.2rem;
+}
+
+/* Blockquotes */
+.markdown-body.compact-mode blockquote {
+  border-left: 3px solid var(--ctp-mauve);
+  background-color: var(--ctp-mantle);
+  padding: 0.6rem 1rem;
+  margin: 0.8rem 0;
+  border-radius: 0 3px 3px 0;
+  color: var(--ctp-subtext1);
+  font-size: 0.85rem;
+}
+.markdown-body.compact-mode blockquote p {
+  margin-bottom: 0.3rem;
+}
+
+/* Tables */
+.markdown-body.compact-mode table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.8rem 0;
+  font-size: 0.85rem;
+}
+.markdown-body.compact-mode th {
+  background-color: var(--ctp-mantle);
+  color: var(--ctp-lavender);
+  font-weight: 600;
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+  border: 1px solid var(--ctp-surface1);
+}
+.markdown-body.compact-mode td {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--ctp-surface0);
+  color: var(--ctp-text);
+}
+.markdown-body.compact-mode tr:nth-child(even) {
+  background-color: var(--ctp-crust);
+}
+
+/* Inline Code */
+.markdown-body.compact-mode code:not(pre > code) {
+  background-color: var(--ctp-surface0);
+  color: var(--ctp-pink);
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+  font-size: 0.85em;
+  font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", monospace;
+}
+
+/* ============================================================
+   3-State Interactive Task Buttons
+   ============================================================ */
+
+.task-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.status-btn {
+  background: none;
+  border: 1px solid var(--ctp-surface1);
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 10px;
+  flex-shrink: 0;
+  transition: all 0.2s;
+  padding: 0;
+  line-height: 1;
+}
+
+.status-btn:hover {
+  border-color: var(--ctp-overlay0);
+  transform: scale(1.1);
+}
+
+.status-todo {
+  color: var(--ctp-surface2);
+  background-color: var(--ctp-crust);
+}
+
+.status-progress {
+  color: var(--ctp-yellow);
+  background-color: var(--ctp-surface0);
+  border-color: var(--ctp-yellow);
+}
+
+.status-done {
+  color: var(--ctp-green);
+  background-color: var(--ctp-surface0);
+  border-color: var(--ctp-green);
+}
+
+/* ============================================================
+   Code Blocks
+   ============================================================ */
+
+.code-block-wrapper {
+  margin: 0.8rem 0;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--ctp-surface0);
+}
+.code-block-header {
+  background-color: var(--ctp-mantle);
+  color: var(--ctp-subtext0);
+  padding: 0.3rem 0.6rem;
+  font-size: 0.7rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--ctp-surface0);
+}
+.copy-button {
+  background: none;
+  border: 1px solid var(--ctp-surface1);
+  color: var(--ctp-subtext0);
+  padding: 0.2rem 0.5rem;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 0.7rem;
+  transition: all 0.2s;
+  font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", monospace;
+}
+.copy-button:hover {
+  background-color: var(--ctp-surface0);
+  color: var(--ctp-text);
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--ctp-crust);
+}
+::-webkit-scrollbar-thumb {
+  background-color: var(--ctp-surface1);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--ctp-surface2);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .app-container {
+    flex-direction: column;
+  }
+  .sidebar {
+    width: 100%;
+    height: auto;
+    max-height: 25vh;
+    border-right: none;
+    border-bottom: 1px solid var(--ctp-surface0);
+  }
+  .main-content {
+    padding: 1rem;
+  }
+}
