@@ -1,0 +1,404 @@
+#!/usr/bin/env bash
+# =============================================================================
+# obsidian-sync.sh
+# Sync shared Obsidian settings from a master vault to one or more secondary
+# vaults.  Only portable, non-project-specific configuration is copied.
+#
+# Usage:
+#   obsidian-sync.sh [OPTIONS] -m <master-vault> -t <target-vault> [...]
+#   obsidian-sync.sh [OPTIONS] -m <master-vault> -c <config-file>
+#
+# Options:
+#   -m, --master   PATH   Path to the master vault (required)
+#   -t, --target   PATH   Path to a target vault (repeatable)
+#   -c, --config   FILE   Plain-text file listing one target vault path per line
+#   -n, --dry-run         Print what would be done without making changes
+#   -b, --backup          Back up the target .obsidian dir before overwriting
+#   -s, --skip-data       Skip plugin data.json files (avoids path-specific
+#                         settings that differ per vault)
+#   -v, --verbose         Enable verbose rsync output
+#   -h, --help            Show this help and exit
+#
+# What is copied (shared / portable settings):
+#   Files  : app.json, appearance.json, community-plugins.json,
+#             core-plugins.json, core-plugins-migration.json,
+#             hotkeys.json, graph.json
+#   Folders: plugins/   (plugin binaries + optional data.json)
+#             themes/    (theme CSS files)
+#             snippets/  (custom CSS snippets)
+#
+# What is intentionally skipped (vault- / session-specific):
+#   workspace.json, workspace-mobile.json, workspaces.json
+#   bookmarks.json     — contains links to vault-specific files
+#   templates.json     — stores a vault-specific template folder path
+#   daily-notes.json   — stores vault-specific daily-note folder path
+#   starred.json       — legacy starred-files list (vault-specific)
+#   cache              — binary cache rebuilt automatically by Obsidian
+#   .obsidian-git-data — git-plugin state (vault-specific)
+#
+# =============================================================================
+set -euo pipefail
+IFS=$'\n\t'
+
+# ── Colour helpers ────────────────────────────────────────────────────────────
+_tty() { [[ -t 1 ]]; }
+_col() { _tty && printf '%s' "$1" || true; }
+RED=$(_col $'\033[0;31m')
+YEL=$(_col $'\033[0;33m')
+GRN=$(_col $'\033[0;32m')
+BLU=$(_col $'\033[0;34m')
+CYN=$(_col $'\033[0;36m')
+BLD=$(_col $'\033[1m')
+RST=$(_col $'\033[0m')
+
+# ── Logging helpers ───────────────────────────────────────────────────────────
+log_info() { printf '%s[INFO]%s  %s\n' "$BLU" "$RST" "$*"; }
+log_ok() { printf '%s[OK]%s    %s\n' "$GRN" "$RST" "$*"; }
+log_warn() { printf '%s[WARN]%s  %s\n' "$YEL" "$RST" "$*" >&2; }
+log_error() { printf '%s[ERROR]%s %s\n' "$RED" "$RST" "$*" >&2; }
+log_step() { printf '\n%s══ %s%s\n' "$CYN" "$*" "$RST"; }
+log_dry() { printf '%s[DRY-RUN]%s %s\n' "$YEL" "$RST" "$*"; }
+
+# ── Usage / help ──────────────────────────────────────────────────────────────
+usage() {
+  cat <<EOF
+${BLD}obsidian-sync.sh${RST} — Copy shared Obsidian settings from a master vault
+
+${BLD}USAGE${RST}
+  obsidian-sync.sh [OPTIONS] -m <master> -t <target> [-t <target> ...]
+  obsidian-sync.sh [OPTIONS] -m <master> -c <config-file>
+
+${BLD}OPTIONS${RST}
+  -m, --master  PATH   Master vault directory (must contain .obsidian/)
+  -t, --target  PATH   Target vault directory (repeatable)
+  -c, --config  FILE   File listing one target vault path per line
+                       (blank lines and lines starting with # are ignored)
+  -n, --dry-run        Show what would happen; make no changes
+  -b, --backup         Back up target .obsidian/ before writing
+  -s, --skip-data      Skip per-plugin data.json (avoids path-specific
+                       settings leaking into other vaults)
+  -v, --verbose        Pass --verbose to rsync
+  -h, --help           Show this message and exit
+
+${BLD}SHARED FILES COPIED${RST}
+  app.json, appearance.json, community-plugins.json, core-plugins.json,
+  core-plugins-migration.json, hotkeys.json, graph.json
+  Folders: plugins/, themes/, snippets/
+
+${BLD}SKIPPED (project-/session-specific)${RST}
+  workspace.json, workspace-mobile.json, workspaces.json, bookmarks.json,
+  templates.json, daily-notes.json, starred.json, cache, .obsidian-git-data
+EOF
+}
+
+# ── Defaults ──────────────────────────────────────────────────────────────────
+MASTER_VAULT=""
+declare -a TARGET_VAULTS=()
+CONFIG_FILE=""
+DRY_RUN=false
+BACKUP=false
+SKIP_DATA=false
+VERBOSE=false
+
+# ── Argument parsing ──────────────────────────────────────────────────────────
+parse_args() {
+  [[ $# -eq 0 ]] && {
+    usage
+    exit 0
+  }
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+    -m | --master)
+      [[ -z "${2:-}" ]] && {
+        log_error "--master requires a PATH argument"
+        exit 1
+      }
+      MASTER_VAULT="${2%/}" # strip trailing slash
+      shift 2
+      ;;
+    -t | --target)
+      [[ -z "${2:-}" ]] && {
+        log_error "--target requires a PATH argument"
+        exit 1
+      }
+      TARGET_VAULTS+=("${2%/}")
+      shift 2
+      ;;
+    -c | --config)
+      [[ -z "${2:-}" ]] && {
+        log_error "--config requires a FILE argument"
+        exit 1
+      }
+      CONFIG_FILE="$2"
+      shift 2
+      ;;
+    -n | --dry-run)
+      DRY_RUN=true
+      shift
+      ;;
+    -b | --backup)
+      BACKUP=true
+      shift
+      ;;
+    -s | --skip-data)
+      SKIP_DATA=true
+      shift
+      ;;
+    -v | --verbose)
+      VERBOSE=true
+      shift
+      ;;
+    -h | --help)
+      usage
+      exit 0
+      ;;
+    *)
+      log_error "Unknown option: $1"
+      usage
+      exit 1
+      ;;
+    esac
+  done
+}
+
+# ── Validation ────────────────────────────────────────────────────────────────
+validate_args() {
+  # Master vault
+  if [[ -z "$MASTER_VAULT" ]]; then
+    log_error "Master vault path is required (-m / --master)"
+    exit 1
+  fi
+
+  if [[ ! -d "$MASTER_VAULT" ]]; then
+    log_error "Master vault does not exist: $MASTER_VAULT"
+    exit 1
+  fi
+
+  if [[ ! -d "$MASTER_VAULT/.obsidian" ]]; then
+    log_error "No .obsidian folder found in master vault: $MASTER_VAULT"
+    exit 1
+  fi
+
+  # Load targets from config file if given
+  if [[ -n "$CONFIG_FILE" ]]; then
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+      log_error "Config file not found: $CONFIG_FILE"
+      exit 1
+    fi
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      # Strip inline comments, trim whitespace
+      line="${line%%#*}"
+      line="${line#"${line%%[![:space:]]*}"}" # ltrim
+      line="${line%"${line##*[![:space:]]}"}" # rtrim
+      [[ -z "$line" ]] && continue
+      TARGET_VAULTS+=("${line%/}")
+    done <"$CONFIG_FILE"
+  fi
+
+  if [[ ${#TARGET_VAULTS[@]} -eq 0 ]]; then
+    log_error "No target vaults specified. Use -t or -c."
+    exit 1
+  fi
+
+  # Deduplicate targets
+  declare -gA _seen=()
+  declare -ga UNIQUE_TARGETS=()
+  for t in "${TARGET_VAULTS[@]}"; do
+    if [[ -z "${_seen[$t]+_}" ]]; then
+      _seen[$t]=1
+      UNIQUE_TARGETS+=("$t")
+    else
+      log_warn "Duplicate target ignored: $t"
+    fi
+  done
+  TARGET_VAULTS=("${UNIQUE_TARGETS[@]}")
+
+  # Prevent syncing master to itself
+  local real_master
+  real_master="$(realpath "$MASTER_VAULT")"
+  for t in "${TARGET_VAULTS[@]}"; do
+    if [[ -d "$t" ]]; then
+      local real_target
+      real_target="$(realpath "$t")"
+      if [[ "$real_master" == "$real_target" ]]; then
+        log_error "Target cannot be the same as the master vault: $t"
+        exit 1
+      fi
+    fi
+  done
+
+  # Dependency check
+  if ! command -v rsync &>/dev/null; then
+    log_error "'rsync' is required but not found. Install it and retry."
+    exit 1
+  fi
+}
+
+# ── Backup helper ─────────────────────────────────────────────────────────────
+backup_obsidian_dir() {
+  local target_obsidian="$1"
+  local timestamp
+  timestamp="$(date +%Y%m%d_%H%M%S)"
+  local backup_dir="${target_obsidian}_backup_${timestamp}"
+
+  if [[ -d "$target_obsidian" ]]; then
+    if $DRY_RUN; then
+      log_dry "Would back up $target_obsidian → $backup_dir"
+    else
+      cp -a "$target_obsidian" "$backup_dir"
+      log_ok "Backed up .obsidian → $(basename "$backup_dir")"
+    fi
+  fi
+}
+
+# ── Core sync logic ───────────────────────────────────────────────────────────
+
+# Shared portable JSON files to copy directly (one per line for readability).
+# These contain no vault-specific paths and are safe to share across vaults.
+SHARED_FILES=(
+  "app.json"
+  "appearance.json"
+  "community-plugins.json"
+  "core-plugins.json"
+  "core-plugins-migration.json"
+  "hotkeys.json"
+  "graph.json"
+)
+
+# Shared folders synced with rsync.
+# themes/   — CSS theme files; no vault-specific paths
+# snippets/ — custom CSS snippets; no vault-specific paths
+# plugins/  — community plugin binaries (main.js, manifest.json, styles.css)
+#             data.json files may contain vault-specific paths → --skip-data
+SHARED_FOLDERS=(
+  "themes"
+  "snippets"
+  "plugins"
+)
+
+# Files deliberately excluded from sync (vault- / session-specific).
+# Referenced here for documentation clarity; enforced via absence from the
+# lists above rather than explicit exclusion rules.
+# workspace.json, workspace-mobile.json, workspaces.json
+# bookmarks.json, templates.json, daily-notes.json, starred.json
+# cache, .obsidian-git-data
+
+sync_files() {
+  local src_obsidian="$1" # e.g. /path/to/master/.obsidian
+  local dst_obsidian="$2" # e.g. /path/to/target/.obsidian
+
+  local rsync_flags=(--archive --human-readable)
+  $VERBOSE && rsync_flags+=(--verbose)
+  $DRY_RUN && rsync_flags+=(--dry-run)
+
+  # ── Individual JSON files ─────────────────────────────────────────────────
+  log_info "Syncing shared configuration files …"
+  for file in "${SHARED_FILES[@]}"; do
+    local src_file="$src_obsidian/$file"
+    if [[ ! -f "$src_file" ]]; then
+      log_warn "  Source file not found, skipping: $file"
+      continue
+    fi
+
+    if $DRY_RUN; then
+      log_dry "  cp $src_file → $dst_obsidian/$file"
+    else
+      mkdir -p "$dst_obsidian"
+      cp --preserve=timestamps "$src_file" "$dst_obsidian/$file"
+      log_ok "  ✓ $file"
+    fi
+  done
+
+  # ── Shared folders ────────────────────────────────────────────────────────
+  log_info "Syncing shared folders …"
+  for folder in "${SHARED_FOLDERS[@]}"; do
+    local src_dir="$src_obsidian/$folder"
+    if [[ ! -d "$src_dir" ]]; then
+      log_warn "  Source folder not found, skipping: $folder/"
+      continue
+    fi
+
+    local dst_dir="$dst_obsidian/$folder"
+    local folder_flags=("${rsync_flags[@]}" --delete)
+
+    # Build per-plugin data.json exclusions when requested
+    if [[ "$folder" == "plugins" ]] && $SKIP_DATA; then
+      folder_flags+=(--exclude="*/data.json")
+      log_info "  [--skip-data] Excluding per-plugin data.json files"
+    fi
+
+    if $DRY_RUN && ! $VERBOSE; then
+      log_dry "  rsync $src_dir/ → $dst_dir/"
+    else
+      mkdir -p "$dst_dir"
+      rsync "${folder_flags[@]}" "$src_dir/" "$dst_dir/"
+      log_ok "  ✓ $folder/"
+    fi
+  done
+}
+
+sync_vault() {
+  local target="$1"
+  log_step "Target vault: ${BLD}$target${RST}"
+
+  # Validate / create the target vault directory
+  if [[ ! -d "$target" ]]; then
+    if $DRY_RUN; then
+      log_dry "Would create directory: $target"
+    else
+      log_warn "Target vault directory does not exist; creating it."
+      mkdir -p "$target"
+    fi
+  fi
+
+  local src_obsidian="$MASTER_VAULT/.obsidian"
+  local dst_obsidian="$target/.obsidian"
+
+  # Optionally back up the existing .obsidian
+  $BACKUP && backup_obsidian_dir "$dst_obsidian"
+
+  # Create .obsidian if absent
+  if ! $DRY_RUN; then
+    mkdir -p "$dst_obsidian"
+  fi
+
+  sync_files "$src_obsidian" "$dst_obsidian"
+  log_ok "Done → $target"
+}
+
+# ── Entry point ───────────────────────────────────────────────────────────────
+main() {
+  parse_args "$@"
+  validate_args
+
+  # Print summary
+  echo
+  printf '%s%s%s\n' "$BLD" "Obsidian Vault Settings Sync" "$RST"
+  printf '%s\n' "────────────────────────────────"
+  printf '  Master vault : %s\n' "$MASTER_VAULT"
+  printf '  Target vaults: %d\n' "${#TARGET_VAULTS[@]}"
+  $DRY_RUN && printf '  %s[DRY-RUN — no files will be written]%s\n' "$YEL" "$RST"
+  $BACKUP && printf '  Backup mode  : enabled\n'
+  $SKIP_DATA && printf '  Skip data    : plugin data.json files will not be copied\n'
+  printf '%s\n' "────────────────────────────────"
+
+  local fail_count=0
+
+  for target in "${TARGET_VAULTS[@]}"; do
+    if ! sync_vault "$target"; then
+      log_error "Failed to sync vault: $target"
+      ((fail_count++)) || true
+    fi
+  done
+
+  echo
+  if [[ $fail_count -eq 0 ]]; then
+    log_ok "All ${#TARGET_VAULTS[@]} vault(s) synced successfully."
+  else
+    log_error "$fail_count vault(s) failed to sync."
+    exit 1
+  fi
+}
+
+main "$@"
