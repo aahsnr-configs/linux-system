@@ -396,7 +396,7 @@ keybinding:
     markCommitAsBaseForRebase: B
     tagCommit: T
     checkoutCommit: <space>
-    resetCherryPick: <ctrl+R>
+    resetCherryPick: <ctrl+r>
     copyCommitAttributeToClipboard: 'y'
     openLogMenu: <ctrl+l>
     openInBrowser: o
