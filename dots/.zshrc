@@ -589,6 +589,8 @@ command_not_found_handler() {
 
 alias suse="podman run --rm -it suse-checker"
 alias gc="git clone"
+alias ga="git add"
+alias aic="aicommits"
 alias upgrade="topgrade"
 alias listPkgs='paru -Qq > packages.list'
 alias delOrphans='paru -Rns $(paru -Qtdq)'
