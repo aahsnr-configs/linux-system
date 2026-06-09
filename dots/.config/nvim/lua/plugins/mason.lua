@@ -11,11 +11,6 @@ return {
     opts = {
       -- Make sure to use the names found in `:Mason`
       ensure_installed = {
-        "basedpyright",
-        "ruff",
-        "lua-language-server",
-        "stylua",
-        "debugpy",
         "tree-sitter-cli",
       },
     },
