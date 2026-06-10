@@ -786,3 +786,5 @@ function y() {
 export GPG_TTY=$(tty)
 
 export npm_config_prefix="$HOME/.local"
+
+export PATH="/home/ahsan/.pixi/bin:$PATH"
