@@ -1,6 +1,6 @@
 {
   "colorHistory": [],
-  "paletteColors": [],
+  "paletteColors": "",
   "installedLangs": [
     "afr"
   ],
@@ -10,7 +10,21 @@
   "videoPath": "",
   "filenameFormat": "",
   "detectedRecorder": "",
+  "recordSkipConfirmation": false,
+  "recordCopyToClipboard": false,
+  "gifMaxSeconds": 30,
   "detectedCompositor": "hyprland",
   "stateIsRunning": false,
-  "stateActiveTool": ""
+  "stateActiveTool": "",
+  "resultHex": "",
+  "resultRgb": "",
+  "resultHsv": "",
+  "resultHsl": "",
+  "colorCapturePath": "",
+  "colorCacheBust": 0,
+  "ocrResult": "",
+  "ocrCapturePath": "",
+  "qrResult": "",
+  "qrCapturePath": "",
+  "translateResult": ""
 }

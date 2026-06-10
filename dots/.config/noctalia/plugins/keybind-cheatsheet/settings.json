@@ -1,5 +1,771 @@
 {
-  "cheatsheetData": [],
+  "cheatsheetData": [
+    {
+      "title": "Keybinds",
+      "binds": [
+        {
+          "keys": "Super + D",
+          "desc": "exec $ipc launcher toggle",
+          "_verb": "exec",
+          "_param": "$ipc launcher toggle",
+          "_mods": "Super",
+          "_mainKey": "D"
+        },
+        {
+          "keys": "Super + X",
+          "desc": "exec $ipc sessionMenu toggle",
+          "_verb": "exec",
+          "_param": "$ipc sessionMenu toggle",
+          "_mods": "Super",
+          "_mainKey": "X"
+        },
+        {
+          "keys": "Super + RETURN",
+          "desc": "exec $terminal",
+          "_verb": "exec",
+          "_param": "$terminal",
+          "_mods": "Super",
+          "_mainKey": "RETURN"
+        },
+        {
+          "keys": "Super + Shift + RETURN",
+          "desc": "exec $pypr toggle term",
+          "_verb": "exec",
+          "_param": "$pypr toggle term",
+          "_mods": "Super+Shift",
+          "_mainKey": "RETURN"
+        },
+        {
+          "keys": "Super + Q",
+          "desc": "killactive",
+          "_verb": "killactive",
+          "_param": "",
+          "_mods": "Super",
+          "_mainKey": "Q"
+        },
+        {
+          "keys": "Super + SPACE",
+          "desc": "togglefloating",
+          "_verb": "togglefloating",
+          "_param": "",
+          "_mods": "Super",
+          "_mainKey": "SPACE"
+        },
+        {
+          "keys": "Super + Shift + SPACE",
+          "desc": "fullscreen 1",
+          "_verb": "fullscreen",
+          "_param": "1",
+          "_mods": "Super+Shift",
+          "_mainKey": "SPACE"
+        },
+        {
+          "keys": "Super + S",
+          "desc": "togglespecialworkspace",
+          "_verb": "togglespecialworkspace",
+          "_param": "",
+          "_mods": "Super",
+          "_mainKey": "S"
+        },
+        {
+          "keys": "Super + Shift + R",
+          "desc": "exec hyprctl reload",
+          "_verb": "exec",
+          "_param": "hyprctl reload",
+          "_mods": "Super+Shift",
+          "_mainKey": "R"
+        },
+        {
+          "keys": "Alt + PrtSc",
+          "desc": "exec $screenshot --region",
+          "_verb": "exec",
+          "_param": "$screenshot --region",
+          "_mods": "Alt",
+          "_mainKey": "PRINT"
+        },
+        {
+          "keys": "Ctrl + PrtSc",
+          "desc": "exec $screenshot --fullscreen",
+          "_verb": "exec",
+          "_param": "$screenshot --fullscreen",
+          "_mods": "Ctrl",
+          "_mainKey": "PRINT"
+        },
+        {
+          "keys": "Super + Shift + S",
+          "desc": "exec $screenshot --region",
+          "_verb": "exec",
+          "_param": "$screenshot --region",
+          "_mods": "Super+Shift",
+          "_mainKey": "S"
+        },
+        {
+          "keys": "Super + P",
+          "desc": "submap scratchpads",
+          "_verb": "submap",
+          "_param": "scratchpads",
+          "_mods": "Super",
+          "_mainKey": "P"
+        },
+        {
+          "keys": "ESCAPE",
+          "desc": "submap reset",
+          "_verb": "submap",
+          "_param": "reset",
+          "_mods": "",
+          "_mainKey": "ESCAPE"
+        },
+        {
+          "keys": "C",
+          "desc": "exec $pypr toggle calculator",
+          "_verb": "exec",
+          "_param": "$pypr toggle calculator",
+          "_mods": "",
+          "_mainKey": "C"
+        },
+        {
+          "keys": "M",
+          "desc": "exec $pypr toggle spotify",
+          "_verb": "exec",
+          "_param": "$pypr toggle spotify",
+          "_mods": "",
+          "_mainKey": "M"
+        },
+        {
+          "keys": "Y",
+          "desc": "exec $pypr toggle tuifm",
+          "_verb": "exec",
+          "_param": "$pypr toggle tuifm",
+          "_mods": "",
+          "_mainKey": "Y"
+        },
+        {
+          "keys": "L",
+          "desc": "exec $pypr toggle lazygit",
+          "_verb": "exec",
+          "_param": "$pypr toggle lazygit",
+          "_mods": "",
+          "_mainKey": "L"
+        },
+        {
+          "keys": "F",
+          "desc": "exec $pypr toggle files",
+          "_verb": "exec",
+          "_param": "$pypr toggle files",
+          "_mods": "",
+          "_mainKey": "F"
+        },
+        {
+          "keys": "CATCHALL",
+          "desc": "submap reset",
+          "_verb": "submap",
+          "_param": "reset",
+          "_mods": "",
+          "_mainKey": "CATCHALL"
+        },
+        {
+          "keys": "Super + G",
+          "desc": "submap guiapps",
+          "_verb": "submap",
+          "_param": "guiapps",
+          "_mods": "Super",
+          "_mainKey": "G"
+        },
+        {
+          "keys": "ESCAPE",
+          "desc": "submap reset",
+          "_verb": "submap",
+          "_param": "reset",
+          "_mods": "",
+          "_mainKey": "ESCAPE"
+        },
+        {
+          "keys": "B",
+          "desc": "exec $browser",
+          "_verb": "exec",
+          "_param": "$browser",
+          "_mods": "",
+          "_mainKey": "B"
+        },
+        {
+          "keys": "F",
+          "desc": "exec $guifm",
+          "_verb": "exec",
+          "_param": "$guifm",
+          "_mods": "",
+          "_mainKey": "F"
+        },
+        {
+          "keys": "E",
+          "desc": "exec $editor",
+          "_verb": "exec",
+          "_param": "$editor",
+          "_mods": "",
+          "_mainKey": "E"
+        },
+        {
+          "keys": "CATCHALL",
+          "desc": "submap reset",
+          "_verb": "submap",
+          "_param": "reset",
+          "_mods": "",
+          "_mainKey": "CATCHALL"
+        },
+        {
+          "keys": "Super + T",
+          "desc": "submap tuiapps",
+          "_verb": "submap",
+          "_param": "tuiapps",
+          "_mods": "Super",
+          "_mainKey": "T"
+        },
+        {
+          "keys": "ESCAPE",
+          "desc": "submap reset",
+          "_verb": "submap",
+          "_param": "reset",
+          "_mods": "",
+          "_mainKey": "ESCAPE"
+        },
+        {
+          "keys": "Y",
+          "desc": "exec kitty -e yazi",
+          "_verb": "exec",
+          "_param": "kitty -e yazi",
+          "_mods": "",
+          "_mainKey": "Y"
+        },
+        {
+          "keys": "B",
+          "desc": "exec kitty -e btop",
+          "_verb": "exec",
+          "_param": "kitty -e btop",
+          "_mods": "",
+          "_mainKey": "B"
+        },
+        {
+          "keys": "E",
+          "desc": "exec kitty -e nvim",
+          "_verb": "exec",
+          "_param": "kitty -e nvim",
+          "_mods": "",
+          "_mainKey": "E"
+        },
+        {
+          "keys": "CATCHALL",
+          "desc": "submap reset",
+          "_verb": "submap",
+          "_param": "reset",
+          "_mods": "",
+          "_mainKey": "CATCHALL"
+        },
+        {
+          "keys": "Super + Shift + L",
+          "desc": "submap noctalia_launchers",
+          "_verb": "submap",
+          "_param": "noctalia_launchers",
+          "_mods": "Super+Shift",
+          "_mainKey": "L"
+        },
+        {
+          "keys": "ESCAPE",
+          "desc": "submap reset",
+          "_verb": "submap",
+          "_param": "reset",
+          "_mods": "",
+          "_mainKey": "ESCAPE"
+        },
+        {
+          "keys": "V",
+          "desc": "exec $ipc launcher clipboard",
+          "_verb": "exec",
+          "_param": "$ipc launcher clipboard",
+          "_mods": "",
+          "_mainKey": "V"
+        },
+        {
+          "keys": "W",
+          "desc": "exec $ipc launcher windows",
+          "_verb": "exec",
+          "_param": "$ipc launcher windows",
+          "_mods": "",
+          "_mainKey": "W"
+        },
+        {
+          "keys": "PERIOD",
+          "desc": "exec $ipc launcher command",
+          "_verb": "exec",
+          "_param": "$ipc launcher command",
+          "_mods": "",
+          "_mainKey": "PERIOD"
+        },
+        {
+          "keys": "Shift + PERIOD",
+          "desc": "exec $ipc launcher emoji",
+          "_verb": "exec",
+          "_param": "$ipc launcher emoji",
+          "_mods": "Shift",
+          "_mainKey": "PERIOD"
+        },
+        {
+          "keys": "CATCHALL",
+          "desc": "submap reset",
+          "_verb": "submap",
+          "_param": "reset",
+          "_mods": "",
+          "_mainKey": "CATCHALL"
+        },
+        {
+          "keys": "Super + N",
+          "desc": "submap noctalia_core",
+          "_verb": "submap",
+          "_param": "noctalia_core",
+          "_mods": "Super",
+          "_mainKey": "N"
+        },
+        {
+          "keys": "ESCAPE",
+          "desc": "submap reset",
+          "_verb": "submap",
+          "_param": "reset",
+          "_mods": "",
+          "_mainKey": "ESCAPE"
+        },
+        {
+          "keys": "C",
+          "desc": "exec $ipc controlCenter toggle",
+          "_verb": "exec",
+          "_param": "$ipc controlCenter toggle",
+          "_mods": "",
+          "_mainKey": "C"
+        },
+        {
+          "keys": "COMMA",
+          "desc": "exec $ipc settings toggle",
+          "_verb": "exec",
+          "_param": "$ipc settings toggle",
+          "_mods": "",
+          "_mainKey": "COMMA"
+        },
+        {
+          "keys": "A",
+          "desc": "exec $ipc calendar toggle",
+          "_verb": "exec",
+          "_param": "$ipc calendar toggle",
+          "_mods": "",
+          "_mainKey": "A"
+        },
+        {
+          "keys": "I",
+          "desc": "exec $ipc systemMonitor toggle",
+          "_verb": "exec",
+          "_param": "$ipc systemMonitor toggle",
+          "_mods": "",
+          "_mainKey": "I"
+        },
+        {
+          "keys": "P",
+          "desc": "exec $ipc plugin togglePanel notes-scratchpad",
+          "_verb": "exec",
+          "_param": "$ipc plugin togglePanel notes-scratchpad",
+          "_mods": "",
+          "_mainKey": "P"
+        },
+        {
+          "keys": "CATCHALL",
+          "desc": "submap reset",
+          "_verb": "submap",
+          "_param": "reset",
+          "_mods": "",
+          "_mainKey": "CATCHALL"
+        },
+        {
+          "keys": "Super + M",
+          "desc": "submap noctalia_misc",
+          "_verb": "submap",
+          "_param": "noctalia_misc",
+          "_mods": "Super",
+          "_mainKey": "M"
+        },
+        {
+          "keys": "ESCAPE",
+          "desc": "submap reset",
+          "_verb": "submap",
+          "_param": "reset",
+          "_mods": "",
+          "_mainKey": "ESCAPE"
+        },
+        {
+          "keys": "I",
+          "desc": "exec $ipc idleInhibitor toggle",
+          "_verb": "exec",
+          "_param": "$ipc idleInhibitor toggle",
+          "_mods": "",
+          "_mainKey": "I"
+        },
+        {
+          "keys": "W",
+          "desc": "exec $ipc wifi toggle",
+          "_verb": "exec",
+          "_param": "$ipc wifi toggle",
+          "_mods": "",
+          "_mainKey": "W"
+        },
+        {
+          "keys": "B",
+          "desc": "exec $ipc bluetooth toggle",
+          "_verb": "exec",
+          "_param": "$ipc bluetooth toggle",
+          "_mods": "",
+          "_mainKey": "B"
+        },
+        {
+          "keys": "N",
+          "desc": "exec $ipc nightLight toggle",
+          "_verb": "exec",
+          "_param": "$ipc nightLight toggle",
+          "_mods": "",
+          "_mainKey": "N"
+        },
+        {
+          "keys": "P",
+          "desc": "exec $ipc powerProfile cycle",
+          "_verb": "exec",
+          "_param": "$ipc powerProfile cycle",
+          "_mods": "",
+          "_mainKey": "P"
+        },
+        {
+          "keys": "K",
+          "desc": "exec $ipc lockScreen lock",
+          "_verb": "exec",
+          "_param": "$ipc lockScreen lock",
+          "_mods": "",
+          "_mainKey": "K"
+        },
+        {
+          "keys": "K",
+          "desc": "submap reset",
+          "_verb": "submap",
+          "_param": "reset",
+          "_mods": "",
+          "_mainKey": "K"
+        },
+        {
+          "keys": "X",
+          "desc": "exec $ipc sessionMenu lockAndSuspend",
+          "_verb": "exec",
+          "_param": "$ipc sessionMenu lockAndSuspend",
+          "_mods": "",
+          "_mainKey": "X"
+        },
+        {
+          "keys": "X",
+          "desc": "submap reset",
+          "_verb": "submap",
+          "_param": "reset",
+          "_mods": "",
+          "_mainKey": "X"
+        },
+        {
+          "keys": "CATCHALL",
+          "desc": "submap reset",
+          "_verb": "submap",
+          "_param": "reset",
+          "_mods": "",
+          "_mainKey": "CATCHALL"
+        },
+        {
+          "keys": "Super + Ctrl + B",
+          "desc": "exec $pypr expose",
+          "_verb": "exec",
+          "_param": "$pypr expose",
+          "_mods": "Super+Ctrl",
+          "_mainKey": "B"
+        },
+        {
+          "keys": "Super + Z",
+          "desc": "exec $pypr zoom ++0.5",
+          "_verb": "exec",
+          "_param": "$pypr zoom ++0.5",
+          "_mods": "Super",
+          "_mainKey": "Z"
+        },
+        {
+          "keys": "Super + Shift + Z",
+          "desc": "exec $pypr zoom",
+          "_verb": "exec",
+          "_param": "$pypr zoom",
+          "_mods": "Super+Shift",
+          "_mainKey": "Z"
+        },
+        {
+          "keys": "Super + BACKSPACE",
+          "desc": "pseudo",
+          "_verb": "pseudo",
+          "_param": "",
+          "_mods": "Super",
+          "_mainKey": "BACKSPACE"
+        },
+        {
+          "keys": "Super + SLASH",
+          "desc": "layoutmsg togglesplit",
+          "_verb": "layoutmsg",
+          "_param": "togglesplit",
+          "_mods": "Super",
+          "_mainKey": "SLASH"
+        },
+        {
+          "keys": "Super + LEFT",
+          "desc": "exec $dispatch focus l",
+          "_verb": "exec",
+          "_param": "$dispatch focus l",
+          "_mods": "Super",
+          "_mainKey": "LEFT"
+        },
+        {
+          "keys": "Super + RIGHT",
+          "desc": "exec $dispatch focus r",
+          "_verb": "exec",
+          "_param": "$dispatch focus r",
+          "_mods": "Super",
+          "_mainKey": "RIGHT"
+        },
+        {
+          "keys": "Super + UP",
+          "desc": "exec $dispatch focus u",
+          "_verb": "exec",
+          "_param": "$dispatch focus u",
+          "_mods": "Super",
+          "_mainKey": "UP"
+        },
+        {
+          "keys": "Super + DOWN",
+          "desc": "exec $dispatch focus d",
+          "_verb": "exec",
+          "_param": "$dispatch focus d",
+          "_mods": "Super",
+          "_mainKey": "DOWN"
+        },
+        {
+          "keys": "Super + Shift + LEFT",
+          "desc": "exec $dispatch movewin l",
+          "_verb": "exec",
+          "_param": "$dispatch movewin l",
+          "_mods": "Super+Shift",
+          "_mainKey": "LEFT"
+        },
+        {
+          "keys": "Super + Shift + RIGHT",
+          "desc": "exec $dispatch movewin r",
+          "_verb": "exec",
+          "_param": "$dispatch movewin r",
+          "_mods": "Super+Shift",
+          "_mainKey": "RIGHT"
+        },
+        {
+          "keys": "Super + Shift + UP",
+          "desc": "exec $dispatch movewin u",
+          "_verb": "exec",
+          "_param": "$dispatch movewin u",
+          "_mods": "Super+Shift",
+          "_mainKey": "UP"
+        },
+        {
+          "keys": "Super + Shift + DOWN",
+          "desc": "exec $dispatch movewin d",
+          "_verb": "exec",
+          "_param": "$dispatch movewin d",
+          "_mods": "Super+Shift",
+          "_mainKey": "DOWN"
+        },
+        {
+          "keys": "Super + Ctrl + LEFT",
+          "desc": "exec $dispatch resize l",
+          "_verb": "exec",
+          "_param": "$dispatch resize l",
+          "_mods": "Super+Ctrl",
+          "_mainKey": "LEFT"
+        },
+        {
+          "keys": "Super + Ctrl + RIGHT",
+          "desc": "exec $dispatch resize r",
+          "_verb": "exec",
+          "_param": "$dispatch resize r",
+          "_mods": "Super+Ctrl",
+          "_mainKey": "RIGHT"
+        },
+        {
+          "keys": "Super + Ctrl + UP",
+          "desc": "exec $dispatch resize u",
+          "_verb": "exec",
+          "_param": "$dispatch resize u",
+          "_mods": "Super+Ctrl",
+          "_mainKey": "UP"
+        },
+        {
+          "keys": "Super + Ctrl + DOWN",
+          "desc": "exec $dispatch resize d",
+          "_verb": "exec",
+          "_param": "$dispatch resize d",
+          "_mods": "Super+Ctrl",
+          "_mainKey": "DOWN"
+        },
+        {
+          "keys": "Super + Ctrl + Scroll Down",
+          "desc": "workspace -10",
+          "_verb": "workspace",
+          "_param": "-10",
+          "_mods": "Super+Ctrl",
+          "_mainKey": "MOUSE_DOWN"
+        },
+        {
+          "keys": "Super + Ctrl + Scroll Up",
+          "desc": "workspace +10",
+          "_verb": "workspace",
+          "_param": "+10",
+          "_mods": "Super+Ctrl",
+          "_mainKey": "MOUSE_UP"
+        },
+        {
+          "keys": "Super + Scroll Down",
+          "desc": "workspace e+1",
+          "_verb": "workspace",
+          "_param": "e+1",
+          "_mods": "Super",
+          "_mainKey": "MOUSE_DOWN"
+        },
+        {
+          "keys": "Super + Scroll Up",
+          "desc": "workspace e-1",
+          "_verb": "workspace",
+          "_param": "e-1",
+          "_mods": "Super",
+          "_mainKey": "MOUSE_UP"
+        },
+        {
+          "keys": "Super + Left Click",
+          "desc": "movewindow",
+          "_verb": "movewindow",
+          "_param": "",
+          "_mods": "Super",
+          "_mainKey": "MOUSE:272"
+        },
+        {
+          "keys": "Super + Right Click",
+          "desc": "resizewindow",
+          "_verb": "resizewindow",
+          "_param": "",
+          "_mods": "Super",
+          "_mainKey": "MOUSE:273"
+        },
+        {
+          "keys": "Super + MINUS",
+          "desc": "movetoworkspace special:minimized # mangowc: minimized",
+          "_verb": "movetoworkspace",
+          "_param": "special:minimized # mangowc: minimized",
+          "_mods": "Super",
+          "_mainKey": "MINUS"
+        },
+        {
+          "keys": "Super + EQUAL",
+          "desc": "togglespecialworkspace minimized        # mangowc: restore_minimized",
+          "_verb": "togglespecialworkspace",
+          "_param": "minimized        # mangowc: restore_minimized",
+          "_mods": "Super",
+          "_mainKey": "EQUAL"
+        },
+        {
+          "keys": "Super + Ctrl + Alt + UP",
+          "desc": "movetoworkspace special:special",
+          "_verb": "movetoworkspace",
+          "_param": "special:special",
+          "_mods": "Super+Ctrl+Alt",
+          "_mainKey": "UP"
+        },
+        {
+          "keys": "Super + Ctrl + Alt + DOWN",
+          "desc": "movetoworkspace e+0",
+          "_verb": "movetoworkspace",
+          "_param": "e+0",
+          "_mods": "Super+Ctrl+Alt",
+          "_mainKey": "DOWN"
+        },
+        {
+          "keys": "Super + Alt + S",
+          "desc": "movetoworkspace special:special",
+          "_verb": "movetoworkspace",
+          "_param": "special:special",
+          "_mods": "Super+Alt",
+          "_mainKey": "S"
+        },
+        {
+          "keys": "Vol Up",
+          "desc": "exec $ipc volume increase",
+          "_verb": "exec",
+          "_param": "$ipc volume increase",
+          "_mods": "",
+          "_mainKey": "XF86AUDIORAISEVOLUME"
+        },
+        {
+          "keys": "Vol Down",
+          "desc": "exec $ipc volume decrease",
+          "_verb": "exec",
+          "_param": "$ipc volume decrease",
+          "_mods": "",
+          "_mainKey": "XF86AUDIOLOWERVOLUME"
+        },
+        {
+          "keys": "Mute",
+          "desc": "exec $ipc volume muteOutput",
+          "_verb": "exec",
+          "_param": "$ipc volume muteOutput",
+          "_mods": "",
+          "_mainKey": "XF86AUDIOMUTE"
+        },
+        {
+          "keys": "Mic Mute",
+          "desc": "exec $ipc volume muteInput",
+          "_verb": "exec",
+          "_param": "$ipc volume muteInput",
+          "_mods": "",
+          "_mainKey": "XF86AUDIOMICMUTE"
+        },
+        {
+          "keys": "Bright Up",
+          "desc": "exec $ipc brightness increase",
+          "_verb": "exec",
+          "_param": "$ipc brightness increase",
+          "_mods": "",
+          "_mainKey": "XF86MONBRIGHTNESSUP"
+        },
+        {
+          "keys": "Bright Down",
+          "desc": "exec $ipc brightness decrease",
+          "_verb": "exec",
+          "_param": "$ipc brightness decrease",
+          "_mods": "",
+          "_mainKey": "XF86MONBRIGHTNESSDOWN"
+        },
+        {
+          "keys": "SWITCH:ON:LID SWITCH",
+          "desc": "exec hyprctl keyword monitor \"eDP-1, disable\"",
+          "_verb": "exec",
+          "_param": "hyprctl keyword monitor \"eDP-1, disable\"",
+          "_mods": "",
+          "_mainKey": "SWITCH:ON:LID SWITCH"
+        },
+        {
+          "keys": "SWITCH:OFF:LID SWITCH",
+          "desc": "exec hyprctl keyword monitor \"eDP-1, disable\"",
+          "_verb": "exec",
+          "_param": "hyprctl keyword monitor \"eDP-1, disable\"",
+          "_mods": "",
+          "_mainKey": "SWITCH:OFF:LID SWITCH"
+        }
+      ]
+    }
+  ],
   "detectedCompositor": "hyprland",
   "windowWidth": 1400,
   "windowHeight": 850,
@@ -7,5 +773,33 @@
   "columnCount": 3,
   "modKeyVariable": "Super",
   "hyprlandConfigPath": "~/.config/hypr/hyprland/binds.conf",
-  "niriConfigPath": "~/.config/niri/config.kdl"
+  "hyprlandLuaConfigPath": "~/.config/hypr/hyprland.lua",
+  "hyprlandParserMode": "auto",
+  "niriConfigPath": "~/.config/niri/config.kdl",
+  "mangoConfigPath": "~/.config/mango/config.conf",
+  "mergeSequentialBinds": true,
+  "showUndescribedBinds": true,
+  "splitLargeWorkspaceCategory": true,
+  "workspaceSplitThreshold": 12,
+  "keyColorAlt": "#FF6B6B",
+  "keyColorXF86": "#4ECDC4",
+  "keyColorPrint": "#95E1D3",
+  "keyColorNumeric": "#A8DADC",
+  "keyColorMouse": "#F38181",
+  "keyColorSuper": "",
+  "keyColorCtrl": "",
+  "keyColorShift": "",
+  "keyColorDefault": "#6C757D",
+  "keyLabelColor": "#FFFFFF",
+  "keyTextSuper": "",
+  "keyTextCtrl": "",
+  "keyTextShift": "",
+  "keyTextAlt": "",
+  "keyTextXF86": "",
+  "keyTextPrint": "",
+  "keyTextNumeric": "",
+  "keyTextMouse": "",
+  "keyTextDefault": "",
+  "descriptionTextColor": "",
+  "bindOverrides": {}
 }

@@ -28,6 +28,7 @@
   };
 
   imports = [
+    ./direnv
     ./dev
     ./pkgs
   ];

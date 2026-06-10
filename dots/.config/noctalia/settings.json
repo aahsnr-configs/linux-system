@@ -30,11 +30,11 @@
     "audio": {
         "mprisBlacklist": [
         ],
-        "preferredPlayer": "",
+        "preferredPlayer": "spotify",
         "spectrumFrameRate": 30,
         "spectrumMirrored": true,
-        "visualizerType": "linear",
-        "volumeFeedback": false,
+        "visualizerType": "none",
+        "volumeFeedback": true,
         "volumeFeedbackSoundFile": "",
         "volumeOverdrive": true,
         "volumeStep": 5
@@ -300,6 +300,44 @@
                         "terminalCommand": "kitty"
                     },
                     "id": "plugin:usb-drive-manager"
+                },
+                {
+                    "defaultSettings": {
+                        "displayIndex": 1,
+                        "enabled": false,
+                        "vibranceValue": 512
+                    },
+                    "id": "plugin:nvibrant"
+                },
+                {
+                    "defaultSettings": {
+                        "_habiticaCache": "",
+                        "colorizationBadge": "Error",
+                        "colorizationBadgeText": "Primary",
+                        "colorizationEnabled": false,
+                        "colorizationIcon": "Primary",
+                        "enableTagFilter": false,
+                        "habiticaApiToken": "",
+                        "habiticaUserId": "",
+                        "maxDailies": 8,
+                        "maxHabits": 8,
+                        "maxTodos": 8,
+                        "refreshInterval": 300,
+                        "selectedTagId": "",
+                        "showChecklistItems": false,
+                        "showHabits": false,
+                        "showNotificationBadge": true
+                    },
+                    "id": "plugin:habitica"
+                },
+                {
+                    "defaultSettings": {
+                        "connectedColor": "primary",
+                        "disconnectedColor": "none",
+                        "displayMode": "alwaysShow",
+                        "pollInterval": 5000
+                    },
+                    "id": "plugin:protonvpn"
                 }
             ]
         }
@@ -329,7 +367,7 @@
     },
     "colorSchemes": {
         "darkMode": true,
-        "generationMethod": "content",
+        "generationMethod": "muted",
         "manualSunrise": "06:30",
         "manualSunset": "18:30",
         "monitorForColors": "",
@@ -444,7 +482,6 @@
         "allowPasswordWithFprintd": false,
         "animationDisabled": false,
         "animationSpeed": 1,
-        "autoNetworkEnabled": true,
         "autoStartAuth": false,
         "avatarImage": "/home/ahsan/.face",
         "boxRadiusRatio": 1,
@@ -533,7 +570,7 @@
     },
     "location": {
         "analogClockInCalendar": false,
-        "autoLocate": true,
+        "autoLocate": false,
         "firstDayOfWeek": -1,
         "hideWeatherCityName": false,
         "hideWeatherTimezone": false,
@@ -544,8 +581,8 @@
         "use12hourFormat": false,
         "useFahrenheit": false,
         "weatherEnabled": true,
-        "weatherShowEffects": true,
-        "weatherTaliaMascotAlways": false
+        "weatherShowEffects": false,
+        "weatherTaliaMascotAlways": true
     },
     "network": {
         "bluetoothAutoConnect": false,
@@ -564,7 +601,7 @@
         "forced": true,
         "manualSunrise": "06:30",
         "manualSunset": "18:30",
-        "nightTemp": "4572"
+        "nightTemp": "5044"
     },
     "noctaliaPerformance": {
         "disableDesktopWidgets": true,
@@ -580,7 +617,7 @@
         "enableMarkdown": false,
         "enableMediaToast": false,
         "enabled": true,
-        "location": "top_right",
+        "location": "bottom_right",
         "lowUrgencyDuration": 3,
         "monitors": [
         ],
@@ -699,7 +736,7 @@
         "diskAvailWarningThreshold": 20,
         "diskCriticalThreshold": 90,
         "diskWarningThreshold": 80,
-        "enableDgpuMonitoring": false,
+        "enableDgpuMonitoring": true,
         "externalMonitor": "resources || missioncenter || jdsystemmonitor || corestats || system-monitoring-center || gnome-system-monitor || plasma-systemmonitor || mate-system-monitor || ukui-system-monitor || deepin-system-monitor || pantheon-system-monitor",
         "gpuCriticalThreshold": 90,
         "gpuWarningThreshold": 80,
@@ -709,7 +746,7 @@
         "swapWarningThreshold": 80,
         "tempCriticalThreshold": 90,
         "tempWarningThreshold": 80,
-        "useCustomColors": false,
+        "useCustomColors": true,
         "warningColor": "#e8b9d5"
     },
     "templates": {
@@ -741,10 +778,6 @@
             {
                 "enabled": true,
                 "id": "kcolorscheme"
-            },
-            {
-                "enabled": true,
-                "id": "qt"
             },
             {
                 "enabled": true,
@@ -781,6 +814,14 @@
             {
                 "enabled": true,
                 "id": "spicetify"
+            },
+            {
+                "enabled": true,
+                "id": "qt"
+            },
+            {
+                "enabled": true,
+                "id": "zed"
             }
         ],
         "enableUserTheming": true
