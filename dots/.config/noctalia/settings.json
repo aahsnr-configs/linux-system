@@ -537,7 +537,7 @@
         "shadowOffsetY": 0,
         "showChangelogOnStartup": true,
         "showHibernateOnLockScreen": false,
-        "showScreenCorners": false,
+        "showScreenCorners": true,
         "showSessionButtonsOnLockScreen": true,
         "smoothScrollEnabled": true,
         "telemetryEnabled": false
@@ -570,18 +570,18 @@
     },
     "location": {
         "analogClockInCalendar": false,
-        "autoLocate": false,
+        "autoLocate": true,
         "firstDayOfWeek": -1,
-        "hideWeatherCityName": false,
-        "hideWeatherTimezone": false,
+        "hideWeatherCityName": true,
+        "hideWeatherTimezone": true,
         "name": "Dhaka",
         "showCalendarEvents": true,
         "showCalendarWeather": true,
         "showWeekNumberInCalendar": false,
-        "use12hourFormat": false,
+        "use12hourFormat": true,
         "useFahrenheit": false,
         "weatherEnabled": true,
-        "weatherShowEffects": false,
+        "weatherShowEffects": true,
         "weatherTaliaMascotAlways": true
     },
     "network": {
@@ -757,10 +757,6 @@
             },
             {
                 "enabled": true,
-                "id": "gtk"
-            },
-            {
-                "enabled": true,
                 "id": "emacs"
             },
             {
@@ -770,10 +766,6 @@
             {
                 "enabled": true,
                 "id": "hyprland"
-            },
-            {
-                "enabled": true,
-                "id": "hyprtoolkit"
             },
             {
                 "enabled": true,
@@ -789,10 +781,6 @@
             },
             {
                 "enabled": true,
-                "id": "pywalfox"
-            },
-            {
-                "enabled": true,
                 "id": "code"
             },
             {
@@ -801,7 +789,15 @@
             },
             {
                 "enabled": true,
-                "id": "scroll"
+                "id": "qt"
+            },
+            {
+                "enabled": true,
+                "id": "zed"
+            },
+            {
+                "enabled": true,
+                "id": "gtk"
             },
             {
                 "enabled": true,
@@ -809,19 +805,7 @@
             },
             {
                 "enabled": true,
-                "id": "niri"
-            },
-            {
-                "enabled": true,
-                "id": "spicetify"
-            },
-            {
-                "enabled": true,
-                "id": "qt"
-            },
-            {
-                "enabled": true,
-                "id": "zed"
+                "id": "starship"
             }
         ],
         "enableUserTheming": true
