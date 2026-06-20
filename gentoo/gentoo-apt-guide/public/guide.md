@@ -544,7 +544,6 @@ cd /usr/src/linux
 
 #### 8.2.1 — Copy Your Minimal Hardened `.config` Into Place
 
-- [ ] **TODO**
 
 ```bash
 cp /path/to/hardened-kernel.config .config

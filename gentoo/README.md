@@ -399,26 +399,12 @@ cp /root/luks-uuids.txt /mnt/gentoo/root/luks-uuids.txt
 
 - [x] **DONE**
 
-<<<<<<< Updated upstream
 ```bash
 rm -rf "/mnt/gentoo/etc/portage/make.conf"
 cp -R "$HOME/Git/configs/linux-system/gentoo/preconfig/make.conf" "/mnt/gentoo/etc/portage/"
-||||||| Stash base
-`rm -rf /mnt/gentoo/etc/portage/make.conf && nvim /mnt/gentoo/etc/portage/make.conf`
-=======
-`rm -rf /mnt/gentoo/etc/portage/make.conf && sudo cp -R $HOME/Git/configs/linux-system/gentoo/preconfig/make.conf /mnt/gentoo/etc/portage/`
->>>>>>> Stashed changes
 
-<<<<<<< Updated upstream
 rm -R "/mnt/gentoo/etc/portage/package.use/"
 cp -R "$HOME/Git/configs/linux-system/gentoo/preconfig/package.use" "/mnt/gentoo/etc/portage/"
-||||||| Stash base
-#### `/mnt/gentoo/etc/portage/package.use`
-=======
-`rm -R /mnt/gentoo/etc/portage/package.use/ && sudo cp -R $HOME/Git/configs/linux-system/gentoo/preconfig/package.use /mnt/gentoo/etc/portage/`
-
-`rm -R /mnt/gentoo/etc/portage/package.accept_keywords && sudo cp -R $HOME/Git/configs/linux-system/gentoo/preconfig/package.use /mnt/gentoo/etc/portage/`
->>>>>>> Stashed changes
 
 rm -R "/mnt/gentoo/etc/portage/package.accept_keywords/"
 cp -R "$HOME/Git/configs/linux-system/gentoo/preconfig/package.accept_keywords" "/mnt/gentoo/etc/portage/"

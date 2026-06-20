@@ -788,3 +788,7 @@ export GPG_TTY=$(tty)
 export npm_config_prefix="$HOME/.local"
 
 export PATH="/home/ahsan/.pixi/bin:$PATH"
+
+
+# Added by Antigravity CLI installer
+export PATH="/home/ahsan/.local/bin:$PATH"
