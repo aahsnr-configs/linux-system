@@ -42,7 +42,7 @@
     "bar": {
         "autoHideDelay": 500,
         "autoShowDelay": 150,
-        "backgroundOpacity": 0.93,
+        "backgroundOpacity": 0.6,
         "barType": "framed",
         "capsuleColorKey": "none",
         "capsuleOpacity": 1,
@@ -74,7 +74,7 @@
         "showCapsule": true,
         "showOnWorkspaceSwitch": true,
         "showOutline": false,
-        "useSeparateOpacity": false,
+        "useSeparateOpacity": true,
         "widgetSpacing": 6,
         "widgets": {
             "center": [
@@ -107,22 +107,6 @@
                         "workDuration": 25
                     },
                     "id": "plugin:pomodoro"
-                },
-                {
-                    "compactMode": false,
-                    "hideMode": "hidden",
-                    "hideWhenIdle": false,
-                    "id": "MediaMini",
-                    "maxWidth": 145,
-                    "panelShowAlbumArt": true,
-                    "scrollingMode": "hover",
-                    "showAlbumArt": true,
-                    "showArtistFirst": true,
-                    "showProgressRing": true,
-                    "showVisualizer": false,
-                    "textColor": "none",
-                    "useFixedWidth": false,
-                    "visualizerType": "linear"
                 }
             ],
             "left": [
@@ -308,36 +292,6 @@
                         "vibranceValue": 512
                     },
                     "id": "plugin:nvibrant"
-                },
-                {
-                    "defaultSettings": {
-                        "_habiticaCache": "",
-                        "colorizationBadge": "Error",
-                        "colorizationBadgeText": "Primary",
-                        "colorizationEnabled": false,
-                        "colorizationIcon": "Primary",
-                        "enableTagFilter": false,
-                        "habiticaApiToken": "",
-                        "habiticaUserId": "",
-                        "maxDailies": 8,
-                        "maxHabits": 8,
-                        "maxTodos": 8,
-                        "refreshInterval": 300,
-                        "selectedTagId": "",
-                        "showChecklistItems": false,
-                        "showHabits": false,
-                        "showNotificationBadge": true
-                    },
-                    "id": "plugin:habitica"
-                },
-                {
-                    "defaultSettings": {
-                        "connectedColor": "primary",
-                        "disconnectedColor": "none",
-                        "displayMode": "alwaysShow",
-                        "pollInterval": 5000
-                    },
-                    "id": "plugin:protonvpn"
                 }
             ]
         }
@@ -367,7 +321,7 @@
     },
     "colorSchemes": {
         "darkMode": true,
-        "generationMethod": "rainbow",
+        "generationMethod": "muted",
         "manualSunrise": "06:30",
         "manualSunset": "18:30",
         "monitorForColors": "",
@@ -481,18 +435,18 @@
         "allowPanelsOnScreenWithoutBar": true,
         "allowPasswordWithFprintd": false,
         "animationDisabled": false,
-        "animationSpeed": 1,
+        "animationSpeed": 0.9,
         "autoStartAuth": false,
         "avatarImage": "/home/ahsan/.face",
         "boxRadiusRatio": 1,
-        "clockFormat": "hh\\nmm",
+        "clockFormat": "ddd MMM d h:mm AP ",
         "clockStyle": "custom",
-        "compactLockScreen": false,
-        "dimmerOpacity": 0.26,
+        "compactLockScreen": true,
+        "dimmerOpacity": 0,
         "enableBlurBehind": true,
         "enableLockScreenCountdown": true,
         "enableLockScreenMediaControls": false,
-        "enableShadows": false,
+        "enableShadows": true,
         "forceBlackScreenCorners": false,
         "iRadiusRatio": 1,
         "keybinds": {
@@ -521,13 +475,13 @@
         },
         "language": "",
         "lockOnSuspend": true,
-        "lockScreenAnimations": false,
+        "lockScreenAnimations": true,
         "lockScreenBlur": 0,
         "lockScreenCountdownDuration": 10000,
         "lockScreenMonitors": [
         ],
         "lockScreenTint": 0,
-        "passwordChars": false,
+        "passwordChars": true,
         "radiusRatio": 1,
         "reverseScroll": false,
         "scaleRatio": 1,
@@ -598,7 +552,7 @@
         "autoSchedule": true,
         "dayTemp": "5544",
         "enabled": true,
-        "forced": false,
+        "forced": true,
         "manualSunrise": "06:30",
         "manualSunset": "18:30",
         "nightTemp": "5044"
@@ -816,13 +770,13 @@
         "fontDefaultScale": 1,
         "fontFixed": "JetBrainsMono Nerd Font",
         "fontFixedScale": 1,
-        "panelBackgroundOpacity": 0.93,
+        "panelBackgroundOpacity": 0.9400000000000001,
         "panelsAttachedToBar": true,
         "scrollbarAlwaysVisible": true,
         "settingsPanelMode": "attached",
         "settingsPanelSideBarCardStyle": false,
         "tooltipsEnabled": true,
-        "translucentWidgets": false
+        "translucentWidgets": true
     },
     "wallpaper": {
         "automationEnabled": false,
@@ -832,7 +786,7 @@
         "favorites": [
         ],
         "fillColor": "#000000",
-        "fillMode": "center",
+        "fillMode": "fit",
         "hideWallpaperFilenames": false,
         "linkLightAndDarkWallpapers": true,
         "monitorDirectories": [
