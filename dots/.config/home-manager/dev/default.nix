@@ -6,7 +6,6 @@
     deadnix
     statix
     alejandra
-    marksman
     bash-language-server
     shellcheck
     shfmt

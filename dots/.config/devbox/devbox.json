@@ -1,0 +1,16 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/main/.schema/devbox.schema.json",
+  "packages": [
+    "ripgrep@latest",
+    "fzf@latest",
+    "bat@latest",
+    "shellcheck@latest",
+    "shfmt@latest",
+    "lua-language-server@latest"
+  ],
+  "shell": {
+    "init_hook": [
+      "echo '🚀 Declarative Global Devbox Environment Active!'"
+    ]
+  }
+}

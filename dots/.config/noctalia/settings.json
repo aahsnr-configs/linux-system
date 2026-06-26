@@ -188,14 +188,6 @@
                     ]
                 },
                 {
-                    "hideWhenZero": false,
-                    "hideWhenZeroUnread": false,
-                    "iconColor": "none",
-                    "id": "NotificationHistory",
-                    "showUnreadBadge": true,
-                    "unreadBadgeColor": "primary"
-                },
-                {
                     "deviceNativePath": "__default__",
                     "displayMode": "graphic-clean",
                     "hideIfIdle": false,
@@ -221,9 +213,6 @@
                     "id": "plugin:timer"
                 },
                 {
-                    "id": "plugin:weekly-calendar"
-                },
-                {
                     "colorizeDistroLogo": false,
                     "colorizeSystemIcon": "none",
                     "colorizeSystemText": "none",
@@ -234,21 +223,12 @@
                     "useDistroLogo": false
                 },
                 {
-                    "iconColor": "error",
-                    "id": "SessionMenu"
-                },
-                {
                     "defaultSettings": {
                         "enableCross": true,
                         "enableWindowsSelection": true,
                         "screenshotEditor": "swappy"
                     },
                     "id": "plugin:screen-shot-and-record"
-                },
-                {
-                    "defaultSettings": {
-                    },
-                    "id": "plugin:workspace-overview"
                 },
                 {
                     "defaultSettings": {
@@ -267,14 +247,6 @@
                 },
                 {
                     "defaultSettings": {
-                        "hideSystemPorts": false,
-                        "hideWhenEmpty": false,
-                        "refreshInterval": 5
-                    },
-                    "id": "plugin:port-monitor"
-                },
-                {
-                    "defaultSettings": {
                         "autoMount": false,
                         "fileBrowser": "yazi",
                         "hideWhenEmpty": false,
@@ -286,12 +258,16 @@
                     "id": "plugin:usb-drive-manager"
                 },
                 {
-                    "defaultSettings": {
-                        "displayIndex": 1,
-                        "enabled": false,
-                        "vibranceValue": 512
-                    },
-                    "id": "plugin:nvibrant"
+                    "hideWhenZero": false,
+                    "hideWhenZeroUnread": false,
+                    "iconColor": "none",
+                    "id": "NotificationHistory",
+                    "showUnreadBadge": true,
+                    "unreadBadgeColor": "primary"
+                },
+                {
+                    "iconColor": "error",
+                    "id": "SessionMenu"
                 }
             ]
         }
@@ -321,7 +297,7 @@
     },
     "colorSchemes": {
         "darkMode": true,
-        "generationMethod": "muted",
+        "generationMethod": "tonal-spot",
         "manualSunrise": "06:30",
         "manualSunset": "18:30",
         "monitorForColors": "",
@@ -708,10 +684,6 @@
             {
                 "enabled": true,
                 "id": "zenBrowser"
-            },
-            {
-                "enabled": true,
-                "id": "emacs"
             },
             {
                 "enabled": true,
