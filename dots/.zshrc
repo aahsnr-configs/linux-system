@@ -788,7 +788,5 @@ export GPG_TTY=$(tty)
 export npm_config_prefix="$HOME/.local"
 
 export PATH="/home/ahsan/.pixi/bin:$PATH"
-eval "$(devbox global shellenv --config ~/.config/devbox/devbox.json --init-hook)"
-
 # Added by Antigravity CLI installer
 export PATH="/home/ahsan/.local/bin:$PATH"
