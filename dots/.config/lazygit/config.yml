@@ -86,7 +86,7 @@ gui:
   mouseEvents: false
   # ── Spinner ────────────────────────────────────────────────────────────────
   spinner:
-    frames: ['⣾', '⣽', '⣻', '⢿', '⡿', '⣟', '⣯', '⣷']
+    frames: ["⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"]
     rate: 80
   # ╔══════════════════════════════════════════════════════════════════════════╗
   # ║  TOKYO NIGHT — NIGHT VARIANT COLOURSCHEME                              ║
@@ -94,51 +94,51 @@ gui:
   theme:
     # Focused panel border — Tokyo Night blue, bold
     activeBorderColor:
-      - '#7aa2f7'
+      - "#7aa2f7"
       - bold
     # Unfocused panel border — subtle gutter/border tone
     inactiveBorderColor:
-      - '#3b4261'
+      - "#3b4261"
     # Border while searching (/ key) — cyan to signal search mode
     searchingActiveBorderColor:
-      - '#7dcfff'
+      - "#7dcfff"
       - bold
     # Keybinding hint bar at the bottom — magenta/purple accent
     optionsTextColor:
-      - '#bb9af7'
+      - "#bb9af7"
     # Selected line background — Tokyo Night selection (#283457)
     selectedLineBgColor:
-      - '#283457'
+      - "#283457"
     # Selected line in an unfocused panel — darker, less prominent
     inactiveViewSelectedLineBgColor:
-      - '#1f2335'
+      - "#1f2335"
     # Cherry-picked commit — warm orange fg, gutter-tone bg
     cherryPickedCommitFgColor:
-      - '#ff9e64'
+      - "#ff9e64"
     cherryPickedCommitBgColor:
-      - '#3b4261'
+      - "#3b4261"
     # Rebase base marker — yellow on dark highlight
     markedBaseCommitFgColor:
-      - '#e0af68'
+      - "#e0af68"
     markedBaseCommitBgColor:
-      - '#292e42'
+      - "#292e42"
     # Unstaged / modified files — Tokyo Night red
     unstagedChangesColor:
-      - '#f7768e'
+      - "#f7768e"
     # Default text colour — Tokyo Night foreground
     defaultFgColor:
-      - '#c0caf5'
+      - "#c0caf5"
       # ── Custom author colours (optional, add your team here) ───────────────────
       # authorColors:
       #   'Your Name': '#7aa2f7'     # blue  — your own commits stand out
       #   '*': '#565f89'             # comment grey for everyone else
+# ── Custom branch prefix colours ───────────────────────────────────────────
+# branchColors:
+#   'feature': '#9ece6a'       # green for features
+#   'fix':     '#f7768e'       # red for fixes
+#   'docs':    '#7dcfff'       # cyan for docs
+#   'chore':   '#565f89'       # grey for chores
 
-      # ── Custom branch prefix colours ───────────────────────────────────────────
-      # branchColors:
-      #   'feature': '#9ece6a'       # green for features
-      #   'fix':     '#f7768e'       # red for fixes
-      #   'docs':    '#7dcfff'       # cyan for docs
-      #   'chore':   '#565f89'       # grey for chores
 # ──────────────────────────────────────────────────────────────────────────────
 #  GIT  ·  Core git behaviour, pager, and log format
 # ──────────────────────────────────────────────────────────────────────────────
@@ -289,7 +289,7 @@ keybinding:
     confirm: <enter>
     confirmInEditor: <ctrl+enter> # v0.62 new default (Linux/Windows)
     remove: d
-    new: 'n'
+    new: "n"
     edit: e
     openFile: o
     # Quit / return
@@ -320,22 +320,23 @@ keybinding:
     # Patch / context
     createPatchOptionsMenu: <ctrl+p>
     toggleWhitespaceInDiffView: <ctrl+w>
-    increaseContextInDiffView: '}'
-    decreaseContextInDiffView: '{'
+    increaseContextInDiffView: "}"
+    decreaseContextInDiffView: "{"
     openDiffTool: <ctrl+t>
     # Panel size
     nextScreenMode: +
     prevScreenMode: _
     # Tabs (within a panel)
-    nextTab: ']'
-    prevTab: '['
+    nextTab: "]"
+    prevTab: "["
     # Misc
-    executeShellCommand: ':'
-    extrasMenu: '@'
+    executeShellCommand: ":"
+    extrasMenu: "@"
     submitEditorText: <enter>
     optionMenu: <disabled>
-    optionMenu-alt1: '?'
+    optionMenu-alt1: "?"
     checkForUpdate: <disabled> # no auto-update prompts
+    newWorktree: w
   # ── Files panel ────────────────────────────────────────────────────────────
   files:
     commitChanges: c # stage → commit
@@ -351,10 +352,10 @@ keybinding:
     toggleStagedAll: a # stage/unstage all
     viewResetOptions: D
     fetch: f
-    toggleTreeView: '`' # toggle tree/flat
+    toggleTreeView: "`" # toggle tree/flat
     openMergeOptions: M
     openStatusFilter: <ctrl+b>
-    copyFileInfoToClipboard: 'y' # yank filename
+    copyFileInfoToClipboard: "y" # yank filename
   # ── Branches panel ─────────────────────────────────────────────────────────
   branches:
     createPullRequest: o
@@ -372,9 +373,6 @@ keybinding:
     setUpstream: u
     fetchRemote: f
     sortOrder: s
-  # ── Worktrees panel ────────────────────────────────────────────────────────
-  worktrees:
-    viewWorktreeOptions: w
   # ── Commits panel ──────────────────────────────────────────────────────────
   # Note: 'g' here overrides universal gotoTop → opens reset menu (correct)
   commits:
@@ -397,7 +395,7 @@ keybinding:
     tagCommit: T
     checkoutCommit: <space>
     resetCherryPick: <ctrl+r>
-    copyCommitAttributeToClipboard: 'y'
+    copyCommitAttributeToClipboard: "y"
     openLogMenu: <ctrl+l>
     openInBrowser: o
     viewBisectOptions: b
@@ -441,31 +439,36 @@ keybinding:
 #    .CurrentBranchName             .Form.<Key>   (from prompts)
 # ══════════════════════════════════════════════════════════════════════════════
 customCommands:
+  - key: "C" # Shift + C (Make sure this doesn't conflict with your existing keybinds)
+    context: "files"
+    description: "Generate commit message with Gemini 3.1 Flash Lite"
+    command: "aicommits"
+    output: terminal
   # ── Force push with lease (safer --force) ─────────────────────────────────
-  - key: '<ctrl+f>'
+  - key: "<ctrl+f>"
     context: localBranches
     command: 'git push --force-with-lease origin "{{.SelectedLocalBranch.Name}}"'
-    description: 'Force push with lease (safe force)'
-    loadingText: 'Force pushing with lease…'
+    description: "Force push with lease (safe force)"
+    loadingText: "Force pushing with lease…"
   # ── Interactive patch-level staging (git add -p) ──────────────────────────
-  - key: '<ctrl+a>'
+  - key: "<ctrl+a>"
     context: files
     command: 'git add --patch "{{.SelectedFile.Name}}"'
     output: terminal
-    description: 'Interactive patch add (git add -p)'
+    description: "Interactive patch add (git add -p)"
   # ── Commitizen conventional commits ───────────────────────────────────────
   # Requires: npm install -g commitizen cz-conventional-changelog
-  - key: 'Z'
+  - key: "Z"
     context: files
-    command: 'git cz'
+    command: "git cz"
     output: terminal
-    description: 'Commitizen: conventional commit wizard'
+    description: "Commitizen: conventional commit wizard"
   # ── New prefixed branch (feature/fix/chore/docs/refactor) ─────────────────
-  - key: 'N'
+  - key: "N"
     context: localBranches
     prompts:
       - type: menu
-        title: 'Branch type?'
+        title: "Branch type?"
         key: BranchType
         options:
           - name: feature
@@ -490,64 +493,64 @@ customCommands:
             description: Adding/fixing tests
             value: test
       - type: input
-        title: 'Branch name (use-hyphens, no spaces)?'
+        title: "Branch name (use-hyphens, no spaces)?"
         key: BranchName
     command: 'git checkout -b "{{.Form.BranchType}}/{{.Form.BranchName}}"'
-    loadingText: 'Creating branch…'
-    description: 'New branch: type/name  (feature/fix/chore/…)'
+    loadingText: "Creating branch…"
+    description: "New branch: type/name  (feature/fix/chore/…)"
   # ── Stash only staged changes (named) ────────────────────────────────────
-  - key: '<ctrl+s>'
+  - key: "<ctrl+s>"
     context: files
     command: 'git stash push --staged -m "staged: $(date +%Y-%m-%d_%H:%M:%S)"'
-    description: 'Stash only staged changes (named)'
-    loadingText: 'Stashing staged changes…'
+    description: "Stash only staged changes (named)"
+    loadingText: "Stashing staged changes…"
   # ── Autosquash fixup commits from selected commit down ───────────────────
-  - key: '<ctrl+x>'
+  - key: "<ctrl+x>"
     context: commits
     command: 'git rebase --interactive --autosquash "{{.SelectedLocalCommit.Hash}}^"'
     output: terminal
-    description: 'Autosquash fixup! commits from here'
+    description: "Autosquash fixup! commits from here"
   # ── Open commit in browser (GitHub / GitLab / Gitea) ────────────────────
-  - key: 'B'
+  - key: "B"
     context: commits
     command: >-
       xdg-open "$(git remote get-url origin | sed 's|git@\([^:]*\):|https://\1/|;s|\.git$||')/commit/{{.SelectedLocalCommit.Hash}}" >/dev/null 2>&1
-    description: 'Open commit in browser'
+    description: "Open commit in browser"
   # ── Yank branch name to Wayland clipboard ────────────────────────────────
-  - key: 'y'
+  - key: "y"
     context: localBranches
     command: 'printf "%s" "{{.SelectedLocalBranch.Name}}" | wl-copy'
-    description: 'Yank branch name (wl-clipboard)'
+    description: "Yank branch name (wl-clipboard)"
   # ── Yank current commit hash (full) to clipboard ─────────────────────────
-  - key: 'Y'
+  - key: "Y"
     context: commits
     command: 'printf "%s" "{{.SelectedLocalCommit.Hash}}" | wl-copy'
-    description: 'Yank full commit hash to clipboard'
+    description: "Yank full commit hash to clipboard"
   # ── Show verbose diffstat for a commit ───────────────────────────────────
-  - key: 'V'
+  - key: "V"
     context: commits
     command: 'git show --stat --color=always "{{.SelectedLocalCommit.Hash}}" | less -R'
     output: terminal
-    description: 'Show commit diffstat (verbose)'
+    description: "Show commit diffstat (verbose)"
   # ── Pull request: push branch + open browser to create PR ────────────────
-  - key: '<ctrl+p>'
+  - key: "<ctrl+p>"
     context: localBranches
     command: >-
       git push -u origin "{{.SelectedLocalBranch.Name}}" && xdg-open "$(git remote get-url origin | sed 's|git@\([^:]*\):|https://\1/|;s|\.git$||')/compare/{{.SelectedLocalBranch.Name}}" >/dev/null 2>&1
-    description: 'Push branch & open PR in browser'
-    loadingText: 'Pushing branch…'
+    description: "Push branch & open PR in browser"
+    loadingText: "Pushing branch…"
   # ── Git maintenance (run git maintenance run) ─────────────────────────────
-  - key: '<ctrl+m>'
+  - key: "<ctrl+m>"
     context: global
-    command: 'git maintenance run --auto'
-    description: 'Run git maintenance (gc, pack, etc.)'
-    loadingText: 'Running git maintenance…'
+    command: "git maintenance run --auto"
+    description: "Run git maintenance (gc, pack, etc.)"
+    loadingText: "Running git maintenance…"
   # ── Rebase onto main/master interactively ────────────────────────────────
-  - key: '<ctrl+b>'
+  - key: "<ctrl+b>"
     context: localBranches
     prompts:
       - type: menu
-        title: 'Rebase onto which base?'
+        title: "Rebase onto which base?"
         key: Base
         options:
           - name: main
@@ -558,7 +561,7 @@ customCommands:
             value: develop
     command: 'git rebase --interactive "{{.Form.Base}}"'
     output: terminal
-    description: 'Interactive rebase onto base branch'
+    description: "Interactive rebase onto base branch"
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  DELTA GITCONFIG COMPANION

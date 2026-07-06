@@ -14,7 +14,7 @@
         "enableSessionSearch": true,
         "enableSettingsSearch": true,
         "enableWindowsSearch": true,
-        "iconMode": "tabler",
+        "iconMode": "native",
         "ignoreMouseInput": false,
         "overviewLayer": false,
         "pinnedApps": [
@@ -25,7 +25,7 @@
         "showIconBackground": true,
         "sortByMostUsed": true,
         "terminalCommand": "alacritty -e",
-        "viewMode": "list"
+        "viewMode": "grid"
     },
     "audio": {
         "mprisBlacklist": [
@@ -37,7 +37,7 @@
         "volumeFeedback": true,
         "volumeFeedbackSoundFile": "",
         "volumeOverdrive": true,
-        "volumeStep": 5
+        "volumeStep": 3
     },
     "bar": {
         "autoHideDelay": 500,
@@ -64,7 +64,7 @@
         "mouseWheelAction": "none",
         "mouseWheelWrap": true,
         "outerCorners": true,
-        "position": "bottom",
+        "position": "left",
         "reverseScroll": false,
         "rightClickAction": "settings",
         "rightClickCommand": "",
@@ -107,6 +107,13 @@
                         "workDuration": 25
                     },
                     "id": "plugin:pomodoro"
+                },
+                {
+                    "defaultSettings": {
+                        "precision": 8,
+                        "showBarValue": true
+                    },
+                    "id": "plugin:noctalia-calculator"
                 }
             ],
             "left": [
@@ -188,13 +195,12 @@
                     ]
                 },
                 {
-                    "deviceNativePath": "__default__",
-                    "displayMode": "graphic-clean",
-                    "hideIfIdle": false,
-                    "hideIfNotDetected": true,
-                    "id": "Battery",
-                    "showNoctaliaPerformance": false,
-                    "showPowerProfiles": false
+                    "defaultSettings": {
+                        "density": "comfortable",
+                        "maxHistorySize": 100,
+                        "showImagePreviews": true
+                    },
+                    "id": "plugin:clipboard"
                 },
                 {
                     "displayMode": "onhover",
@@ -202,15 +208,6 @@
                     "id": "Volume",
                     "middleClickCommand": "pwvucontrol || pavucontrol",
                     "textColor": "none"
-                },
-                {
-                    "defaultSettings": {
-                        "compactMode": false,
-                        "defaultDuration": 0,
-                        "iconColor": "none",
-                        "textColor": "none"
-                    },
-                    "id": "plugin:timer"
                 },
                 {
                     "colorizeDistroLogo": false,
@@ -221,14 +218,6 @@
                     "icon": "noctalia",
                     "id": "ControlCenter",
                     "useDistroLogo": false
-                },
-                {
-                    "defaultSettings": {
-                        "enableCross": true,
-                        "enableWindowsSelection": true,
-                        "screenshotEditor": "swappy"
-                    },
-                    "id": "plugin:screen-shot-and-record"
                 },
                 {
                     "defaultSettings": {
@@ -244,18 +233,6 @@
                         "windowWidth": 1400
                     },
                     "id": "plugin:keybind-cheatsheet"
-                },
-                {
-                    "defaultSettings": {
-                        "autoMount": false,
-                        "fileBrowser": "yazi",
-                        "hideWhenEmpty": false,
-                        "iconColor": "none",
-                        "showBadge": false,
-                        "showNotifications": true,
-                        "terminalCommand": "kitty"
-                    },
-                    "id": "plugin:usb-drive-manager"
                 },
                 {
                     "hideWhenZero": false,
@@ -301,7 +278,7 @@
         "manualSunrise": "06:30",
         "manualSunset": "18:30",
         "monitorForColors": "",
-        "predefinedScheme": "Rose Pine",
+        "predefinedScheme": "Tokyo Night",
         "schedulingMode": "off",
         "syncGsettings": true,
         "useWallpaperColors": false
@@ -321,7 +298,7 @@
                 "id": "audio-card"
             },
             {
-                "enabled": false,
+                "enabled": true,
                 "id": "brightness-card"
             },
             {
@@ -381,7 +358,7 @@
         "deadOpacity": 0.6,
         "displayMode": "auto_hide",
         "dockType": "floating",
-        "enabled": false,
+        "enabled": true,
         "floatingRatio": 1,
         "groupApps": false,
         "groupClickAction": "cycle",
@@ -399,6 +376,9 @@
         ],
         "onlySameOutput": true,
         "pinnedApps": [
+            "emacs",
+            "kitty-dropterm",
+            "brave-browser"
         ],
         "pinnedStatic": false,
         "position": "bottom",
@@ -531,7 +511,7 @@
         "forced": true,
         "manualSunrise": "06:30",
         "manualSunset": "18:30",
-        "nightTemp": "5044"
+        "nightTemp": "4678"
     },
     "noctaliaPerformance": {
         "disableDesktopWidgets": true,
