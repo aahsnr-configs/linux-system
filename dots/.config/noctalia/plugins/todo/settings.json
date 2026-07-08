@@ -1,6 +1,15 @@
 {
   "todos": [
     {
+      "id": 1783370073133,
+      "text": "Turn setup-emacs into a python script",
+      "completed": false,
+      "createdAt": "2026-07-06T20:34:33.133Z",
+      "pageId": 0,
+      "priority": "medium",
+      "details": ""
+    },
+    {
       "id": 1777421542337,
       "text": "Determine how my development and writing workflow will be organized inside podman containers setup using ansible",
       "completed": false,
@@ -32,15 +41,6 @@
       "text": "Ask msi if they can send a backplate via their official channels in bangladehs",
       "completed": false,
       "createdAt": "2026-04-04T21:36:04.294Z",
-      "pageId": 0,
-      "priority": "medium",
-      "details": ""
-    },
-    {
-      "id": 1775335040566,
-      "text": "Setup my ghost router",
-      "completed": false,
-      "createdAt": "2026-04-04T20:37:20.566Z",
       "pageId": 0,
       "priority": "medium",
       "details": ""
@@ -89,96 +89,6 @@
       "pageId": 0,
       "priority": "medium",
       "details": ""
-    },
-    {
-      "id": 1774234201860,
-      "text": "Start the latest prompt for my emacs config in a different claude account",
-      "completed": true,
-      "createdAt": "2026-03-23T02:50:01.860Z",
-      "pageId": 0,
-      "priority": "high",
-      "details": ""
-    },
-    {
-      "id": 1774391407364,
-      "text": "Email thermalright after finding out where I bought it, where the receipts are. Ask my mom for everything 1s",
-      "completed": true,
-      "createdAt": "2026-03-24T22:30:07.364Z",
-      "pageId": 0,
-      "priority": "high",
-      "details": ""
-    },
-    {
-      "id": 1774651052030,
-      "text": "Go back to gemini ahsanur041@gmail.com for finishing the MSI MotherBoard",
-      "completed": true,
-      "createdAt": "2026-03-27T22:37:32.030Z",
-      "pageId": 0,
-      "priority": "medium",
-      "details": ""
-    },
-    {
-      "id": 1775201287939,
-      "text": "Finish gemini task from https://gemini.google.com/share/46461b874134 using an updated prompt to include the 2 images to indicate the size difference, then describing what caused this issue, and then describing the algorithm for the fix, then finally applying the fix.",
-      "completed": true,
-      "createdAt": "2026-04-03T07:28:07.939Z",
-      "pageId": 0,
-      "priority": "medium",
-      "details": ""
-    },
-    {
-      "id": 1775010966678,
-      "text": "Use the reddit user's kitty config",
-      "completed": true,
-      "createdAt": "2026-04-01T02:36:06.678Z",
-      "pageId": 0,
-      "priority": "medium",
-      "details": ""
-    },
-    {
-      "id": 1775738149204,
-      "text": "Complete package.use analysis in line 190",
-      "completed": true,
-      "createdAt": "2026-04-09T12:35:49.204Z",
-      "pageId": 0,
-      "priority": "medium",
-      "details": ""
-    },
-    {
-      "id": 1775011745064,
-      "text": "Ask chat.z.ai about nvidia artifat issues when waking from suspend.",
-      "completed": true,
-      "createdAt": "2026-04-01T02:49:05.064Z",
-      "pageId": 0,
-      "priority": "medium",
-      "details": ""
-    },
-    {
-      "id": 1775742693665,
-      "text": "Complete reading reading1.md, reading2.md, reading22.md",
-      "completed": true,
-      "createdAt": "2026-04-09T13:51:33.665Z",
-      "pageId": 0,
-      "priority": "medium",
-      "details": ""
-    },
-    {
-      "id": 1776011122454,
-      "text": "Since I am starting from scratch, I need to move my computer's power connection to the other side using the multiplug",
-      "completed": true,
-      "createdAt": "2026-04-12T16:25:22.454Z",
-      "pageId": 0,
-      "priority": "medium",
-      "details": ""
-    },
-    {
-      "id": 1776010212488,
-      "text": "Adapt portage with git in section 9.4 from https://wiki.gentoo.org/wiki/Portage_with_Git",
-      "completed": true,
-      "createdAt": "2026-04-12T16:10:12.488Z",
-      "pageId": 0,
-      "priority": "medium",
-      "details": ""
     }
   ],
   "pages": [
@@ -188,8 +98,8 @@
     }
   ],
   "current_page_id": 0,
-  "count": 20,
-  "completedCount": 10,
+  "count": 10,
+  "completedCount": 0,
   "showCompleted": true,
   "showBackground": true,
   "isExpanded": false,

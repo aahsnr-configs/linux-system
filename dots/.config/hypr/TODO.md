@@ -21,3 +21,13 @@
 There is the independant quickshell overview plugin [https://github.com/Shanu-Kumawat/quickshell-overview]
 
 If you prefer not to use plugins (which can break on Hyprland updates), you can write a script that listens to Hyprland's socket and changes the layout dynamically whenever you switch workspaces.
+
+- [ ] ~/.config/hypr/hyprland.lua
+- [x] hyprland/env.lua
+- [ ] hyprland/settings.lua
+- [x] hyprland/monitor.lua
+- [ ] hyprland/plugins.lua
+- [ ] hyprland/rules.lua
+- [ ] hyprland/workspaces.lua
+- [x] hyprland/binds.lua
+- [x] hyprland/autostart.lua

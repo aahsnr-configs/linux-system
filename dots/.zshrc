@@ -590,6 +590,7 @@ command_not_found_handler() {
 alias suse="podman run --rm -it suse-checker"
 alias gc="git clone"
 alias ga="git add"
+alias gp="git push"
 alias aic="aicommits"
 alias upgrade="topgrade"
 alias listPkgs='paru -Qq > packages.list'
@@ -788,5 +789,23 @@ export GPG_TTY=$(tty)
 export npm_config_prefix="$HOME/.local"
 
 export PATH="/home/ahsan/.pixi/bin:$PATH"
-# Added by Antigravity CLI installer
-export PATH="/home/ahsan/.local/bin:$PATH"
+
+# pnpm
+export PNPM_HOME="/home/ahsan/.local/share/pnpm"
+case ":$PATH:" in
+*":$PNPM_HOME/bin:"*) ;;
+*) export PATH="$PNPM_HOME/bin:$PATH" ;;
+esac
+# pnpm end
+
+# Ghostel IDE Integration
+if [[ "${INSIDE_EMACS%%,*}" = 'ghostel' ]]; then
+    # Open a file in Emacs from the terminal (e.g., `e main.py`)
+    alias e='ghostel_cmd find-file-other-window'
+
+    # Open Dired in another window at the current directory
+    alias dow='ghostel_cmd dired-other-window'
+
+    # Open Magit for the current directory
+    alias gst='ghostel_cmd magit-status-setup-buffer'
+fi
