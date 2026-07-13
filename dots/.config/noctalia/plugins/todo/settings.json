@@ -1,15 +1,6 @@
 {
   "todos": [
     {
-      "id": 1783370073133,
-      "text": "Turn setup-emacs into a python script",
-      "completed": false,
-      "createdAt": "2026-07-06T20:34:33.133Z",
-      "pageId": 0,
-      "priority": "medium",
-      "details": ""
-    },
-    {
       "id": 1777421542337,
       "text": "Determine how my development and writing workflow will be organized inside podman containers setup using ansible",
       "completed": false,
@@ -89,6 +80,15 @@
       "pageId": 0,
       "priority": "medium",
       "details": ""
+    },
+    {
+      "id": 1783370073133,
+      "text": "Turn setup-emacs into a python script",
+      "completed": true,
+      "createdAt": "2026-07-06T20:34:33.133Z",
+      "pageId": 0,
+      "priority": "medium",
+      "details": ""
     }
   ],
   "pages": [
@@ -99,7 +99,7 @@
   ],
   "current_page_id": 0,
   "count": 10,
-  "completedCount": 0,
+  "completedCount": 1,
   "showCompleted": true,
   "showBackground": true,
   "isExpanded": false,

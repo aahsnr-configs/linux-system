@@ -88,8 +88,8 @@ hl.config({
 		},
 		blur = {
 			enabled = true,
-			size = 3,
-			passes = 2,
+			size = 4,
+			passes = 3,
 			new_optimizations = true,
 			ignore_opacity = true,
 			xray = false,
@@ -129,8 +129,8 @@ hl.config({
 		enable_swallow = true,
 		swallow_regex = [[^(Alacritty|kitty|footclient)$]],
 	},
-	xwayland = { force_zero_scaling = true },
-	debug = { disable_logs = false, enable_stdout_logs = true },
+	xwayland = { force_zero_scaling = false },
+	debug = { disable_logs = true, enable_stdout_logs = true },
 })
 
 -- Bezier Curves
@@ -183,17 +183,17 @@ hl.monitor({
 	mode = "3840x2160@60",
 	position = "0x0",
 	scale = 2.0,
-	bitdepth = 10,
-	cm = "auto",
-	sdrbrightness = 1.0,
-	sdrsaturation = 1.0,
-	supports_hdr = true,
-	supports_wide_color = true,
-	sdr_min_luminance = 0.005,
-	sdr_max_luminance = 250,
-	min_luminance = 0,
-	max_luminance = 1000,
-	max_avg_luminance = 500,
+	-- bitdepth = 10,
+	-- cm = "auto",
+	-- sdrbrightness = 1.0,
+	-- sdrsaturation = 1.0,
+	-- supports_hdr = true,
+	-- supports_wide_color = true,
+	-- sdr_min_luminance = 0.005,
+	-- sdr_max_luminance = 250,
+	-- min_luminance = 0,
+	-- max_luminance = 1000,
+	-- max_avg_luminance = 500,
 })
 ```
 
@@ -239,6 +239,10 @@ hl.config({
 -- class = brave-browser
 -- class = kitty-dropterm
 -- class = org.gnome.Nautilus
+-- class = com.shellyorg.shelly
+-- 1. class = protonvpn-app
+-- 2. title = active connection found
+
 
 -- Window Rules
 hl.window_rule({ name = "ghostty_opacity", match = { class = [[^(com\.mitchellh\.ghostty)$]] }, opacity = "0.95 0.95" })

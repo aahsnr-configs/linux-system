@@ -613,6 +613,7 @@ alias box-stop='distrobox-stop --all --yes'
 alias box-rm='distrobox-rm --all --force'
 alias zsh-update='zsh_plugins_update'
 alias zsh-plugins='zsh_plugins_list'
+alias clr='clear'
 
 # ============================================================================
 # FZF CONFIGURATION
@@ -793,8 +794,8 @@ export PATH="/home/ahsan/.pixi/bin:$PATH"
 # pnpm
 export PNPM_HOME="/home/ahsan/.local/share/pnpm"
 case ":$PATH:" in
-*":$PNPM_HOME/bin:"*) ;;
-*) export PATH="$PNPM_HOME/bin:$PATH" ;;
+  *":$PNPM_HOME/bin:"*) ;;
+  *) export PATH="$PNPM_HOME/bin:$PATH" ;;
 esac
 # pnpm end
 
