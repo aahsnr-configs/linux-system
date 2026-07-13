@@ -57,12 +57,16 @@ gui:
   showBranchCommitHash: true # show short hash beside branch names
   showDivergenceFromBaseBranch: arrowAndNumber # none|onlyArrow|arrowAndNumber
   commitHashLength: 8 # characters to show in commit hash columns
-  commitAuthorFormat: auto # auto | full | short  (adapts to panel width)
+  # NOTE: 'commitAuthorFormat' removed — not a valid field in the current
+  # schema. Short/long author display is already handled adaptively via
+  # commitAuthorShortLength (default 2, initials) and commitAuthorLongLength
+  # (default 17) depending on whether the commits panel is expanded.
   nerdFontsVersion: "3" # "" | "2" | "3"  — must match your font
   showFileIcons: true # file-type icons (requires nerdFontsVersion)
   border: rounded # rounded | single | double | hidden
   animateExplosion: true # 💥 dramatic nuke animation
-  parseEmoji: true # render :rocket: as 🚀 in commit messages
+  # NOTE: 'parseEmoji' removed from here — it belongs under git: (schema
+  # comment: "This should really be under 'gui', not 'git'"). See git.parseEmoji below.
   statusPanelView: dashboard # dashboard | allBranchesLog
   # ── Scroll behaviour (mirrors vim scrolloff) ───────────────────────────────
   scrollHeight: 5 # lines per scroll wheel tick
@@ -86,7 +90,7 @@ gui:
   mouseEvents: false
   # ── Spinner ────────────────────────────────────────────────────────────────
   spinner:
-    frames: [ "⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷" ]
+    frames: ["⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"]
     rate: 80
   # ╔══════════════════════════════════════════════════════════════════════════╗
   # ║  TOKYO NIGHT — NIGHT VARIANT COLOURSCHEME                              ║
@@ -132,16 +136,16 @@ gui:
       # authorColors:
       #   'Your Name': '#7aa2f7'     # blue  — your own commits stand out
       #   '*': '#565f89'             # comment grey for everyone else
-      # ── Custom branch prefix colours ───────────────────────────────────────────
-      # branchColors:
-      #   'feature': '#9ece6a'       # green for features
-      #   'fix':     '#f7768e'       # red for fixes
-      #   'docs':    '#7dcfff'       # cyan for docs
-      #   'chore':   '#565f89'       # grey for chores
+# ── Custom branch prefix colours ───────────────────────────────────────────
+# branchColors:
+#   'feature': '#9ece6a'       # green for features
+#   'fix':     '#f7768e'       # red for fixes
+#   'docs':    '#7dcfff'       # cyan for docs
+#   'chore':   '#565f89'       # grey for chores
 
-      # ──────────────────────────────────────────────────────────────────────────────
-      #  GIT  ·  Core git behaviour, pager, and log format
-      # ──────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
+#  GIT  ·  Core git behaviour, pager, and log format
+# ──────────────────────────────────────────────────────────────────────────────
 git:
   # ── Delta diff pager ────────────────────────────────────────────────────────
   # delta must be installed separately.
@@ -151,16 +155,7 @@ git:
   pagers:
     - colorArg: always
       pager: >-
-        delta --paging=never --syntax-theme="tokyonight_night" --line-numbers
-        --line-numbers-left-format="{nm:>4}│"
-        --line-numbers-right-format="{np:>4}│" --navigate --hyperlinks
-        --max-line-length=512 --tabs=4 --file-style="bold #7aa2f7"
-        --file-decoration-style="none" --hunk-header-style="file line-number
-        syntax" --hunk-header-decoration-style="#3b4261 box"
-        --minus-style="syntax #3d1f1f" --minus-emph-style="syntax #6b2828"
-        --plus-style="syntax #1a2e1a" --plus-emph-style="syntax #2a4a2a"
-        --zero-style="syntax" --blame-code-style=syntax --blame-palette="#1a1b26
-        #1f2335"
+        delta --paging=never --syntax-theme="tokyonight_night" --line-numbers --line-numbers-left-format="{nm:>4}│" --line-numbers-right-format="{np:>4}│" --navigate --hyperlinks --max-line-length=512 --tabs=4 --file-style="bold #7aa2f7" --file-decoration-style="none" --hunk-header-style="file line-number syntax" --hunk-header-decoration-style="#3b4261 box" --minus-style="syntax #3d1f1f" --minus-emph-style="syntax #6b2828" --plus-style="syntax #1a2e1a" --plus-emph-style="syntax #2a4a2a" --zero-style="syntax" --blame-code-style=syntax --blame-palette="#1a1b26 #1f2335"
       externalDiffCommand: ""
   # ── Commit settings ─────────────────────────────────────────────────────────
   commit:
@@ -178,10 +173,7 @@ git:
     showWholeGraph: false # --all equivalent (shows all branches)
   # ── Branch log command (compact one-liner with colour) ─────────────────────
   branchLogCmd: >-
-    git log --graph --color=always --abbrev-commit --decorate --date=relative
-    --pretty=format:"%C(bold blue)%h%C(reset) %C(bold green)(%ar)%C(reset)
-    %C(white)%s%C(reset) %C(dim #565f89)— %an%C(reset)%C(auto)%d%C(reset)"
-    {{branchName}} --
+    git log --graph --color=always --abbrev-commit --decorate --date=relative --pretty=format:"%C(bold blue)%h%C(reset) %C(bold green)(%ar)%C(reset) %C(white)%s%C(reset) %C(dim #565f89)— %an%C(reset)%C(auto)%d%C(reset)" {{branchName}} --
   # ── Safety and automation ───────────────────────────────────────────────────
   autoFetch: true
   autoRefresh: true
@@ -202,10 +194,7 @@ git:
     #   pattern: "^\\w+\\/(\\w+-\\d+).*"
     #   replace: "[$1] "
   allBranchesLogCmds:
-    - 'git log --graph --all --color=always --abbrev-commit --decorate
-      --date=relative --pretty=format:"%C(bold blue)%h%C(reset) %C(bold
-      green)(%ar)%C(reset) %C(white)%s%C(reset) %C(dim #565f89)—
-      %an%C(reset)%C(auto)%d%C(reset)"'
+    - 'git log --graph --all --color=always --abbrev-commit --decorate --date=relative --pretty=format:"%C(bold blue)%h%C(reset) %C(bold green)(%ar)%C(reset) %C(white)%s%C(reset) %C(dim #565f89)— %an%C(reset)%C(auto)%d%C(reset)"'
 # ──────────────────────────────────────────────────────────────────────────────
 #  OS  ·  External editor, opener, and clipboard
 # ──────────────────────────────────────────────────────────────────────────────
@@ -350,10 +339,14 @@ keybinding:
     submitEditorText: <enter>
     optionMenu: <disabled>
     optionMenu-alt1: "?"
-    checkForUpdate: <disabled> # no auto-update prompts
-    newWorktree: w
+  # ── Status panel ───────────────────────────────────────────────────────────
+  status:
+    checkForUpdate: <disabled> # no auto-update prompts (also see update.method: never above)
   # ── Files panel ────────────────────────────────────────────────────────────
   files:
+    # NOTE: 'c' is overridden by the "AI commit via lazycommit" entry in
+    # customCommands below (context: files, key: c). This default binding
+    # is only a fallback / documentation of the underlying action.
     commitChanges: c # stage → commit
     commitChangesWithoutHook: w # commit, skipping hooks
     amendLastCommit: A # amend HEAD
@@ -437,8 +430,8 @@ keybinding:
     init: i
     update: u
     bulkMenu: b
-  # ── Commit editor (multi-line commit message) ──────────────────────────────
-  commitEditor:
+  # ── Commit message panel (multi-line commit message) ───────────────────────
+  commitMessage:
     commitMenu: <ctrl+o>
 # ══════════════════════════════════════════════════════════════════════════════
 #  CUSTOM COMMANDS  ·  Extend lazygit with your own git workflows
@@ -454,11 +447,19 @@ keybinding:
 #    .CurrentBranchName             .Form.<Key>   (from prompts)
 # ══════════════════════════════════════════════════════════════════════════════
 customCommands:
-  - key: "C" # Shift + C (Make sure this doesn't conflict with your existing keybinds)
+  # ── AI commit (lazycommit) — overrides default 'c' commitChanges ──────────
+  # Stages all tracked changes (--all) and hands the terminal to lazycommit,
+  # which generates a message via Groq, then lets you review/edit/confirm
+  # before it commits. output: terminal is required since lazycommit is an
+  # interactive prompt, not a one-shot command (suspends lazygit and runs
+  # the command directly in the terminal).
+  # Requires: lazycommit config set GROQ_API_KEY=<your token>
+  - key: "c"
     context: "files"
-    description: "Generate commit message with Gemini 3.1 Flash Lite"
-    command: "aic2"
-    output: terminal
+    description: "AI commit via lazycommit (stage all + generate message)"
+    command: "lazycommit --all"
+    output: terminal # 'subprocess: true' was removed from the schema; 'output: terminal' is its replacement
+    loadingText: "Generating commit message…"
   # ── Force push with lease (safer --force) ─────────────────────────────────
   - key: "<ctrl+f>"
     context: localBranches
@@ -529,9 +530,7 @@ customCommands:
   - key: "B"
     context: commits
     command: >-
-      xdg-open "$(git remote get-url origin | sed
-      's|git@\([^:]*\):|https://\1/|;s|\.git$||')/commit/{{.SelectedLocalCommit.Hash}}"
-      >/dev/null 2>&1
+      xdg-open "$(git remote get-url origin | sed 's|git@\([^:]*\):|https://\1/|;s|\.git$||')/commit/{{.SelectedLocalCommit.Hash}}" >/dev/null 2>&1
     description: "Open commit in browser"
   # ── Yank branch name to Wayland clipboard ────────────────────────────────
   - key: "y"
@@ -553,10 +552,7 @@ customCommands:
   - key: "<ctrl+p>"
     context: localBranches
     command: >-
-      git push -u origin "{{.SelectedLocalBranch.Name}}" && xdg-open "$(git
-      remote get-url origin | sed
-      's|git@\([^:]*\):|https://\1/|;s|\.git$||')/compare/{{.SelectedLocalBranch.Name}}"
-      >/dev/null 2>&1
+      git push -u origin "{{.SelectedLocalBranch.Name}}" && xdg-open "$(git remote get-url origin | sed 's|git@\([^:]*\):|https://\1/|;s|\.git$||')/compare/{{.SelectedLocalBranch.Name}}" >/dev/null 2>&1
     description: "Push branch & open PR in browser"
     loadingText: "Pushing branch…"
   # ── Git maintenance (run git maintenance run) ─────────────────────────────
@@ -582,11 +578,6 @@ customCommands:
     command: 'git rebase --interactive "{{.Form.Base}}"'
     output: terminal
     description: "Interactive rebase onto base branch"
-  - key: c
-    context: files
-    description: Generate commit message with aicommit2
-    command: aicommit2
-    output: terminal
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  DELTA GITCONFIG COMPANION
