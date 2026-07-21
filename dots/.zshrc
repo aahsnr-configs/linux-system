@@ -810,3 +810,6 @@ if [[ "${INSIDE_EMACS%%,*}" = 'ghostel' ]]; then
     # Open Magit for the current directory
     alias gst='ghostel_cmd magit-status-setup-buffer'
 fi
+
+# opencode
+export PATH=/home/ahsan/.opencode/bin:$PATH
