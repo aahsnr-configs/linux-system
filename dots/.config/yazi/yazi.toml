@@ -15,7 +15,7 @@ sort_sensitive = false
 sort_reverse   = false
 sort_dir_first = true
 sort_translit  = false
-show_hidden    = false
+show_hidden    = true
 show_symlink   = true
 linemode       = "size"
 scrolloff      = 5
@@ -97,7 +97,7 @@ open = [
 prepend_rules = [
 
     # Web / HTML
-    { name = "*.{html,htm,xhtml}", use = ["open", "edit"] },
+    { url = "*.{html,htm,xhtml}", use = ["open", "edit"] },
 
     # PDFs
     { mime = "application/pdf",    use = ["view_pdf"] },
@@ -117,19 +117,19 @@ prepend_rules = [
     { mime = "application/vnd.oasis.opendocument.*",            use = ["view_office"] },
     { mime = "application/msword",                              use = ["view_office"] },
     # Office documents (extension rules for when MIME is wrong)
-    { name = "*.{doc,docx,odt,xls,xlsx,ods,ppt,pptx,odp}",     use = ["view_office"] },
+    { url = "*.{doc,docx,odt,xls,xlsx,ods,ppt,pptx,odp}",     use = ["view_office"] },
 
     # Code / Config → Neovim
-    { name = "*.{py,pyw,ipynb}",                                    use = ["edit"] },
-    { name = "*.{js,mjs,cjs,ts,tsx,jsx,vue,svelte}",               use = ["edit"] },
-    { name = "*.{rs,go,c,cc,cpp,h,hpp,cs,java,kt,swift}",          use = ["edit"] },
-    { name = "*.{rb,php,lua,ex,exs,erl,hs,elm,ml,clj}",            use = ["edit"] },
-    { name = "*.{sh,bash,zsh,fish,nu,ps1,bat}",                    use = ["edit"] },
-    { name = "*.{css,scss,sass,less}",                             use = ["edit"] },
-    { name = "*.{json,jsonc,toml,yaml,yml,xml,ini,cfg,conf}",      use = ["edit"] },
-    { name = "*.{md,mdx,rst,org,txt,log,csv,tsv}",                 use = ["edit"] },
-    { name = "*.{tf,hcl,nix,dockerfile,dockerignore}",             use = ["edit"] },
-    { name = ".{env,gitignore,gitconfig,gitattributes,editorconfig}", use = ["edit"] },
+    { url = "*.{py,pyw,ipynb}",                                    use = ["edit"] },
+    { url = "*.{js,mjs,cjs,ts,tsx,jsx,vue,svelte}",               use = ["edit"] },
+    { url = "*.{rs,go,c,cc,cpp,h,hpp,cs,java,kt,swift}",          use = ["edit"] },
+    { url = "*.{rb,php,lua,ex,exs,erl,hs,elm,ml,clj}",            use = ["edit"] },
+    { url = "*.{sh,bash,zsh,fish,nu,ps1,bat}",                    use = ["edit"] },
+    { url = "*.{css,scss,sass,less}",                             use = ["edit"] },
+    { url = "*.{json,jsonc,toml,yaml,yml,xml,ini,cfg,conf}",      use = ["edit"] },
+    { url = "*.{md,mdx,rst,org,txt,log,csv,tsv}",                 use = ["edit"] },
+    { url = "*.{tf,hcl,nix,dockerfile,dockerignore}",             use = ["edit"] },
+    { url = ".{env,gitignore,gitconfig,gitattributes,editorconfig}", use = ["edit"] },
     { mime = "text/*",                                              use = ["edit"] },
     { mime = "application/json",                                    use = ["edit"] },
     { mime = "application/xml",                                     use = ["edit"] },
@@ -144,14 +144,16 @@ prepend_rules = [
 # Required: tells Yazi which fetcher plugin to use for all files/dirs.
 # Without these lines, git.yazi shows no status even if setup() is called.
 [[plugin.prepend_fetchers]]
-id   = "git"
-name = "*"
-run  = "git"
+id    = "git"
+url   = "*"
+run   = "git"
+group = "git"
 
 [[plugin.prepend_fetchers]]
-id   = "git"
-name = "*/"
-run  = "git"
+id    = "git"
+url   = "*/"
+run   = "git"
+group = "git"
 
 # ── Log ──────────────────────────────────────────────────────
 [log]

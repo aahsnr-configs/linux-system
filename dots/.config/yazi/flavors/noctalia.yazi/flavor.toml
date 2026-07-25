@@ -151,6 +151,11 @@ title_error = { fg = "#f7768e" }
 [filetype]
 
 rules = [
+    # Hidden files & directories (dotfiles) — must stay first so it wins
+    # over the mime/type rules below for anything starting with a dot
+    { url = "*", is = "hidden", fg = "#565f89" },
+    { url = "*/", is = "hidden", fg = "#565f89" },
+
     # Images
     { mime = "image/*", fg = "#94e2d5" },
 

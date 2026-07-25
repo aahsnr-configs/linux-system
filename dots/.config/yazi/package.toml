@@ -15,27 +15,27 @@ hash = "18a2829738214fe9bca99a2fef19113d"
 
 [[plugin.deps]]
 use = "yazi-rs/plugins:chmod"
-rev = "5d461d8"
+rev = "bbac5e7"
 hash = "5b1c276b75cae91cbbdbe7863f39a540"
 
 [[plugin.deps]]
 use = "yazi-rs/plugins:git"
-rev = "5d461d8"
+rev = "bbac5e7"
 hash = "88e56a64b7ce7c4314427452343fef17"
 
 [[plugin.deps]]
 use = "yazi-rs/plugins:mount"
-rev = "5d461d8"
+rev = "bbac5e7"
 hash = "e3260d0b1feded8c8e3ae3afa1169e30"
 
 [[plugin.deps]]
 use = "yazi-rs/plugins:full-border"
-rev = "5d461d8"
+rev = "bbac5e7"
 hash = "7b625412411be411153886894d9acaf"
 
 [[plugin.deps]]
 use = "yazi-rs/plugins:smart-enter"
-rev = "5d461d8"
+rev = "bbac5e7"
 hash = "187cc58ba7ac3befd49c342129e6f1b6"
 
 [[plugin.deps]]
