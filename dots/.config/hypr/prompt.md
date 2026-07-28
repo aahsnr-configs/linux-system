@@ -1,0 +1,3 @@
+Ingest the attached markdown file. Then determine do a brief review of all the lua markdown code blocks and then comprehensive review on the rule.lua markdown code since the way the rules are written does not match the hyprland wiki says the rules are set. Then only write out the changes needed for the hypland-lua.md file. Search the web and think longer for this task. Adn only write out the changes needed.
+
+Write bash script so that I can export all the lua markdown code blocks for the hyprland lua config files from the attached markdown to their respective files in `~/.config/hypr/` and `~/.config/hypr/hyprland` directories.
