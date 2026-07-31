@@ -1,0 +1,57 @@
+-- Plugin configuration
+-- hy3 plugin (tabbed groups, autotile)
+if hl.plugin.hy3 ~= nil then
+  hl.config({
+    plugin = {
+      hy3 = {
+        tabs = {
+          height = 22,
+          padding = 6,
+          render_text = false,
+          from_top = false,
+          radius = 6,
+          border_width = 2,
+          text_font = "Sans",
+          text_height = 8,
+          text_padding = 3,
+        },
+        autotile = {
+          enable = true,
+          trigger_width = 600,
+          trigger_height = 200,
+          workspaces = "all",
+        },
+        group_inset = 10,
+        node_collapse_policy = 2,
+        tab_first_window = false,
+      },
+    },
+  })
+end
+
+-- hyprscroller plugin (column-based scrolling)
+if hl.plugin.hyprscroller ~= nil then
+  hl.config({
+    plugin = {
+      hyprscroller = {
+        column_default_width = 0.4,
+        focus_wrap = true,
+      },
+    },
+  })
+end
+
+-- hyprtrails plugin (visual window trails)
+if hl.plugin.hyprtrails ~= nil then
+  hl.config({
+    plugin = {
+      hyprtrails = {
+        enabled = true,
+        trail_length = 8,
+        trail_opacity = 0.6,
+        trail_color = "0xffffffff",
+        trail_blend = "add",
+      },
+    },
+  })
+end

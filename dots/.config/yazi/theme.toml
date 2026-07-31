@@ -39,5 +39,5 @@ separator = "  "
 # ── Activate Flavor ──────────────────────────────────────────
 # Both dark and light modes point to noctalia so it is always used.
 [flavor]
-dark  = "noctalia"
+dark = "noctalia"
 light = "noctalia"
