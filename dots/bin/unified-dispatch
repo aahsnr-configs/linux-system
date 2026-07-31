@@ -8,9 +8,9 @@ set -euo pipefail
 
 # ── WORKSPACE → LAYOUT TABLE ──────────────────────────────────────────────────
 declare -A WS_LAYOUT=(
-    [1]="scroller"
-    [2]="scroller"
-    [3]="scroller"
+    [1]="scrolling"
+    [2]="scrolling"
+    [3]="scrolling"
     [4]="dwindle"
     [5]="dwindle"
     [6]="dwindle"
