@@ -778,7 +778,7 @@ urldecode() {
 DISABLE_AUTO_TITLE="true"
 ZSH_DISABLE_COMPFIX="true"
 
-function y() {
+function yy() {
     local tmp="$(mktemp -t "yazi-cwd.XXXXXX")" cwd
     command yazi "$@" --cwd-file="$tmp"
     IFS= read -r -d '' cwd <"$tmp"
@@ -788,16 +788,6 @@ function y() {
 export GPG_TTY=$(tty)
 
 export npm_config_prefix="$HOME/.local"
-
-export PATH="/home/ahsan/.pixi/bin:$PATH"
-
-# pnpm
-export PNPM_HOME="/home/ahsan/.local/share/pnpm"
-case ":$PATH:" in
-*":$PNPM_HOME/bin:"*) ;;
-*) export PATH="$PNPM_HOME/bin:$PATH" ;;
-esac
-# pnpm end
 
 # Ghostel IDE Integration
 if [[ "${INSIDE_EMACS%%,*}" = 'ghostel' ]]; then
@@ -810,5 +800,3 @@ if [[ "${INSIDE_EMACS%%,*}" = 'ghostel' ]]; then
     # Open Magit for the current directory
     alias gst='ghostel_cmd magit-status-setup-buffer'
 fi
-
-eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv zsh)"
