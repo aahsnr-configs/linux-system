@@ -591,6 +591,7 @@ alias suse="podman run --rm -it suse-checker"
 alias gc="git clone"
 alias ga="git add"
 alias gp="git push"
+alias clone-doom="git clone --recurse-submodules git@github.com:aahsnr-configs/doom.git ~/.config/doom"
 alias aic="aicommits"
 alias upgrade="topgrade"
 alias listPkgs='paru -Qq > packages.list'

@@ -1,5 +1,6 @@
 # ~/.config/home-manager/dev/default.nix
-{ pkgs, ... }:
+{ pkgs, aicommit2, ... }:
+
 {
   home.packages = with pkgs; [
     nixd
@@ -9,6 +10,7 @@
     nix-prefetch
     nix-prefetch-github
     nil
+    aicommit2.packages.${pkgs.stdenv.hostPlatform.system}.default
  ];
 
 }
