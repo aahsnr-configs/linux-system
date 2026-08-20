@@ -10,7 +10,6 @@
     nix-prefetch
     nix-prefetch-github
     nil
-    aicommit2.packages.${pkgs.stdenv.hostPlatform.system}.default
- ];
+  ];
 
 }

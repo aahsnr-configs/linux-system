@@ -2,6 +2,8 @@
 { ... }:
 {
   catppuccin = {
+    autoEnable = true;
+    enable = true;
     atuin = {
       enable = true;
       flavor = "macchiato";

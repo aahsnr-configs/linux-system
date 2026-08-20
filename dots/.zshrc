@@ -801,3 +801,13 @@ if [[ "${INSIDE_EMACS%%,*}" = 'ghostel' ]]; then
     # Open Magit for the current directory
     alias gst='ghostel_cmd magit-status-setup-buffer'
 fi
+
+eval "$(devbox global shellenv)"
+
+# pnpm
+export PNPM_HOME="/home/ahsan/.local/share/pnpm"
+case ":$PATH:" in
+  *":$PNPM_HOME/bin:"*) ;;
+  *) export PATH="$PNPM_HOME/bin:$PATH" ;;
+esac
+# pnpm end

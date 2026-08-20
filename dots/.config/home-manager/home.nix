@@ -3,7 +3,7 @@
   home = {
     username = "ahsan";
     homeDirectory = "/home/ahsan";
-    stateVersion = "26.05";
+    stateVersion = "26.11";
     extraOutputsToInstall = [
       "doc"
       "info"

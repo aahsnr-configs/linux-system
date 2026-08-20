@@ -27,8 +27,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    aicommit2.url = "github:tak-bro/aicommit2";
-
     niri-switch = {
       url = "github:Kiki-Bouba-Team/niri-switch";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -48,7 +46,6 @@
       home-manager,
       rust-overlay,
       catppuccin,
-      aicommit2,
       ...
     }@inputs:
     let
@@ -61,7 +58,6 @@
           inherit inputs;
           inherit rust-overlay;
           inherit catppuccin;
-          inherit aicommit2;
         };
 
         # Specify your home configuration modules here, for example,
