@@ -232,6 +232,26 @@
         "type": "github"
       }
     },
+    "nix-vscode-extensions": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1787189790,
+        "narHash": "sha256-nxn1PrNDZ45AzoiZse3Uu+X5UH+Uj95wuWTzggC5V+k=",
+        "owner": "nix-community",
+        "repo": "nix-vscode-extensions",
+        "rev": "81ab2acb9f2f2312c4fba3ad21923c173ad20693",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-community",
+        "repo": "nix-vscode-extensions",
+        "type": "github"
+      }
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1786534138,
@@ -321,6 +341,7 @@
         "nfsm-flake": "nfsm-flake",
         "niri-scratchpad-flake": "niri-scratchpad-flake",
         "niri-switch": "niri-switch",
+        "nix-vscode-extensions": "nix-vscode-extensions",
         "nixpkgs": "nixpkgs_2",
         "nixpkgs-wayland": "nixpkgs-wayland",
         "rust-overlay": "rust-overlay",

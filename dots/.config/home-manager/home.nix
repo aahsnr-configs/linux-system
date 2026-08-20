@@ -33,13 +33,6 @@
     ./pkgs
   ];
 
-  nixpkgs = {
-    config = {
-      allowUnfree = true;
-      nvidia.acceptLicense = true;
-    };
-  };
-
   # Let Home Manager install and manage itself.
   programs.home-manager.enable = true;
 }

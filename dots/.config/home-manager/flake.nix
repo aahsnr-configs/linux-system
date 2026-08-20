@@ -37,6 +37,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    nix-vscode-extensions = {
+      url = "github:nix-community/nix-vscode-extensions";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
   };
 
   outputs =
@@ -46,6 +51,7 @@
       home-manager,
       rust-overlay,
       catppuccin,
+      nix-vscode-extensions,
       ...
     }@inputs:
     let
@@ -54,6 +60,10 @@
     {
       homeConfigurations."ahsan" = home-manager.lib.homeManagerConfiguration {
         pkgs = import nixpkgs { inherit system; };
+        overlays = [
+          rust-overlay.overlays.default
+          nix-vscode-extensions.overlays.default
+        ];
         extraSpecialArgs = {
           inherit inputs;
           inherit rust-overlay;
