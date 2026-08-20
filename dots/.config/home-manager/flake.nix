@@ -56,25 +56,39 @@
     }@inputs:
     let
       system = "x86_64-linux";
-    in
-    {
-      homeConfigurations."ahsan" = home-manager.lib.homeManagerConfiguration {
-        pkgs = import nixpkgs { inherit system; };
+
+      # `home-manager.lib.homeManagerConfiguration` only accepts `pkgs`,
+      # `modules`, `extraSpecialArgs`, `lib` and `check` — it has no
+      # `overlays` argument of its own. Passing `overlays = [ ... ]`
+      # alongside `pkgs` (as the original did) is an unrecognised
+      # argument and fails evaluation outright. Overlays have to be
+      # baked into `pkgs` itself before it's handed over.
+      pkgs = import nixpkgs {
+        inherit system;
+        config = {
+          allowUnfree = true;
+          nvidia.acceptLicense = true;
+        };
         overlays = [
           rust-overlay.overlays.default
           nix-vscode-extensions.overlays.default
         ];
+      };
+    in
+    {
+      homeConfigurations."ahsan" = home-manager.lib.homeManagerConfiguration {
+        inherit pkgs;
         extraSpecialArgs = {
           inherit inputs;
           inherit rust-overlay;
-          inherit catppuccin;
+          # inherit catppuccin;
         };
 
         # Specify your home configuration modules here, for example,
         # the path to your home.nix.
         modules = [
           ./home.nix
-          catppuccin.homeModules.catppuccin
+          # catppuccin.homeModules.catppuccin
         ];
       };
     };

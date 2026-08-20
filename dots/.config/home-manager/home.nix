@@ -10,6 +10,13 @@
       "devdoc"
     ];
 
+    # nixpkgs' Electron/Chromium-based packages (VSCodium included) check
+    # this variable in their wrapper script and switch to native Wayland
+    # rendering instead of falling back to XWayland. Under Hyprland this
+    # means smoother scrolling/resizing and noticeably lower input latency.
+    sessionVariables = {
+      NIXOS_OZONE_WL = "1";
+    };
   };
 
   # Home Manager is pretty good at managing dotfiles. The primary way to manage
@@ -31,6 +38,7 @@
     ./direnv
     ./dev
     ./pkgs
+    ./vscode
   ];
 
   # Let Home Manager install and manage itself.
