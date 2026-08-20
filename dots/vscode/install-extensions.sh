@@ -1,0 +1,12 @@
+code --install-extension bearylabs.doom
+code --install-extension catppuccin.catppuccin-vsc
+code --install-extension charliermarsh.ruff
+code --install-extension james-yu.latex-workshop
+code --install-extension kahole.magit
+code --install-extension ltex-plus.vscode-ltex-plus
+code --install-extension ms-python.python
+code --install-extension ms-python.vscode-pylance
+code --install-extension ms-toolsai.jupyter
+code --install-extension vscodevim.vim
+code --install-extension vspacecode.vspacecode
+code --install-extension vspacecode.whichkey

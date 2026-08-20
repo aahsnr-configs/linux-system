@@ -1,6 +1,6 @@
 {
   "[bibtex]": {
-    "editor.tabSize": 2,
+    "editor.tabSize": 4,
     "editor.wordWrap": "on"
   },
   "[latex]": {
@@ -10,7 +10,7 @@
       "other": true,
       "strings": true
     },
-    "editor.tabSize": 2,
+    "editor.tabSize": 4,
     "editor.wordWrap": "on"
   },
   "[python]": {
@@ -36,8 +36,8 @@
   "editor.smoothScrolling": true,
   "editor.snippetSuggestions": "top",
   "editor.suggest.snippetsPreventQuickSuggestions": false,
-  "extensions.autoCheckUpdates": false,
-  "extensions.autoUpdate": false,
+  "extensions.autoCheckUpdates": true,
+  "extensions.autoUpdate": "on",
   "extensions.experimental.affinity": {
     "ltex-plus.vscode-ltex-plus": 2,
     "vscodevim.vim": 1
@@ -333,7 +333,7 @@
       ]
     }
   ],
-  "vim.timeout": 300,
+  "vim.timeout": 200,
   "vim.useSystemClipboard": true,
   "vim.visualModeKeyBindingsNonRecursive": [
     {
@@ -566,7 +566,7 @@
   "workbench.activityBar.location": "hidden",
   "workbench.browser.searchEngine": "google",
   "workbench.browser.showInTitleBar": false,
-  "workbench.colorTheme": "Catppuccin Mocha",
+  "workbench.colorTheme": "Tokyo Night",
   "workbench.commandPalette.experimental.suggestCommands": false,
   "workbench.editor.editorActionsLocation": "hidden",
   "workbench.editor.enablePreview": false,
