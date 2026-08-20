@@ -34,7 +34,7 @@
     ./direnv
     ./dev
     ./pkgs
-    ./vscodium
+    # ./vscodium
   ];
 
   # Let Home Manager install and manage itself.

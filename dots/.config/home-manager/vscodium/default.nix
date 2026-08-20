@@ -3,8 +3,8 @@
 {
   programs.vscodium = {
     enable = true;
-    package = pkgs.vscodium;
-    mutableExtensionsDir = false;
+    # package = pkgs.vscodium;
+    mutableExtensionsDir = true;
 
     profiles.default = {
       userSettings = {

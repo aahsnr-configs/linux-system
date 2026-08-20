@@ -1,0 +1,578 @@
+{
+  "[bibtex]": {
+    "editor.tabSize": 2,
+    "editor.wordWrap": "on"
+  },
+  "[latex]": {
+    "editor.defaultFormatter": "James-Yu.latex-workshop",
+    "editor.quickSuggestions": {
+      "comments": false,
+      "other": true,
+      "strings": true
+    },
+    "editor.tabSize": 2,
+    "editor.wordWrap": "on"
+  },
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true
+  },
+  "accessibility.voice.keywordActivation": false,
+  "accessibility.voice.speechTimeout": 0,
+  "breadcrumbs.enabled": true,
+  "chat.commandCenter.enabled": false,
+  "chat.titleBar.openInAgentsWindow.enabled": false,
+  "doom.dashboard.openOnActivation": false,
+  "editor.cursorSmoothCaretAnimation": "off",
+  "editor.fontFamily": "'JetBrainsMono Nerd Font Mono', 'JetBrainsMono Nerd Font', monospace",
+  "editor.fontLigatures": true,
+  "editor.fontSize": 14,
+  "editor.formatOnSave": true,
+  "editor.inlineSuggest.enabled": false,
+  "editor.inlineSuggest.showToolbar": "never",
+  "editor.inlineSuggest.syntaxHighlightingEnabled": false,
+  "editor.minimap.enabled": true,
+  "editor.occurrencesHighlight": "off",
+  "editor.smoothScrolling": true,
+  "editor.snippetSuggestions": "top",
+  "editor.suggest.snippetsPreventQuickSuggestions": false,
+  "extensions.autoCheckUpdates": false,
+  "extensions.autoUpdate": false,
+  "extensions.experimental.affinity": {
+    "ltex-plus.vscode-ltex-plus": 2,
+    "vscodevim.vim": 1
+  },
+  "extensions.ignoreRecommendations": true,
+  "files.associations": {
+    "*.bib": "bibtex",
+    "*.bst": "bibtex",
+    "*.cls": "latex",
+    "*.sty": "latex",
+    "*.tex": "latex"
+  },
+  "files.encoding": "utf8",
+  "files.exclude": {
+    "**/.mypy_cache": true,
+    "**/.pytest_cache": true,
+    "**/__pycache__": true
+  },
+  "files.hotExit": "off",
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": true,
+  "files.trimTrailingWhitespace": true,
+  "files.watcherExclude": {
+    "**/*.aux": true,
+    "**/*.bbl": true,
+    "**/*.bcf": true,
+    "**/*.blg": true,
+    "**/*.fdb_latexmk": true,
+    "**/*.fls": true,
+    "**/*.lof": true,
+    "**/*.log": true,
+    "**/*.lot": true,
+    "**/*.out": true,
+    "**/*.run.xml": true,
+    "**/*.synctex.gz": true,
+    "**/*.toc": true,
+    "**/.git/objects/**": true,
+    "**/.mypy_cache/**": true,
+    "**/.pytest_cache/**": true,
+    "**/.venv/**": true,
+    "**/__pycache__/**": true,
+    "**/venv/**": true
+  },
+  "git.autofetch": false,
+  "github.copilot.enable": {
+    "*": false,
+    "markdown": false,
+    "plaintext": false,
+    "scminput": false
+  },
+  "inlineChat.holdToSpeech": false,
+  "inlineChat.mode": "hidden",
+  "json.schemaDownload.trustedDomains": {
+    "https://developer.microsoft.com/json-schemas/": true,
+    "https://json-schema.org/": true,
+    "https://json.schemastore.org/": true,
+    "https://raw.githubusercontent.com": true,
+    "https://raw.githubusercontent.com/devcontainers/spec/": true,
+    "https://raw.githubusercontent.com/microsoft/vscode/": true,
+    "https://schemastore.azurewebsites.net/": true,
+    "https://www.schemastore.org/": true
+  },
+  "latex-workshop.hover.command.enabled": true,
+  "latex-workshop.hover.preview.enabled": true,
+  "latex-workshop.hover.preview.mathjax.enabled": true,
+  "latex-workshop.intellisense.citation.enabled": true,
+  "latex-workshop.intellisense.label.enabled": true,
+  "latex-workshop.intellisense.package.enabled": true,
+  "latex-workshop.latex.autoBuild.run": "onSave",
+  "latex-workshop.latex.autoClean.run": "onFailed",
+  "latex-workshop.latex.build.enableMagicComments": true,
+  "latex-workshop.latex.clean.fileTypes": [
+    ".aux",
+    ".bbl",
+    ".blg",
+    ".idx",
+    ".ind",
+    ".lof",
+    ".lot",
+    ".out",
+    ".toc",
+    ".acn",
+    ".acr",
+    ".alg",
+    ".glg",
+    ".glo",
+    ".gls",
+    ".fls",
+    ".log",
+    ".fdb_latexmk",
+    ".snm",
+    ".nav",
+    ".dvi",
+    ".run.xml",
+    ".bcf",
+    ".synctex.gz"
+  ],
+  "latex-workshop.latex.outDir": "%DIR%",
+  "latex-workshop.latex.recipe.default": "lastUsed",
+  "latex-workshop.latex.recipes": [
+    {
+      "name": "latexmk pdflatex",
+      "tools": [
+        "latexmk-pdf"
+      ]
+    },
+    {
+      "name": "latexmk xelatex",
+      "tools": [
+        "latexmk-xelatex"
+      ]
+    },
+    {
+      "name": "latexmk lualatex",
+      "tools": [
+        "latexmk-lualatex"
+      ]
+    },
+    {
+      "name": "pdflatex -> bibtex -> pdflatex x2",
+      "tools": [
+        "pdflatex",
+        "bibtex",
+        "pdflatex",
+        "pdflatex"
+      ]
+    },
+    {
+      "name": "xelatex -> biber -> xelatex x2",
+      "tools": [
+        "xelatex",
+        "biber",
+        "xelatex",
+        "xelatex"
+      ]
+    }
+  ],
+  "latex-workshop.latex.tools": [
+    {
+      "args": [
+        "-synctex=1",
+        "-interaction=nonstopmode",
+        "-file-line-error",
+        "-pdf",
+        "-outdir=%OUTDIR%",
+        "%DOC%"
+      ],
+      "command": "latexmk",
+      "env": {},
+      "name": "latexmk-pdf"
+    },
+    {
+      "args": [
+        "-synctex=1",
+        "-interaction=nonstopmode",
+        "-file-line-error",
+        "-xelatex",
+        "-outdir=%OUTDIR%",
+        "%DOC%"
+      ],
+      "command": "latexmk",
+      "env": {},
+      "name": "latexmk-xelatex"
+    },
+    {
+      "args": [
+        "-synctex=1",
+        "-interaction=nonstopmode",
+        "-file-line-error",
+        "-lualatex",
+        "-outdir=%OUTDIR%",
+        "%DOC%"
+      ],
+      "command": "latexmk",
+      "env": {},
+      "name": "latexmk-lualatex"
+    },
+    {
+      "args": [
+        "-synctex=1",
+        "-interaction=nonstopmode",
+        "-file-line-error",
+        "%DOC%"
+      ],
+      "command": "pdflatex",
+      "env": {},
+      "name": "pdflatex"
+    },
+    {
+      "args": [
+        "-synctex=1",
+        "-interaction=nonstopmode",
+        "-file-line-error",
+        "%DOC%"
+      ],
+      "command": "xelatex",
+      "env": {},
+      "name": "xelatex"
+    },
+    {
+      "args": [
+        "-synctex=1",
+        "-interaction=nonstopmode",
+        "-file-line-error",
+        "%DOC%"
+      ],
+      "command": "lualatex",
+      "env": {},
+      "name": "lualatex"
+    },
+    {
+      "args": [
+        "%DOCFILE%"
+      ],
+      "command": "biber",
+      "env": {},
+      "name": "biber"
+    },
+    {
+      "args": [
+        "%DOCFILE%"
+      ],
+      "command": "bibtex",
+      "env": {},
+      "name": "bibtex"
+    }
+  ],
+  "latex-workshop.latexindent.enabled": true,
+  "latex-workshop.latexindent.path": "latexindent",
+  "latex-workshop.linting.chktex.enabled": true,
+  "latex-workshop.message.error.show": true,
+  "latex-workshop.message.warning.show": false,
+  "latex-workshop.synctex.afterBuild.enabled": true,
+  "latex-workshop.view.pdf.internal.synctex.keybinding": "double-click",
+  "latex-workshop.view.pdf.viewer": "tab",
+  "ltex.checkFrequency": "save",
+  "ltex.diagnosticSeverity": "information",
+  "ltex.language": "en-US",
+  "notebook.experimental.cellChat": false,
+  "notebook.experimental.generate": false,
+  "notebook.formatOnSave.enabled": true,
+  "python.analysis.autoImportCompletions": true,
+  "python.analysis.diagnosticMode": "openFilesOnly",
+  "python.analysis.typeCheckingMode": "basic",
+  "search.exclude": {
+    "**/*.aux": true,
+    "**/*.bbl": true,
+    "**/*.bcf": true,
+    "**/*.blg": true,
+    "**/*.fdb_latexmk": true,
+    "**/*.fls": true,
+    "**/*.lof": true,
+    "**/*.log": true,
+    "**/*.lot": true,
+    "**/*.out": true,
+    "**/*.run.xml": true,
+    "**/*.synctex.gz": true,
+    "**/*.toc": true,
+    "**/.mypy_cache": true,
+    "**/.pytest_cache": true,
+    "**/.venv": true,
+    "**/__pycache__": true,
+    "**/venv": true
+  },
+  "search.followSymlinks": false,
+  "telemetry.telemetryLevel": "off",
+  "terminal.integrated.fontFamily": "'JetBrainsMono Nerd Font Mono', 'JetBrainsMono Nerd Font', monospace",
+  "terminal.integrated.fontSize": 14,
+  "terminal.integrated.shellIntegration.decorationsEnabled": "never",
+  "terminal.integrated.suggest.enabled": false,
+  "update.mode": "none",
+  "vim.easymotion": true,
+  "vim.hlsearch": true,
+  "vim.normalModeKeyBindingsNonRecursive": [
+    {
+      "before": [
+        "<space>"
+      ],
+      "commands": [
+        "vspacecode.space"
+      ]
+    },
+    {
+      "before": [
+        ","
+      ],
+      "commands": [
+        "vspacecode.space",
+        {
+          "args": "m",
+          "command": "whichkey.triggerKey"
+        }
+      ]
+    }
+  ],
+  "vim.timeout": 300,
+  "vim.useSystemClipboard": true,
+  "vim.visualModeKeyBindingsNonRecursive": [
+    {
+      "before": [
+        "<space>"
+      ],
+      "commands": [
+        "vspacecode.space"
+      ]
+    },
+    {
+      "before": [
+        ","
+      ],
+      "commands": [
+        "vspacecode.space",
+        {
+          "args": "m",
+          "command": "whichkey.triggerKey"
+        }
+      ]
+    },
+    {
+      "before": [
+        ">"
+      ],
+      "commands": [
+        "editor.action.indentLines"
+      ]
+    },
+    {
+      "before": [
+        "<"
+      ],
+      "commands": [
+        "editor.action.outdentLines"
+      ]
+    }
+  ],
+  "vspacecode.bindingOverrides": [
+    {
+      "bindings": [
+        {
+          "command": "notebook.cell.execute",
+          "key": "x",
+          "name": "Execute cell",
+          "type": "command"
+        },
+        {
+          "command": "notebook.cell.executeAndSelectBelow",
+          "key": "n",
+          "name": "Execute + next",
+          "type": "command"
+        },
+        {
+          "command": "notebook.cell.executeAndInsertBelow",
+          "key": "i",
+          "name": "Execute + insert below",
+          "type": "command"
+        },
+        {
+          "command": "notebook.cell.insertCodeCellAbove",
+          "key": "a",
+          "name": "Insert cell above",
+          "type": "command"
+        },
+        {
+          "command": "notebook.cell.insertCodeCellBelow",
+          "key": "b",
+          "name": "Insert cell below",
+          "type": "command"
+        },
+        {
+          "command": "notebook.cell.delete",
+          "key": "d",
+          "name": "Delete cell",
+          "type": "command"
+        }
+      ],
+      "keys": "n",
+      "name": "Notebook...",
+      "type": "bindings"
+    },
+    {
+      "bindings": [
+        {
+          "command": "workbench.action.toggleSidebarVisibility",
+          "key": "s",
+          "name": "Sidebar",
+          "type": "command"
+        },
+        {
+          "command": "workbench.action.togglePanel",
+          "key": "p",
+          "name": "Panel (terminal/problems/output)",
+          "type": "command"
+        },
+        {
+          "command": "workbench.action.toggleStatusbarVisibility",
+          "key": "b",
+          "name": "Status bar",
+          "type": "command"
+        },
+        {
+          "command": "workbench.action.toggleZenMode",
+          "key": "z",
+          "name": "Zen mode",
+          "type": "command"
+        },
+        {
+          "command": "workbench.action.toggleFullScreen",
+          "key": "f",
+          "name": "Full screen",
+          "type": "command"
+        },
+        {
+          "command": "editor.action.toggleWordWrap",
+          "key": "w",
+          "name": "Word wrap",
+          "type": "command"
+        },
+        {
+          "command": "editor.action.toggleMinimap",
+          "key": "m",
+          "name": "Minimap",
+          "type": "command"
+        }
+      ],
+      "keys": "t",
+      "name": "Toggle...",
+      "type": "bindings"
+    },
+    {
+      "bindings": [
+        {
+          "command": "workbench.view.explorer",
+          "key": "p",
+          "name": "Project explorer",
+          "type": "command"
+        },
+        {
+          "command": "workbench.action.terminal.toggleTerminal",
+          "key": "t",
+          "name": "Terminal",
+          "type": "command"
+        },
+        {
+          "command": "workbench.view.search",
+          "key": "s",
+          "name": "Search",
+          "type": "command"
+        },
+        {
+          "command": "workbench.view.scm",
+          "key": "g",
+          "name": "Source control",
+          "type": "command"
+        },
+        {
+          "command": "workbench.view.debug",
+          "key": "d",
+          "name": "Debug",
+          "type": "command"
+        },
+        {
+          "command": "workbench.extensions.action.showInstalledExtensions",
+          "key": "x",
+          "name": "Extensions",
+          "type": "command"
+        }
+      ],
+      "keys": "o",
+      "name": "Open view...",
+      "type": "bindings"
+    },
+    {
+      "bindings": [
+        {
+          "command": "latex-workshop.build",
+          "key": "b",
+          "name": "Build LaTeX project",
+          "type": "command"
+        },
+        {
+          "command": "latex-workshop.view",
+          "key": "v",
+          "name": "View PDF",
+          "type": "command"
+        },
+        {
+          "command": "latex-workshop.synctex",
+          "key": "j",
+          "name": "SyncTeX from cursor",
+          "type": "command"
+        },
+        {
+          "command": "latex-workshop.clean",
+          "key": "c",
+          "name": "Clean auxiliary files",
+          "type": "command"
+        },
+        {
+          "command": "latex-workshop.kill",
+          "key": "k",
+          "name": "Kill LaTeX compiler process",
+          "type": "command"
+        },
+        {
+          "command": "latex-workshop.recipes",
+          "key": "r",
+          "name": "Build with recipe",
+          "type": "command"
+        },
+        {
+          "command": "latex-workshop.compilerlog",
+          "key": "l",
+          "name": "View compiler log",
+          "type": "command"
+        }
+      ],
+      "keys": "m",
+      "name": "LaTeX...",
+      "type": "bindings"
+    }
+  ],
+  "whichkey.delay": 200,
+  "whichkey.sortOrder": "alphabetically",
+  "window.titleBarStyle": "custom",
+  "window.zoomLevel": 1,
+  "workbench.activityBar.location": "hidden",
+  "workbench.browser.searchEngine": "google",
+  "workbench.browser.showInTitleBar": false,
+  "workbench.colorTheme": "Catppuccin Mocha",
+  "workbench.commandPalette.experimental.suggestCommands": false,
+  "workbench.editor.editorActionsLocation": "hidden",
+  "workbench.editor.enablePreview": false,
+  "workbench.editor.showTabs": "none",
+  "workbench.layoutControl.enabled": false,
+  "workbench.list.smoothScrolling": false,
+  "workbench.reduceMotion": "on",
+  "workbench.startupEditor": "none"
+}
