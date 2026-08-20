@@ -15,7 +15,11 @@
   },
   "[python]": {
     "editor.defaultFormatter": "charliermarsh.ruff",
-    "editor.formatOnSave": true
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll.ruff": "explicit",
+      "source.organizeImports.ruff": "explicit"
+    }
   },
   "accessibility.voice.keywordActivation": false,
   "accessibility.voice.speechTimeout": 0,
@@ -568,11 +572,13 @@
   "workbench.browser.showInTitleBar": false,
   "workbench.colorTheme": "Tokyo Night",
   "workbench.commandPalette.experimental.suggestCommands": false,
-  "workbench.editor.editorActionsLocation": "hidden",
   "workbench.editor.enablePreview": false,
   "workbench.editor.showTabs": "none",
   "workbench.layoutControl.enabled": false,
   "workbench.list.smoothScrolling": false,
   "workbench.reduceMotion": "on",
-  "workbench.startupEditor": "none"
+  "workbench.startupEditor": "none",
+  "window.menuBarVisibility": "compact",
+  "files.autoSave": "afterDelay",
+  "editor.wordWrap": "on"
 }

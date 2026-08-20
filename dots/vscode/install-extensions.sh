@@ -1,5 +1,4 @@
 code --install-extension bearylabs.doom
-code --install-extension catppuccin.catppuccin-vsc
 code --install-extension charliermarsh.ruff
 code --install-extension james-yu.latex-workshop
 code --install-extension kahole.magit
@@ -10,3 +9,4 @@ code --install-extension ms-toolsai.jupyter
 code --install-extension vscodevim.vim
 code --install-extension vspacecode.vspacecode
 code --install-extension vspacecode.whichkey
+code --install-extension enkia.tokyo-night
