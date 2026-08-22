@@ -39,6 +39,15 @@ hl.window_rule({
 	size = "1000 800",
 })
 
+-- Shelly
+hl.window_rule({
+	name = "shelly_floating",
+	match = { class = "^(com\\.shellyorg\\.shelly)$" },
+	float = true,
+	animation = "popin",
+	size = "500 400",
+})
+
 -- BleachBit
 hl.window_rule({
 	name = "bleachbit_floating",

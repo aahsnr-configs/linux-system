@@ -595,7 +595,7 @@ alias clone-doom="git clone --recurse-submodules git@github.com:aahsnr-configs/d
 alias aic="aicommits"
 alias upgrade="topgrade"
 alias listPkgs='paru -Qq > packages.list'
-alias delOrphans='paru -Rns $(paru -Qtdq)'
+alias delOrphans='sudo pacman -Rns $(sudo pacman -Qtdq)'
 alias delCache='paru -Scc'
 alias tuimacs="emacsclient -t -a 'emacs'"
 alias cat='bat --paging=never'
@@ -802,12 +802,10 @@ if [[ "${INSIDE_EMACS%%,*}" = 'ghostel' ]]; then
     alias gst='ghostel_cmd magit-status-setup-buffer'
 fi
 
-eval "$(devbox global shellenv)"
-
 # pnpm
 export PNPM_HOME="/home/ahsan/.local/share/pnpm"
 case ":$PATH:" in
-  *":$PNPM_HOME/bin:"*) ;;
-  *) export PATH="$PNPM_HOME/bin:$PATH" ;;
+*":$PNPM_HOME/bin:"*) ;;
+*) export PATH="$PNPM_HOME/bin:$PATH" ;;
 esac
 # pnpm end
