@@ -39,13 +39,30 @@ hl.window_rule({
 	size = "1000 800",
 })
 
--- Shelly
 hl.window_rule({
 	name = "shelly_floating",
 	match = { class = "^(com\\.shellyorg\\.shelly)$" },
 	float = true,
 	animation = "popin",
 	size = "500 400",
+})
+
+hl.window_rule({
+	name = "noctalia_settings_floating",
+	match = { class = "^(dev\\.noctalia\\.Noctalia)$", title = "^(Noctalia Settings)$" },
+	float = true,
+	center = true,
+	animation = "popin",
+	size = "600 600",
+})
+
+hl.window_rule({
+	name = "bitwarden_floating",
+	match = { class = "Bitwarden" },
+	float = true,
+	center = true,
+	animation = "popin",
+	size = "800 400",
 })
 
 -- BleachBit

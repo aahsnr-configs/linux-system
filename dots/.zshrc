@@ -595,7 +595,7 @@ alias clone-doom="git clone --recurse-submodules git@github.com:aahsnr-configs/d
 alias aic="aicommits"
 alias upgrade="topgrade"
 alias listPkgs='paru -Qq > packages.list'
-alias delOrphans='sudo pacman -Rns $(sudo pacman -Qtdq)'
+alias delOrphans='paru -Rns $(paru -Qtdq)'
 alias delCache='paru -Scc'
 alias tuimacs="emacsclient -t -a 'emacs'"
 alias cat='bat --paging=never'

@@ -6,7 +6,7 @@ local M = {}
 
 M.terminal = "kitty"
 M.browser = "brave"
-M.guifm = "nautilus"
+M.guifm = "thunar"
 M.editor = "emacsclient -c -a 'emacs'"
 M.ipc = "noctalia msg "
 M.screenshot = "~/bin/screenshot"

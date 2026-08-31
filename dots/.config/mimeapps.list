@@ -10,7 +10,7 @@ audio/aac=io.bassi.Amberol.desktop
 video/mp4=io.github.celluloid_player.Celluloid.desktop
 video/x-msvideo=io.github.celluloid_player.Celluloid.desktop
 video/x-matroska=io.github.celluloid_player.Celluloid.desktop
-application/pdf=org.pwmt.zathura-pdf-mupdf.desktop
+application/pdf=org.pwmt.zathura-pdf-poppler.desktop
 application/json=brave-browser.desktop
 text/html=brave-browser.desktop
 x-scheme-handler/http=brave-browser.desktop
@@ -27,12 +27,13 @@ application/x-extension-xht=zen.desktop
 x-scheme-handler/discord=vesktop.desktop
 x-scheme-handler/etcher=balenaEtcher.desktop
 x-scheme-handler/magnet=userapp-transmission-gtk-Q15FO3.desktop
+x-scheme-handler/claude=com.anthropic.Claude.desktop
 
 [Added Associations]
 x-scheme-handler/http=zen.desktop;
 x-scheme-handler/https=zen.desktop;
 x-scheme-handler/chrome=zen.desktop;
 application/x-shellscript=nvim.desktop;
-application/pdf=org.pwmt.zathura-pdf-mupdf.desktop;org.gnome.Papers.desktop;
+application/pdf=org.pwmt.zathura-pdf-mupdf.desktop;org.gnome.Papers.desktop;org.pwmt.zathura-pdf-poppler.desktop;
 image/vnd.djvu+multipage=org.pwmt.zathura-djvu.desktop;
 x-scheme-handler/magnet=userapp-transmission-gtk-Q15FO3.desktop;
