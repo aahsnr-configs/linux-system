@@ -3,40 +3,8 @@
 # ----------------------------------
 # Catppuccin Macchiato Theme
 # ----------------------------------
-set default-bg                  "#24273a"  # base
-set default-fg                  "#cad3f5"  # text
 
-set statusbar-fg                "#cad3f5"  # text
-set statusbar-bg                "#5b6078"  # surface2
-
-set inputbar-bg                 "#24273a"  # base
-set inputbar-fg                 "#cad3f5"  # text
-
-set notification-bg             "#24273a"  # base
-set notification-fg             "#cad3f5"  # text
-set notification-error-bg       "#24273a"  # base
-set notification-error-fg       "#ed8796"  # red
-set notification-warning-bg     "#24273a"  # base
-set notification-warning-fg     "#f5a97f"  # peach
-
-set highlight-color             "#f5bde6"  # pink
-set highlight-active-color      "#f4dbd6"  # rosewater
-
-set completion-highlight-fg     "#24273a"  # base
-set completion-highlight-bg     "#8aadf4"  # blue
-set completion-bg               "#363a4f"  # surface0
-set completion-fg               "#cad3f5"  # text
-
-set index-fg                    "#cad3f5"  # text
-set index-bg                    "#24273a"  # base
-set index-active-fg             "#24273a"  # base
-set index-active-bg             "#8aadf4"  # blue
-
-set render-loading-fg           "#cad3f5"  # text
-set render-loading-bg           "#24273a"  # base
-
-set recolor-lightcolor          "#24273a"  # base
-set recolor-darkcolor           "#cad3f5"  # text
+include noctaliarc
 
 # ----------------------------------
 # Display Settings
@@ -46,11 +14,9 @@ set recolor-keephue             "true"
 set adjust-open                 "best-fit"
 set pages-per-row               1
 set first-page-column           "1:1"
-set page-padding                1
 set scroll-page-aware           "true"
 set scroll-full-overlap         0.01
 set scroll-step                 50
-set smooth-scroll               "true"
 set scroll-wrap                 "false"
 set render-loading              "false"
 
@@ -75,7 +41,6 @@ set search-hadjust              "true"
 # ----------------------------------
 set selection-clipboard         "clipboard"
 set dbus-service                "true"
-set sandbox                     "strict"
 set synctex true
 set synctex-editor-command "emacsclient +%{line} %{input}"
 
