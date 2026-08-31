@@ -64,7 +64,7 @@ edit = [
 ]
 
 view_pdf = [
-    { run = 'zathura "$1"',  desc = "Zathura",           orphan = true, for = "linux" },
+    { run = 'zathura "$@"',  desc = "Zathura",           orphan = true, for = "linux" },
     { run = 'xdg-open "$1"', desc = "Default PDF viewer",               for = "linux" },
 ]
 
