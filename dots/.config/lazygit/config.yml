@@ -18,31 +18,31 @@ gui:
   # ── Layout ─────────────────────────────────────────────────────────────────
   theme:
     activeBorderColor:
-      - "#c5c0ff"
+      - "#989ab3"
       - bold
     inactiveBorderColor:
-      - "#c8c4dc"
+      - "#908da5"
     searchingActiveBorderColor:
-      - "#ebb8d0"
+      - "#988fa3"
       - bold
     optionsTextColor:
-      - "#c8c5d0"
+      - "#b0b1b5"
     selectedLineBgColor:
-      - "#2a292f"
+      - "#2a2b32"
     inactiveViewSelectedLineBgColor:
       - bold
     cherryPickedCommitFgColor:
-      - "#c8c5d0"
+      - "#b0b1b5"
     cherryPickedCommitBgColor:
-      - "#ebb8d0"
+      - "#988fa3"
     markedBaseCommitFgColor:
-      - "#ebb8d0"
+      - "#988fa3"
     markedBaseCommitBgColor:
-      - "#ffb4ab"
+      - "#fd4663"
     unstagedChangesColor:
-      - "#ffb4ab"
+      - "#fd4663"
     defaultFgColor:
-      - "#e5e1e9"
+      - "#f2f2f3"
   screenMode: normal # normal | half | full  (toggle: +/_)
   sidePanelWidth: 0.3333 # fraction of screen width [0–1]; 1/3 default
   expandFocusedSidePanel: true # accordion effect: focused panel grows taller
