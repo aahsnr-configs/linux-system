@@ -14,12 +14,5 @@ require("hyprland/workspaces")
 require("hyprland/binds")
 require("hyprland/autostart")
 
--- Noctalia color theme (must be converted to .lua)
--- TODO(verify): Convert noctalia-colors.conf to a .lua module calling hl.config()
-require("noctalia/noctalia-colors")
-
 -- For Noctalia Color templates
 require("noctalia").apply_theme()
-
--- HyprMod managed settings
-require("hyprland-gui")

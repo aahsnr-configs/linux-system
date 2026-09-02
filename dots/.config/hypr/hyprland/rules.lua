@@ -57,6 +57,15 @@ hl.window_rule({
 })
 
 hl.window_rule({
+	name = "lutris floating",
+	match = { class = "^(net\\.lutris\\.Lutris)$" },
+	float = true,
+	center = true,
+	animation = "popin",
+	size = "1000 800",
+})
+
+hl.window_rule({
 	name = "bitwarden_floating",
 	match = { class = "Bitwarden" },
 	float = true,
