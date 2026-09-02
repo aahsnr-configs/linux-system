@@ -13,5 +13,9 @@ return {
   { import = "astrocommunity.pack.nix" },
   { import = "astrocommunity.pack.bash" },
   { import = "astrocommunity.pack.prettier" },
+  { import = "astrocommunity.pack.python.base" },
+  { import = "astrocommunity.pack.python.pyrefly" },
+  { import = "astrocommunity.pack.python.ruff" },
+
   -- import/override with your plugins folder
 }
