@@ -43,14 +43,14 @@ mkdir -p "$HOME/.npm-global"
 npm config set prefix "$HOME/.npm-global"
 
 cd && git clone https://aur.archlinux.org/emacs-lsp-booster-git.git
-cd emacs-lsp-booster-git
+cd emacs-lsp-booster-git || exit
 rustup default nightly
 makepkg -si
-cd
+cd || exit
 
 rustup default stable
 
-chsh -s $(which zsh)
+chsh -s "$(which zsh)"
 
 # TODO: Need to finish this command
 #cp -R custom systemd services user
