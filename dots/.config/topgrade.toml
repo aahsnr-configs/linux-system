@@ -203,7 +203,7 @@
 # Arch Package Manager to use.
 # Allowed values:
 #   autodetect, aura, garuda_update, pacman, pamac, paru, pikaur, shelly, trizen, yay
-arch_package_manager = "shelly"
+arch_package_manager = "autodetect"
 
 # Arguments to pass yay (or paru) when updating packages
 # yay_arguments = "--nodevel"
@@ -224,7 +224,7 @@ arch_package_manager = "shelly"
 
 # pamac_arguments = "--no-devel"
 
-shelly_arguments = "-U"
+# shelly_arguments = ""
 
 enable_tlmgr = true
 
@@ -265,7 +265,7 @@ enable = true
 # Enable the pkgfile step (to update the pkgfile database).
 # Pkgfile is sometimes installed by default, but often not used and heavy to update.
 # (default: false)
-# enable = true
+enable = true
 
 
 [git]

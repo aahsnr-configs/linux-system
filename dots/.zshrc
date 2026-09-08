@@ -809,3 +809,13 @@ case ":$PATH:" in
 *) export PATH="$PNPM_HOME/bin:$PATH" ;;
 esac
 # pnpm end
+#
+# export PATH="$HOME/miniconda3/condabin:$PATH"
+# source "$HOME/miniconda3/etc/profile.d/conda.sh"
+# conda config --set auto_activate_base false
+
+# bun completions
+[ -s "/home/ahsan/.bun/_bun" ] && source "/home/ahsan/.bun/_bun"
+
+# opencode
+export PATH=/home/ahsan/.opencode/bin:$PATH
