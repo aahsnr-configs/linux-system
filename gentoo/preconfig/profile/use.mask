@@ -1,4 +1,0 @@
--lto
--gmp-autoupdate
--vulkan
--jit

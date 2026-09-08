@@ -1,3 +1,0 @@
-cd && git clone https://github.com/H3rmt/hyprshell.git
-cd hyprshell
-cargo install hyprshell

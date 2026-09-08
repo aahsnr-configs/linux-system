@@ -1,2 +1,0 @@
-- [ ] make building ryzenadj work with opensuse tumbleweed
-- [ ] make pyprland building and installing work with tumbleweed
